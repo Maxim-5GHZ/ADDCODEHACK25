@@ -2,9 +2,7 @@ import uvicorn
 import dbrequest
 import random
 import subprocess
-import os
 import signal
-import time
 import re
 import logging
 from fastapi import FastAPI, HTTPException, Query
@@ -23,6 +21,7 @@ class controller():
         self.app = FastAPI()
         self.user_bd = dbrequest.requequest_to_user_login()
         self.user_data = dbrequest.request_to_user_data()
+        self.field_data = dbrequest.request_to_field_data()  # Добавляем экземпляр для работы с полями
 
         os.makedirs("html", exist_ok=True)
         os.makedirs("ico", exist_ok=True)
@@ -276,6 +275,258 @@ class controller():
                 "message": "Server is running",
                 "timestamp": time.time()
             }
+
+        @self.app.put("/data/update")
+        async def update_user_data(
+                token: str = Query(..., description="Токен пользователя"),
+                key_array: str = Query(..., description="Новый массив ключей")
+        ):
+            """Обновление данных пользователя по токену"""
+            logger.info(f"Запрос на обновление данных для токена: {token}")
+            try:
+                success = self.user_data.update_user_data(token, key_array)
+
+                if success:
+                    return {
+                        "status": "success",
+                        "message": "Данные успешно обновлены",
+                        "token": token
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "detail": "Токен не найден или данные не обновлены"
+                    }
+            except Exception as e:
+                logger.error(f"Ошибка при обновлении данных для токена {token}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.patch("/data/edit")
+        async def edit_user_data(
+                token: str = Query(..., description="Токен пользователя"),
+                new_keys: str = Query(None, description="Полная замена массива ключей"),
+                keys_to_add: str = Query(None, description="Ключи для добавления (через запятую)"),
+                keys_to_remove: str = Query(None, description="Ключи для удаления (через запятую)")
+        ):
+            """Частичное редактирование массива ключей"""
+            logger.info(f"Запрос на редактирование данных для токена: {token}")
+            try:
+                success = self.user_data.edit_key_array(
+                    token,
+                    new_keys,
+                    keys_to_add,
+                    keys_to_remove
+                )
+
+                if success:
+                    return {
+                        "status": "success",
+                        "message": "Данные успешно отредактированы",
+                        "token": token
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "detail": "Токен не найден или данные не отредактированы"
+                    }
+            except Exception as e:
+                logger.error(f"Ошибка при редактировании данных для токена {token}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.delete("/data/delete")
+        async def delete_user_data(
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            """Удаление данных пользователя по токену"""
+            logger.info(f"Запрос на удаление данных для токена: {token}")
+            try:
+                success = self.user_data.delete_user_data(token)
+
+                if success:
+                    return {
+                        "status": "success",
+                        "message": "Данные успешно удалены",
+                        "token": token
+                    }
+                else:
+                    return {
+                        "status": "error",
+                        "detail": "Токен не найден или данные не удалены"
+                    }
+            except Exception as e:
+                logger.error(f"Ошибка при удалении данных для токена {token}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.get("/data/check")
+        async def check_user_data_exists(
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            """Проверка существования данных пользователя"""
+            logger.info(f"Запрос проверки данных для токена: {token}")
+            try:
+                exists = self.user_data.user_data_exists(token)
+
+                return {
+                    "status": "success",
+                    "exists": exists,
+                    "token": token
+                }
+            except Exception as e:
+                logger.error(f"Ошибка при проверке данных для токена {token}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.post("/field/set")
+        async def set_field_data(
+                field: str = Query(..., description="Название поля"),
+                data: str = Query(..., description="Данные для сохранения"),
+                token: str = Query(..., description="Токен пользователя для авторизации")
+        ):
+            """
+            Установка или обновление данных для поля
+            """
+            logger.info(f"Запрос на установку данных для поля: {field}")
+
+            try:
+                # Проверяем авторизацию пользователя
+                if not self.user_bd.if_token_exist(token):
+                    logger.warning(f"Попытка установки данных с невалидным токеном: {token}")
+                    return {
+                        "status": "error",
+                        "detail": "Невалидный токен"
+                    }
+
+                success = self.field_data.edit_field_data(field, data)
+
+                if success:
+                    logger.info(f"Данные для поля {field} успешно установлены")
+                    return {
+                        "status": "success",
+                        "message": "Данные поля успешно сохранены",
+                        "field": field
+                    }
+                else:
+                    logger.error(f"Не удалось сохранить данные для поля: {field}")
+                    return {
+                        "status": "error",
+                        "detail": "Не удалось сохранить данные поля"
+                    }
+
+            except Exception as e:
+                logger.error(f"Ошибка при сохранении данных для поля {field}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.get("/field/get")
+        async def get_field_data(
+                field: str = Query(..., description="Название поля"),
+                token: str = Query(None, description="Токен пользователя (опционально)")
+        ):
+            """
+            Получение данных по названию поля
+            """
+            logger.info(f"Запрос данных для поля: {field}")
+
+            try:
+                # Опциональная проверка авторизации
+                if token and not self.user_bd.if_token_exist(token):
+                    logger.warning(f"Попытка получения данных с невалидным токеном: {token}")
+                    return {
+                        "status": "error",
+                        "detail": "Невалидный токен"
+                    }
+
+                data = self.field_data.get_field_data(field)
+
+                if data is not None:
+                    logger.info(f"Данные для поля {field} успешно получены")
+                    return {
+                        "status": "success",
+                        "field": field,
+                        "data": data
+                    }
+                else:
+                    logger.warning(f"Данные для поля {field} не найдены")
+                    return {
+                        "status": "dismiss",
+                        "message": "Данные поля не найдены",
+                        "field": field
+                    }
+
+            except Exception as e:
+                logger.error(f"Ошибка при получении данных для поля {field}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.delete("/field/delete")
+        async def delete_field_data(
+                field: str = Query(..., description="Название поля для удаления"),
+                token: str = Query(..., description="Токен пользователя для авторизации")
+        ):
+            """
+            Удаление данных поля
+            """
+            logger.info(f"Запрос на удаление данных поля: {field}")
+
+            try:
+                # Проверяем авторизацию пользователя
+                if not self.user_bd.if_token_exist(token):
+                    logger.warning(f"Попытка удаления данных с невалидным токеном: {token}")
+                    return {
+                        "status": "error",
+                        "detail": "Невалидный токен"
+                    }
+
+                success = self.field_data.delete_field_data(field)
+
+                if success:
+                    logger.info(f"Данные поля {field} успешно удалены")
+                    return {
+                        "status": "success",
+                        "message": "Данные поля успешно удалены",
+                        "field": field
+                    }
+                else:
+                    logger.warning(f"Поле {field} не найдено для удаления")
+                    return {
+                        "status": "error",
+                        "detail": "Поле не найдено"
+                    }
+
+            except Exception as e:
+                logger.error(f"Ошибка при удалении данных поля {field}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.get("/field/check")
+        async def check_field_exists(
+                field: str = Query(..., description="Название поля для проверки"),
+                token: str = Query(None, description="Токен пользователя (опционально)")
+        ):
+            """
+            Проверка существования поля
+            """
+            logger.info(f"Запрос проверки существования поля: {field}")
+
+            try:
+                # Опциональная проверка авторизации
+                if token and not self.user_bd.if_token_exist(token):
+                    logger.warning(f"Попытка проверки поля с невалидным токеном: {token}")
+                    return {
+                        "status": "error",
+                        "detail": "Невалидный токен"
+                    }
+
+                exists = self.field_data.field_exists(field)
+
+                return {
+                    "status": "success",
+                    "field": field,
+                    "exists": exists
+                }
+
+            except Exception as e:
+                logger.error(f"Ошибка при проверке поля {field}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+
+
 
     def run(self):
         logger.info("Запуск сервера...")

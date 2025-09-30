@@ -105,10 +105,6 @@ class requequest_to_user_login():
             return False
 
 
-
-"""класс для работы с данными пользователей"""
-
-
 class request_to_user_data():
     def __init__(self):
         self.user_data = "db/user_data.db"
@@ -304,6 +300,103 @@ class request_to_user_data():
         except Exception as e:
             logger.error(f"Ошибка при получении списка токенов: {e}")
             return []
+
+
+class request_to_field_data():
+    def __init__(self):
+        self.field_data = "db/field_data.db"
+        os.makedirs(os.path.dirname(self.field_data), exist_ok=True)
+        logger.info(f"Инициализация базы данных: {self.field_data}")
+        self._create_table()
+
+    def _create_table(self):
+        """Создает простую таблицу полей и данных"""
+        try:
+            with sqlite3.connect(self.field_data) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS field_data (
+                        field TEXT PRIMARY KEY,
+                        data TEXT NOT NULL
+                    )
+                ''')
+                conn.commit()
+                logger.info(f"Простая таблица field_data создана/проверена: {self.field_data}")
+        except Exception as e:
+            logger.error(f"Ошибка при создании таблицы field_data: {e}")
+            raise
+
+    def edit_field_data(self, field, data):
+        """Устанавливает или обновляет данные для поля"""
+        try:
+            logger.info(f"Установка данных для поля: {field}")
+            with sqlite3.connect(self.field_data) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    INSERT OR REPLACE INTO field_data (field, data)
+                    VALUES (?, ?)
+                ''', (field, data))
+                conn.commit()
+                logger.info(f"Данные для поля {field} успешно установлены")
+                return True
+        except Exception as e:
+            logger.error(f"Ошибка при установке данных для поля {field}: {e}")
+            return False
+
+    def get_field_data(self, field):
+        """Получает данные по названию поля"""
+        try:
+            logger.info(f"Запрос данных для поля: {field}")
+            with sqlite3.connect(self.field_data) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT data FROM field_data 
+                    WHERE field = ?
+                ''', (field,))
+                result = cursor.fetchone()
+                if result:
+                    logger.info(f"Данные найдены для поля: {field}")
+                    return result[0]
+                else:
+                    logger.warning(f"Данные не найдены для поля: {field}")
+                    return None
+        except Exception as e:
+            logger.error(f"Ошибка при получении данных для поля {field}: {e}")
+            return None
+
+    def delete_field_data(self, field):
+        """Удаляет данные поля"""
+        try:
+            logger.info(f"Удаление данных для поля: {field}")
+            with sqlite3.connect(self.field_data) as conn:
+                cursor = conn.cursor()
+                cursor.execute('DELETE FROM field_data WHERE field = ?', (field,))
+
+                if cursor.rowcount > 0:
+                    conn.commit()
+                    logger.info(f"Данные для поля {field} успешно удалены")
+                    return True
+                else:
+                    logger.warning(f"Поле {field} не найдено для удаления")
+                    return False
+        except Exception as e:
+            logger.error(f"Ошибка при удалении данных для поля {field}: {e}")
+            return False
+
+    def field_exists(self, field):
+        """Проверяет существование поля"""
+        try:
+            logger.debug(f"Проверка существования поля: {field}")
+            with sqlite3.connect(self.field_data) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT 1 FROM field_data WHERE field = ?', (field,))
+                exists = cursor.fetchone() is not None
+                logger.debug(f"Поле {field} существует: {exists}")
+                return exists
+        except Exception as e:
+            logger.error(f"Ошибка при проверке поля {field}: {e}")
+            return False
+
 
 
 
