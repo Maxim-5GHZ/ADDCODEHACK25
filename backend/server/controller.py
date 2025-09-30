@@ -104,23 +104,83 @@ class controller():
                 return FileResponse("html/index.html")
             except Exception as e:
                 logger.error(f"Ошибка при загрузке index.html: {e}")
-                return {"error": "Файл не найден", "detail": str(e)}
+                return {"status": "error", "detail": "Файл не найден"}
 
-        @self.app.post("/savedata{token}")
-        async def save_data_by_token(token:str):
-            self.user_data.save_user_data(token, key_array)
+        @self.app.post("/savedata")
+        async def save_data_by_token(
+            token: str = Query(..., description="Токен пользователя"),
+            key_array: str = Query(..., description="Массив ключей для сохранения")
+        ):
+            """
+            Сохраняет данные пользователя по токену
+            """
+            logger.info(f"Запрос на сохранение данных для токена: {token}")
 
-        @self.app.get("/givefield{token}")
-        async def get_field_by_token(token:str):
-            if (self.user_data.user_data_exists(token)):
-                keys = self.user_data.get_user_data(token)
-                return{"keys": keys}
-            else: return{"status": "dismiss"}
+            try:
+                if not self.user_bd.if_token_exist(token):
+                    logger.warning(f"Попытка сохранения данных для несуществующего токена: {token}")
+                    return {
+                        "status": "error",
+                        "detail": "Токен не найден"
+                    }
 
-        @self.app.get("/log{password}")
-        async def get_log(password : str):
-            if password == "12345": return FileResponse("app.log")
-            else:return "idi na xuy"
+                success = self.user_data.save_user_data(token, key_array)
+
+                if not success:
+                    logger.error(f"Не удалось сохранить данные для токена: {token}")
+                    return {
+                        "status": "error",
+                        "detail": "Не удалось сохранить данные"
+                    }
+
+                logger.info(f"Данные для токена {token} успешно сохранены")
+                return {
+                    "status": "success",
+                    "message": "Данные успешно сохранены",
+                    "token": token
+                }
+
+            except Exception as e:
+                logger.error(f"Ошибка при сохранении данных для токена {token}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.get("/givefield")
+        async def get_field_by_token(
+            token: str = Query(..., description="Токен пользователя")
+        ):
+            logger.info(f"Запрос данных для токена: {token}")
+            try:
+                if self.user_data.user_data_exists(token):
+                    keys = self.user_data.get_user_data(token)
+                    return {
+                        "status": "success",
+                        "keys": keys
+                    }
+                else:
+                    return {
+                        "status": "dismiss",
+                        "message": "Данные не найдены"
+                    }
+            except Exception as e:
+                logger.error(f"Ошибка при получении данных для токена {token}: {e}")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+        @self.app.get("/log")
+        async def get_log(
+            password: str = Query(..., description="Пароль администратора")
+        ):
+            logger.info("Запрос логов администратора")
+            try:
+                if password == "12345":
+                    return FileResponse("app.log")
+                else:
+                    return {
+                        "status": "error",
+                        "detail": "Доступ запрещен"
+                    }
+            except Exception as e:
+                logger.error(f"Ошибка при чтении логов: {e}")
+                return {"status": "error", "detail": "Файл логов не найден"}
 
         @self.app.get("/favicon.ico")
         async def ico():
@@ -129,56 +189,58 @@ class controller():
                 return FileResponse("ico/favicon.ico")
             except Exception as e:
                 logger.warning(f"Favicon не найден: {e}")
-                return {"error": "Favicon не найден"}
+                return {"status": "error", "detail": "Favicon не найден"}
 
         @self.app.get("/get_token")
-        async def get_token(login: str = Query(..., description="Логин пользователя"),
-                            password: str = Query(..., description="Пароль пользователя")):
-
+        async def get_token(
+            login: str = Query(..., description="Логин пользователя"),
+            password: str = Query(..., description="Пароль пользователя")
+        ):
             logger.info(f"Запрос токена для пользователя: {login}")
             try:
                 token = self.user_bd.get_token(login, password)
 
                 if token is None:
-                    # Проверяем, существует ли пользователь
                     if not self.user_bd.user_exists(login):
                         logger.warning(f"Пользователь не найден: {login}")
-                        raise HTTPException(
-                            status_code=404,
-                            detail="Пользователь не найден"
-                        )
+                        return {
+                            "status": "error",
+                            "detail": "Пользователь не найден"
+                        }
                     else:
                         logger.warning(f"Неверный пароль для пользователя: {login}")
-                        raise HTTPException(
-                            status_code=401,
-                            detail="Неверный пароль"
-                        )
+                        return {
+                            "status": "error",
+                            "detail": "Неверный пароль"
+                        }
 
                 logger.info(f"Токен успешно выдан для пользователя: {login}")
                 return {
                     "status": "success",
-                    "token": token
+                    "token": token,
+                    "message": "Токен успешно получен"
                 }
             except Exception as e:
                 logger.error(f"Ошибка в get_token для {login}: {e}")
-                raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
 
         @self.app.post("/add_user")
-        async def add_user(login: str = Query(..., description="Логин пользователя"),
-                           password: str = Query(..., description="Пароль пользователя")):
+        async def add_user(
+            login: str = Query(..., description="Логин пользователя"),
+            password: str = Query(..., description="Пароль пользователя")
+        ):
             """
             Добавление нового пользователя
             """
             logger.info(f"Запрос на добавление пользователя: {login}")
 
             try:
-                # Проверяем, не существует ли уже пользователь с таким логином
                 if self.user_bd.user_exists(login):
                     logger.warning(f"Попытка регистрации существующего пользователя: {login}")
-                    raise HTTPException(
-                        status_code=409,
-                        detail="Пользователь с таким логином уже существует"
-                    )
+                    return {
+                        "status": "error",
+                        "detail": "Пользователь с таким логином уже существует"
+                    }
 
                 logger.info(f"Генерация токена для пользователя: {login}")
                 token = str(random.randint(10 * 10 ** 20, 10 * 10 ** 21))
@@ -191,10 +253,10 @@ class controller():
 
                 if not success:
                     logger.error(f"Не удалось добавить пользователя: {login}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail="Не удалось добавить пользователя"
-                    )
+                    return {
+                        "status": "error",
+                        "detail": "Не удалось добавить пользователя"
+                    }
 
                 logger.info(f"Пользователь {login} успешно зарегистрирован")
                 return {
@@ -202,16 +264,18 @@ class controller():
                     "message": "Пользователь успешно добавлен",
                     "login": login
                 }
-            except HTTPException:
-                raise
             except Exception as e:
                 logger.error(f"Ошибка в add_user для {login}: {e}")
-                raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера")
+                return {"status": "error", "detail": "Внутренняя ошибка сервера"}
 
         @self.app.get("/health")
         async def health_check():
             """Проверка здоровья сервера"""
-            return {"status": "healthy", "message": "Server is running"}
+            return {
+                "status": "healthy",
+                "message": "Server is running",
+                "timestamp": time.time()
+            }
 
     def run(self):
         logger.info("Запуск сервера...")
