@@ -1,26 +1,98 @@
 import uvicorn
 import dbrequest
 import random
+import subprocess
+import os
+import signal
+import time
+import re
 import logging
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+import time
 import os
 
 logger = logging.getLogger(__name__)
 
 
 class controller():
-    def __init__(self):
+    def __init__(self,port):
+        self._kill_process_on_port(port)
         logger.info("Инициализация контроллера...")
         self.app = FastAPI()
-        self.user_bd = dbrequest.requequest_to_first_db()
+        self.user_bd = dbrequest.requequest_to_user_login()
+        self.user_data = dbrequest.request_to_user_data()
 
         os.makedirs("html", exist_ok=True)
         os.makedirs("ico", exist_ok=True)
 
         self.app.mount("/static", StaticFiles(directory="."), name="static")
         logger.info("Контроллер инициализирован")
+
+    def _kill_process_on_port(self,port):
+        pid = None
+        try:
+            result = subprocess.run(
+                ['lsof', '-ti', f'tcp:{port}'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                pid = int(result.stdout.strip().split('\n')[0])
+                print(f"Найден процесс с PID {pid} через lsof")
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+            pass
+        if not pid:
+            try:
+                result = subprocess.run(
+                    ['ss', '-tlnp'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    for line in result.stdout.splitlines():
+                        if f':{port}' in line and 'LISTEN' in line:
+                            match = re.search(r'pid=(\d+)', line)
+                            if match:
+                                pid = int(match.group(1))
+                                print(f"Найден процесс с PID {pid} через ss")
+                                break
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError, ValueError):
+                pass
+
+        if not pid:
+            print(f"Не найден процесс, занимающий порт {port}.")
+            return False
+        try:
+            os.kill(pid, signal.SIGTERM)
+            print(f"Отправлен SIGTERM процессу с PID {pid}.")
+
+            time.sleep(2)
+
+            try:
+                os.kill(pid, 0)
+                print(f"Процесс {pid} не ответил на SIGTERM, отправляем SIGKILL.")
+                os.kill(pid, signal.SIGKILL)
+                time.sleep(1)
+            except OSError:
+                pass
+
+            print(f"Процесс с PID {pid} на порту {port} успешно завершен.")
+            return True
+
+        except ProcessLookupError:
+            print(f"Процесс с PID {pid} уже завершен.")
+            return True
+        except PermissionError:
+            print(f"Недостаточно прав для завершения процесса {pid}. Запустите с sudo.")
+            return False
+        except Exception as e:
+            print(f"Ошибка при завершении процесса {pid}: {e}")
+            return False
+
 
     def _controllers(self):
         logger.info("Регистрация маршрутов...")
@@ -33,6 +105,17 @@ class controller():
             except Exception as e:
                 logger.error(f"Ошибка при загрузке index.html: {e}")
                 return {"error": "Файл не найден", "detail": str(e)}
+
+        @self.app.post("/savedata{token}")
+        async def save_data_by_token(token:str):
+            self.user_data.save_user_data(token, key_array)
+
+        @self.app.get("/givefield{token}")
+        async def get_field_by_token(token:str):
+            if (self.user_data.user_data_exists(token)):
+                keys = self.user_data.get_user_data(token)
+                return{"keys": keys}
+            else: return{"status": "dismiss"}
 
         @self.app.get("/log{password}")
         async def get_log(password : str):
@@ -51,9 +134,7 @@ class controller():
         @self.app.get("/get_token")
         async def get_token(login: str = Query(..., description="Логин пользователя"),
                             password: str = Query(..., description="Пароль пользователя")):
-            """
-            Получение токена пользователя по логину и паролю
-            """
+
             logger.info(f"Запрос токена для пользователя: {login}")
             try:
                 token = self.user_bd.get_token(login, password)

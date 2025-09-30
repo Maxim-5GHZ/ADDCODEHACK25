@@ -1,8 +1,9 @@
-# main.py
 import controller
 import socket
 import logging
 import time
+
+
 
 # Настройка логирования
 logging.basicConfig(
@@ -41,25 +42,13 @@ def get_local_ip():
             return "127.0.0.1"
 
 
-def check_port_availability(port=8000):
-    """Проверяет доступность порта"""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('0.0.0.0', port))
-            return True
-    except socket.error:
-        return False
 
 
 if __name__ == "__main__":
     logger.info("Запуск приложения...")
 
     # Проверяем доступность порта bde756b
-    if not check_port_availability(8000):
-        logger.error("Порт 8000 уже занят!")
-        print("ОШИБКА: Порт 8000 уже занят другим процессом")
-        print("Закройте другие приложения, использующие порт 8000, и попробуйте снова")
-        exit(1)
+
 
     local_ip = get_local_ip()
     print(f"Сервер будет доступен по адресам:")
@@ -68,7 +57,7 @@ if __name__ == "__main__":
     print("Для остановки сервера нажмите Ctrl+C")
 
     try:
-        server = controller.controller()
+        server = controller.controller('8000')
         server.run()
     except Exception as e:
         logger.error(f"Критическая ошибка при запуске сервера: {e}")
