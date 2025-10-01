@@ -1,4 +1,4 @@
-# image_provider.py
+# image_provider.py (СУПЕР-ДИАГНОСТИЧЕСКАЯ ВЕРСИЯ)
 
 import os
 import cv2
@@ -9,11 +9,6 @@ import json
 
 
 class ImageProvider:
-    """
-    Отвечает за предоставление 8-битного RGB (для визуализации) и научных данных
-    (Red, Green, Blue, NIR каналов) из разных источников.
-    """
-
     def __init__(self, rgb_image_path: str = None, nir_image_path: str = None):
         """Инициализация через локальные файлы."""
         self.rgb_image = None
@@ -21,22 +16,17 @@ class ImageProvider:
         self.green_channel = None
         self.blue_channel = None
         self.nir_channel = None
-
         if rgb_image_path:
             self._load_local_images(rgb_image_path, nir_image_path)
 
     def _load_local_images(self, rgb_path, nir_path):
-        """(Приватный) Загружает изображения из локальных файлов."""
         img_bgr = cv2.imread(rgb_path)
         if img_bgr is None:
             raise FileNotFoundError(f"Ошибка: Не удалось загрузить RGB изображение: {rgb_path}")
         self.rgb_image = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-
-        # Для локальных файлов берем каналы из 8-битного RGB
         self.red_channel = self.rgb_image[:, :, 0].astype(np.float32)
         self.green_channel = self.rgb_image[:, :, 1].astype(np.float32)
         self.blue_channel = self.rgb_image[:, :, 2].astype(np.float32)
-
         if nir_path:
             self.nir_channel = cv2.imread(nir_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
             if self.nir_channel is None:
@@ -44,7 +34,6 @@ class ImageProvider:
             self._align_images()
 
     def _align_images(self):
-        """(Приватный) Приводит размер NIR канала к размеру RGB, если они не совпадают."""
         if self.rgb_image is not None and self.nir_channel is not None:
             if self.rgb_image.shape[:2] != self.nir_channel.shape:
                 h, w = self.rgb_image.shape[:2]
@@ -53,11 +42,24 @@ class ImageProvider:
     @staticmethod
     def _url_to_numpy(url: str) -> np.ndarray:
         """(Статический) Скачивает изображение по URL и конвертирует его в NumPy массив."""
+        print(f"\n---[Диагностика _url_to_numpy]---")
+        print(f"Пытаюсь скачать данные со ссылки...")
         response = requests.get(url, stream=True)
+        print(f"Статус-код ответа сервера: {response.status_code}")
+
         if response.status_code != 200:
             raise ConnectionError(f"Не удалось скачать изображение. Статус: {response.status_code}")
+
+        # ВЫВОДИМ ПЕРВЫЕ 500 СИМВОЛОВ ОТВЕТА
+        content_preview = response.content[:500]
+        print(f"Превью ответа сервера (первые 500 байт):\n---\n{content_preview}\n---")
+
         img_array = np.frombuffer(response.content, np.uint8)
         img_bgr = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+
+        if img_bgr is None:
+            raise ValueError("cv2.imdecode не смог распознать данные как изображение. Ответ сервера - не картинка.")
+
         return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
     @classmethod
@@ -97,24 +99,26 @@ class ImageProvider:
         provider = cls()
         print("Загрузка данных из Google Earth Engine...")
 
-        # --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-        # Убираем сложный динамический расчет и используем стандартные, надежные параметры.
-        # Этот диапазон (0-3000) хорошо подходит для большинства снимков Sentinel-2.
         try:
-            print("Используются стандартные параметры визуализации (min: 0, max: 3000).")
+            # --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+            # Добавляем параметр 'dimensions', чтобы указать GEE размер итоговой картинки.
             rgb_vis_params = {
                 'bands': ['B4', 'B3', 'B2'],
                 'min': 0,
-                'max': 3000
+                'max': 3000,
+                'dimensions': 512  # Создать картинку размером 512x512 пикселей
             }
             provider.rgb_image = cls._url_to_numpy(image.getThumbURL(rgb_vis_params))
+            print("Изображение для визуализации успешно создано.")
+
         except Exception as e:
             provider.rgb_image = np.zeros((100, 100, 3), dtype=np.uint8)
             print(f"Предупреждение: Не удалось создать визуальное изображение. Ошибка: {e}")
 
-        # Блок получения научных данных уже работает правильно, так как мы видели результат от reduceRegion.
         try:
             pixels = image.sampleRectangle(region=area_of_interest, defaultValue=0).getInfo()
+            if not pixels['properties'] or not pixels['properties'].get('B4'):
+                raise ValueError("После обработки не осталось валидных пикселей для научных данных.")
             provider.red_channel = np.array(pixels['properties']['B4'], dtype=np.float32)
             provider.green_channel = np.array(pixels['properties']['B3'], dtype=np.float32)
             provider.blue_channel = np.array(pixels['properties']['B2'], dtype=np.float32)
