@@ -96,6 +96,13 @@ class controller():
     def _controllers(self):
         logger.info("Регистрация маршрутов...")
 
+        @self.app.get("/scr/{file}")
+        async def get_from_scr(file: str):
+            logger.info(f"Запрос {file}")
+            if os.path.exists(f"scr/{file}"):
+                return FileResponse(f"scr/{file}" )
+            else: return {"status": "error", "detail": "Файл не найден"}
+
         @self.app.get("/")
         async def read_root():
             logger.info("Запрос главной страницы")
