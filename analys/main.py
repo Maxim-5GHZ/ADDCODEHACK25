@@ -1,3 +1,5 @@
+# main.py
+
 import os
 from image_provider import ImageProvider
 from index_calculator import VegetationIndexCalculator
@@ -26,10 +28,13 @@ def main():
             image_provider = ImageProvider(rgb_image_path=rgb_path, nir_image_path=nir_path)
 
         elif choice == '3':
+            # Имя файла с ключом, который должен лежать в той же папке, что и скрипт
             key_filename = 'auth_file.json'
             script_dir = os.path.dirname(os.path.abspath(__file__))
             local_key_path = os.path.join(script_dir, key_filename)
+
             if not os.path.exists(local_key_path):
+                print(f"Внимание: Файл ключа '{key_filename}' не найден в папке скрипта.")
                 local_key_path = None
 
             print("\nВведите данные для поиска в Google Earth Engine.")
@@ -39,17 +44,19 @@ def main():
             end_date = input("Дата окончания (YYYY-MM-DD, например, 2023-07-31): ")
 
             image_provider = ImageProvider.from_gee(
-                lon, lat, start_date, end_date, service_account_key_path=local_key_path
+                lon, lat, start_date, end_date,buffer_size_km=0.5, service_account_key_path=local_key_path
             )
         else:
             print("Неверный выбор режима. Пожалуйста, запустите скрипт заново.")
             return
 
-        # Шаг 2: Расчет и визуализация, если изображения были получены
+        # Шаг 2: Расчет и визуализация
         if image_provider and image_provider.rgb_image is not None:
             calculator = VegetationIndexCalculator(
                 rgb_image=image_provider.rgb_image,
                 red_channel=image_provider.red_channel,
+                green_channel=image_provider.green_channel,
+                blue_channel=image_provider.blue_channel,
                 nir_channel=image_provider.nir_channel
             )
 

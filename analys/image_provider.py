@@ -5,19 +5,21 @@ import cv2
 import numpy as np
 import requests
 import ee
+import json
 
 
 class ImageProvider:
     """
-    Отвечает за предоставление RGB, Red и NIR каналов из разных источников:
-    - Локальные файлы
-    - Google Earth Engine API (с использованием точных каналов B04, B08)
+    Отвечает за предоставление 8-битного RGB (для визуализации) и научных данных
+    (Red, Green, Blue, NIR каналов) из разных источников.
     """
 
     def __init__(self, rgb_image_path: str = None, nir_image_path: str = None):
         """Инициализация через локальные файлы."""
         self.rgb_image = None
         self.red_channel = None
+        self.green_channel = None
+        self.blue_channel = None
         self.nir_channel = None
 
         if rgb_image_path:
@@ -29,11 +31,14 @@ class ImageProvider:
         if img_bgr is None:
             raise FileNotFoundError(f"Ошибка: Не удалось загрузить RGB изображение: {rgb_path}")
         self.rgb_image = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-        # Для локальных файлов красный канал берем из RGB изображения
-        self.red_channel = self.rgb_image[:, :, 0]
+
+        # Для локальных файлов берем каналы из 8-битного RGB
+        self.red_channel = self.rgb_image[:, :, 0].astype(np.float32)
+        self.green_channel = self.rgb_image[:, :, 1].astype(np.float32)
+        self.blue_channel = self.rgb_image[:, :, 2].astype(np.float32)
 
         if nir_path:
-            self.nir_channel = cv2.imread(nir_path, cv2.IMREAD_GRAYSCALE)
+            self.nir_channel = cv2.imread(nir_path, cv2.IMREAD_GRAYSCALE).astype(np.float32)
             if self.nir_channel is None:
                 raise FileNotFoundError(f"Ошибка: Не удалось загрузить NIR изображение: {nir_path}")
             self._align_images()
@@ -42,14 +47,13 @@ class ImageProvider:
         """(Приватный) Приводит размер NIR канала к размеру RGB, если они не совпадают."""
         if self.rgb_image is not None and self.nir_channel is not None:
             if self.rgb_image.shape[:2] != self.nir_channel.shape:
-                print("Внимание: Размеры изображений не совпадают. Приводим NIR к размеру RGB.")
                 h, w = self.rgb_image.shape[:2]
                 self.nir_channel = cv2.resize(self.nir_channel, (w, h), interpolation=cv2.INTER_AREA)
 
     @staticmethod
     def _url_to_numpy(url: str) -> np.ndarray:
         """(Статический) Скачивает изображение по URL и конвертирует его в NumPy массив."""
-        response = requests.get(url)
+        response = requests.get(url, stream=True)
         if response.status_code != 200:
             raise ConnectionError(f"Не удалось скачать изображение. Статус: {response.status_code}")
         img_array = np.frombuffer(response.content, np.uint8)
@@ -57,47 +61,66 @@ class ImageProvider:
         return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
     @classmethod
-    def from_gee(cls, lon: float, lat: float, start_date: str, end_date: str, buffer_size: float = 0.01,
+    def from_gee(cls, lon: float, lat: float, start_date: str, end_date: str, buffer_size_km: float = 0.5,
                  service_account_key_path: str = None):
         """
-        Фабричный метод для создания экземпляра класса с данными из Google Earth Engine.
+        Фабричный метод для создания экземпляра класса с НАУЧНЫМИ данными из Google Earth Engine.
         """
         try:
             if service_account_key_path and os.path.exists(service_account_key_path):
-                print(f"Инициализация GEE с использованием локального ключа: {service_account_key_path}")
-                credentials = ee.ServiceAccountCredentials(None, key_file=service_account_key_path)
-                ee.Initialize(credentials)
+                with open(service_account_key_path) as f:
+                    credentials_info = json.load(f)
+                service_account_email = credentials_info['client_email']
+                credentials = ee.ServiceAccountCredentials(service_account_email, service_account_key_path)
+                ee.Initialize(credentials=credentials)
             else:
-                print("Локальный ключ не найден. Инициализация GEE со стандартными учетными данными...")
                 ee.Initialize()
         except Exception as e:
-            raise ConnectionError(f"Ошибка инициализации Earth Engine. Ошибка: {e}")
+            raise ConnectionError(f"Ошибка инициализации Earth Engine: {e}")
 
         point = ee.Geometry.Point([lon, lat])
-        area_of_interest = point.buffer(buffer_size * 1000).bounds()
-        collection = (ee.ImageCollection('COPERNICUS/S2_SR')
+        area_of_interest = point.buffer(buffer_size_km * 1000).bounds()
+
+        collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
                       .filterBounds(area_of_interest)
                       .filterDate(start_date, end_date)
-                      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10)))
+                      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 70)))
 
-        if collection.size().getInfo() == 0:
-            raise FileNotFoundError("Не найдено чистых снимков для указанного периода.")
+        count = collection.size().getInfo()
+        print(f"Найдено изображений в коллекции: {count}")
+        if count == 0:
+            raise FileNotFoundError("Не найдено чистых снимков. Попробуйте расширить диапазон дат.")
 
-        image = collection.mosaic().clip(area_of_interest)
-
-        # Параметры для визуализации (шкалирование значений для получения 8-битного изображения)
-        rgb_params = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 3000}  # B4=Red, B3=Green, B2=Blue
-        red_b04_params = {'bands': ['B4'], 'min': 0, 'max': 3000}
-        nir_b08_params = {'bands': ['B8'], 'min': 0, 'max': 5000}  # B8=NIR
+        bands = ['B2', 'B3', 'B4', 'B8']
+        image = collection.select(bands).median().clip(area_of_interest)
 
         provider = cls()
         print("Загрузка данных из Google Earth Engine...")
-        # Скачиваем RGB-версию для красивого отображения
-        provider.rgb_image = cls._url_to_numpy(image.getThumbURL(rgb_params))
-        # Скачиваем точные каналы B04 и B08 для расчетов
-        provider.red_channel = cls._url_to_numpy(image.getThumbURL(red_b04_params))[:, :, 0]
-        provider.nir_channel = cls._url_to_numpy(image.getThumbURL(nir_b08_params))[:, :, 0]
-        print("Данные успешно загружены.")
 
-        provider._align_images()
+        # --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+        # Убираем сложный динамический расчет и используем стандартные, надежные параметры.
+        # Этот диапазон (0-3000) хорошо подходит для большинства снимков Sentinel-2.
+        try:
+            print("Используются стандартные параметры визуализации (min: 0, max: 3000).")
+            rgb_vis_params = {
+                'bands': ['B4', 'B3', 'B2'],
+                'min': 0,
+                'max': 3000
+            }
+            provider.rgb_image = cls._url_to_numpy(image.getThumbURL(rgb_vis_params))
+        except Exception as e:
+            provider.rgb_image = np.zeros((100, 100, 3), dtype=np.uint8)
+            print(f"Предупреждение: Не удалось создать визуальное изображение. Ошибка: {e}")
+
+        # Блок получения научных данных уже работает правильно, так как мы видели результат от reduceRegion.
+        try:
+            pixels = image.sampleRectangle(region=area_of_interest, defaultValue=0).getInfo()
+            provider.red_channel = np.array(pixels['properties']['B4'], dtype=np.float32)
+            provider.green_channel = np.array(pixels['properties']['B3'], dtype=np.float32)
+            provider.blue_channel = np.array(pixels['properties']['B2'], dtype=np.float32)
+            provider.nir_channel = np.array(pixels['properties']['B8'], dtype=np.float32)
+        except Exception as e:
+            raise ConnectionError(f"КРИТИЧЕСКАЯ ОШИБКА: Не удалось получить научные данные. Причина: {e}")
+
+        print("Данные успешно загружены.")
         return provider
