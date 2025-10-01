@@ -100,7 +100,7 @@ class controller():
         async def read_root():
             logger.info("Запрос главной страницы")
             try:
-                return FileResponse("html/index.html")
+                return FileResponse("scr/index.html")
             except Exception as e:
                 logger.error(f"Ошибка при загрузке index.html: {e}")
                 return {"status": "error", "detail": "Файл не найден"}
@@ -185,7 +185,7 @@ class controller():
         async def ico():
             logger.debug("Запрос favicon.ico")
             try:
-                return FileResponse("ico/favicon.ico")
+                return FileResponse("scr/favicon.ico")
             except Exception as e:
                 logger.warning(f"Favicon не найден: {e}")
                 return {"status": "error", "detail": "Favicon не найден"}
@@ -499,9 +499,6 @@ class controller():
                 field: str = Query(..., description="Название поля для проверки"),
                 token: str = Query(None, description="Токен пользователя (опционально)")
         ):
-            """
-            Проверка существования поля
-            """
             logger.info(f"Запрос проверки существования поля: {field}")
 
             try:
@@ -524,9 +521,6 @@ class controller():
             except Exception as e:
                 logger.error(f"Ошибка при проверке поля {field}: {e}")
                 return {"status": "error", "detail": "Внутренняя ошибка сервера"}
-
-
-
 
     def run(self):
         logger.info("Запуск сервера...")
