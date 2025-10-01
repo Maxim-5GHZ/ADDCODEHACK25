@@ -1,2 +1,9 @@
 vari_map - индекс VARI - Видимый атмосферно-устойчивый индекс
 ndvi_map - индекс NDVI - Нормализованный дифференциальный вегетационный индекс
+rgb_path - путь до rgb картинки
+nir_path - путь до nir картинки
+image_provider - картинка,получаемая через API
+<Class>.from_gee - метод получения API (аргументы lat - широта,lon - долгота,start_date - дата начала,end_date - дата конца)
+image_provider.rgb_image - rgb спутниковое изображение
+image_provider.nir_channel - nir спутниковое изображение
+image_provider.red_channel - red спутниковое изображение

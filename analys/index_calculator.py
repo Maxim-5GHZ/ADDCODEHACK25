@@ -1,27 +1,29 @@
-# index_calculator.py
-
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 class VegetationIndexCalculator:
-    # ... (код этого класса остается без изменений) ...
     """
-    Принимает готовые RGB и NIR изображения и выполняет расчет вегетационных
+    Принимает готовые RGB, Red и NIR каналы и выполняет расчет вегетационных
     индексов (NDVI, VARI), а также их визуализацию.
     """
     EPSILON = 1e-8
 
-    def __init__(self, rgb_image: np.ndarray, nir_image: np.ndarray = None):
+    def __init__(self, rgb_image: np.ndarray, red_channel: np.ndarray = None, nir_channel: np.ndarray = None):
         """
         Инициализируется готовыми NumPy массивами изображений.
         """
         if rgb_image is None:
             raise ValueError("RGB изображение (rgb_image) должно быть предоставлено.")
         self.rgb_image = rgb_image
-        self.nir_image = nir_image
+        self.red_channel = red_channel
+        self.nir_channel = nir_channel
         self.vari_map = None
         self.ndvi_map = None
+
+        # Если красный канал не передан отдельно, берем его из RGB
+        if self.red_channel is None:
+            self.red_channel = self.rgb_image[:, :, 0]
 
     def calculate_vari(self) -> np.ndarray:
         """Вычисляет индекс VARI по RGB-изображению."""
@@ -31,13 +33,14 @@ class VegetationIndexCalculator:
         return self.vari_map
 
     def calculate_ndvi(self) -> np.ndarray:
-        """Вычисляет индекс NDVI, используя RGB и NIR изображения."""
-        if self.nir_image is None:
-            raise ValueError("Для расчета NDVI необходимо NIR изображение (nir_image).")
+        """Вычисляет индекс NDVI, используя предоставленные Red и NIR каналы."""
+        if self.nir_channel is None:
+            raise ValueError("Для расчета NDVI необходим NIR канал (nir_channel).")
 
-        red_channel = (self.rgb_image[:, :, 0]).astype(float) / 255.0
-        nir_channel = self.nir_image.astype(float) / 255.0
-        self.ndvi_map = (nir_channel - red_channel) / (nir_channel + red_channel + self.EPSILON)
+        red = self.red_channel.astype(float) / 255.0
+        nir = self.nir_channel.astype(float) / 255.0
+
+        self.ndvi_map = (nir - red) / (nir + red + self.EPSILON)
         return self.ndvi_map
 
     def plot_results(self, index_name: str, cmap: str = 'RdYlGn'):

@@ -1,5 +1,3 @@
-# main.py
-
 import os
 from image_provider import ImageProvider
 from index_calculator import VegetationIndexCalculator
@@ -28,8 +26,6 @@ def main():
             image_provider = ImageProvider(rgb_image_path=rgb_path, nir_image_path=nir_path)
 
         elif choice == '3':
-            # --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            # Теперь скрипт ищет файл 'auth_file.json'
             key_filename = 'auth_file.json'
             script_dir = os.path.dirname(os.path.abspath(__file__))
             local_key_path = os.path.join(script_dir, key_filename)
@@ -45,14 +41,17 @@ def main():
             image_provider = ImageProvider.from_gee(
                 lon, lat, start_date, end_date, service_account_key_path=local_key_path
             )
-
         else:
             print("Неверный выбор режима. Пожалуйста, запустите скрипт заново.")
             return
 
         # Шаг 2: Расчет и визуализация, если изображения были получены
         if image_provider and image_provider.rgb_image is not None:
-            calculator = VegetationIndexCalculator(image_provider.rgb_image, image_provider.nir_image)
+            calculator = VegetationIndexCalculator(
+                rgb_image=image_provider.rgb_image,
+                red_channel=image_provider.red_channel,
+                nir_channel=image_provider.nir_channel
+            )
 
             if choice == '1':
                 calculator.calculate_vari()
