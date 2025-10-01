@@ -30,14 +30,18 @@ html {
 }
 
 :root {
-    --accent-color: hsl(140, 50%, 80%);
-    --secondary-color: hsl(140, 5%, 90%);
-    --secondary-dark-color: hsl(140, 5%, 10%);
+    --accent-color: hsl(140, 50%, 50%);
+    --accent-light-color: hsl(140, 50%, 70%);
+    --accent-dark-color: hsl(140, 50%, 30%);
+    --neutral-color: hsl(140, 6%, 90%);
+    --neutral-secondary-color: hsl(140, 4%, 85%);
+    --neutral-dark-color: hsl(140, 5%, 10%);
+    --neutral-dark-secondary-colro: hsl(140, 5%, 70%);
 }
 
 body {
     font-size: 1.5rem;
-    font-family: Cousine, Arial, Helvetica, sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
 }
 
 .header-style {
@@ -46,20 +50,4 @@ body {
     background-color: var(--secondary-color);
     min-height: 70px;
     min-width: 100vw;
-}
-
-.primary-button {
-    border-radius: 8rem;
-    background-color: var(--accent-color);
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    transition: background-color 0.2s ease-in-out;
-    box-shadow: gray 0 0 0.5rem;
-}
-
-.primary-button:hover {
-    cursor: pointer;
-    background-color: green;
 }

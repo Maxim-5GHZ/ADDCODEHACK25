@@ -3,23 +3,37 @@ import './App.css'
 
 function Header() {
   return (
-    <>
-      <div className='header-style'>
-        <div className='flex flex-row justify-between flex-wrap mx-30'>
-          <h1>Field Scan</h1>
-          <nav className='flex '>
-            <a>Главная</a>
-            <a>О нас</a>
-            <a>Преимещства</a>
+    <header className="bg-[var(--neutral-color)] shadow-sm">
+      <div className="px-32">
+        <div className="flex items-center justify-between h-20">
+          <div className="flex-shrink-0">
+            <a href="index.html" className="text-6xl text-[var(--neutral-dark-color)] cousine-regular">Field Scan</a>
+          </div>
+
+          <nav className="hidden md:flex space-x-16">
+            <a href="#" className="text-3xl text-[var(--neutral-dark-color)] hover:text-[var(--accent-dark-color)] transition-colors duration-100">
+              Главная
+            </a>
+            <a href="#" className="text-3xl text-[var(--neutral-dark-color)] hover:text-[var(--accent-dark-color)] transition-colors duration-100">
+              О нас
+            </a>
+            <a href="#" className="text-3xl text-[var(--neutral-dark-color)] hover:text-[var(--accent-dark-color)] transition-colors duration-100">
+              Преимущества
+            </a>
           </nav>
-          <nav>
-            <a>Войти</a>
-            <a>Зарегистрироватбся</a>
-          </nav>
+
+          <div className="flex items-center space-x-16">
+            <button className="text-3xl text-[var(--neutral-dark-color)] hover:text-[var(--accent-dark-color)] transition-colors duration-100 cursor-pointer">
+              Войти
+            </button>
+            <button className="text-3xl text-[var(--neutral-dark-color)] hover:text-[var(--accent-dark-color)] transition-colors duration-100 cursor-pointer">
+              Зарегистрироваться
+            </button>
+          </div>
         </div>
       </div>
-    </>
-  )
+    </header>
+  );
 }
 
 function Hero() {
