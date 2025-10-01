@@ -38,6 +38,7 @@ html {
     --neutral-dark-color: hsl(140, 5%, 10%);
     --neutral-dark-secondary-color: hsl(140, 5%, 70%);
 
+    --header-blur: hsla(0, 0%, 100%, 0.3);
     --hero-shadow: hsla(0, 0%, 10%, 0.7);
 }
 
