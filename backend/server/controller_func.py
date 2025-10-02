@@ -15,7 +15,7 @@ class controller_func():
     async def reed__root(self):
         logger.info("Запрос главной страницы")
         try:
-            return FileResponse("scrcontroller_func/index.html")
+            return FileResponse("scr/index.html")
         except Exception as e:
             logger.error(f"Ошибка при загрузке index.html: {e}")
             return {"status": "error", "detail": "Файл не найден"}
@@ -99,7 +99,7 @@ class controller_func():
         logger.info("Запрос логов администратора")
         try:
             if password == "12345":
-                return FileResponse("app.log")
+                return FileResponse("scr/app.log")
             else:
                 return {
                     "status": "error",

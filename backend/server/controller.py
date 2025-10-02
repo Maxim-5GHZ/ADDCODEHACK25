@@ -1,11 +1,12 @@
 import uvicorn
-import dbrequest
+from db import dbrequest
 import subprocess
 import controller_func
 import signal
 import re
+import socket
 import logging
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 import time
 import os
@@ -17,7 +18,11 @@ logger = logging.getLogger(__name__)
 class controller():
     def __init__(self, port):
         logger.info("Инициализация контроллера...")
-
+        ip = self.get_local_ip()
+        print(f"Сервер будет доступен по адресам:")
+        print(f"Локально: http://localhost:8000")
+        print(f"В сети: http://{ip}:8000")
+        print("Для остановки сервера нажмите Ctrl+C")
         self._kill_process_on_port(port)
         self.app = FastAPI()
         self.user_bd = dbrequest.requequest_to_user_login()
@@ -27,11 +32,33 @@ class controller():
         # Инициализируем controller_func с зависимостями
         self.func = controller_func.controller_func(self.user_bd, self.user_data, self.field_data)
 
-        os.makedirs("html", exist_ok=True)
-        os.makedirs("ico", exist_ok=True)
 
         self.app.mount("/static", StaticFiles(directory="."), name="static")
         logger.info("Контроллер инициализирован")
+
+    def get_local_ip(self):
+        """Получает локальный IP-адрес компьютера"""
+        try:
+            logger.info("Получение локального IP-адреса...")
+            # Создаем временное соединение чтобы определить IP
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(2)
+            s.connect(("8.8.8.8", 80))  # Подключаемся к Google DNS
+            local_ip = s.getsockname()[0]
+            s.close()
+            logger.info(f"Локальный IP-адрес: {local_ip}")
+            return local_ip
+        except Exception as e:
+            logger.error(f"Ошибка при получении локального IP: {e}")
+            # Пробуем альтернативный способ
+            try:
+                hostname = socket.gethostname()
+                local_ip = socket.gethostbyname(hostname)
+                logger.info(f"Локальный IP-адрес (альтернативный метод): {local_ip}")
+                return local_ip
+            except Exception as e2:
+                logger.error(f"Альтернативный метод также не сработал: {e2}")
+                return "127.0.0.1"
 
     def _kill_process_on_port(self, port):
         # ... (остается без изменений)
