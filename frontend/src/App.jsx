@@ -23,7 +23,7 @@ function Header({ isTransparent }) {
             <a href="#about-us" className={`${navButtonsStyle} text-3xl transition-colors duration-100"`}>
               О нас
             </a>
-            <a href="#" className={`${navButtonsStyle} text-3xl transition-colors duration-100"`}>
+            <a href="#advantages" className={`${navButtonsStyle} text-3xl transition-colors duration-100"`}>
               Преимущества
             </a>
           </nav>
@@ -129,9 +129,13 @@ function AboutUs() {
 function Advantages() {
   return (
     <>
-      <div className='bg-[var(--neutral-dark-color)] min-h-100'>
-
+      <div id="advantages" className='bg-[var(--neutral-dark-color)] min-h-100'>
+        <div className='flex justify-center items-center h-100'>
+          <h2 className='text-8xl font-bold text-[var(--neutral-color)]'>
+            ПРЕИМУЩЕСТВА
+          </h2>
         </div>
+      </div>
     </>
   )
 }
@@ -139,9 +143,40 @@ function Advantages() {
 function Footer() {
   return (
     <>
-      <div className='bg-[var(--neutral-dark-secondary-color)] min-h-100'>
-
+      <div className='bg-[var(--neutral-dark-secondary-color)] min-h-200'>
+        <div className='grid grid-cols-2 justify-center'>
+          <div className='flex flex-col'>
+            <h3 className='text-9xl text-[var(--neutral-dark-color)] font-bold cousine-bold'>
+              Field<br />
+              Scan<br />
+              2025<br />
+            </h3>
+            <h6 className='text-3xl font-bold'>
+              Field Scan 2025©. Все права защищены
+            </h6>
+          </div>
+          <div className='flex flex-col text-center items-center my-auto'>
+            <a href="#main" className="text-4xl font-bold transition-colors duration-100">
+              Главная
+            </a>
+            <a href="#main" className="text-4xl font-bold transition-colors duration-100">
+              О нас
+            </a>
+            <a href="#main" className="text-4xl font-bold transition-colors duration-100">
+              Преимущества
+            </a>
+            <a href="#main" className="mt-4 text-4xl font-bold transition-colors duration-100">
+              Вход
+            </a>
+            <a href="#main" className="text-4xl font-bold transition-colors duration-100">
+              Регистрация
+            </a>
+            <a href="#main" className="text-4xl font-bold transition-colors duration-100">
+              Анализ поля
+            </a>
+          </div>
         </div>
+      </div>
     </>
   )
 }
