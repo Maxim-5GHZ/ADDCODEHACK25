@@ -1,2 +1,6 @@
 __pycache__/
 venv/
+field_data.db
+user_data.db
+user.db
+*.log
