@@ -40,8 +40,8 @@ function AboutUs() {
 
     return (
     <>
-        <div id="about-us" className='bg-[var(--neutral-color)] h-[200rem]'>
-        <div className='lg:container mx-auto w-full lg:w-[max(2/3vw, 800px)] pt-16 pb-32'>
+        <div id="about-us" className='bg-[var(--neutral-color)]'>
+        <div className='md:container mx-auto w-full lg:w-[max(2/3vw, 800px)] pt-16 pb-32'>
             <div className='grid grid-cols-2 grid-rows-auto gap-y-16 gap-x-32'>
             <h2 className='text-8xl font-bold text-center col-span-2 self-center'>
                 О НАС
@@ -108,7 +108,7 @@ function Advantages() {
 function Footer() {
     return (
     <>
-        <div className='bg-[var(--neutral-dark-secondary-color)] min-h-200'>
+        <div className='bg-[var(--neutral-dark-secondary-color)]'>
         <div className='grid grid-cols-2 justify-center'>
             <div className='flex flex-col'>
             <h3 className='text-9xl text-[var(--neutral-dark-color)] font-bold cousine-bold'>
