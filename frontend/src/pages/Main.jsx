@@ -41,49 +41,49 @@ function AboutUs() {
     return (
     <>
         <div id="about-us" className='bg-[var(--neutral-color)]'>
-        <div className='md:container mx-auto w-full lg:w-[max(2/3vw, 800px)] pt-16 pb-32'>
+        <div className='md:container mx-auto w-full lg:w-[max(2/3vw, 1000px)] pt-16 pb-32'>
             <div className='grid grid-cols-2 grid-rows-auto gap-y-16 gap-x-32'>
-            <h2 className='text-8xl font-bold text-center col-span-2 self-center'>
-                О НАС
-            </h2>
-            <p className='text-4xl text-start col-span-2 tracking-wider'>
-                <strong>Мы создаём будущее сельского хозяйства,</strong> где технологии работают на результат 
-                каждого фермера. Наша задача — дать вам не просто данные, а ясное понимание состояния ваших полей и конкретные рекомендации 
-                для принятия решений. Всё, что для этого нужно, — всего несколько кликов.<br /><br />
-                <strong>Весь процесс от выбора поля до готового отчёта — прост и прозрачен</strong>
-            </p>
-            <div className='row-start-3 col-start-1'>
-                <h2 className='text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-16'>
-                ШАГ 1 →
+                <h2 className='text-8xl font-bold text-center col-span-2 self-center'>
+                    О НАС
                 </h2>
-                <div className='flex justify-center'>
-                <Card title='Получение снимков' description={card2Description} image={card2Image}/>
+                <p className='text-4xl text-start col-span-2 tracking-wider'>
+                    <strong>Мы создаём будущее сельского хозяйства,</strong> где технологии работают на результат 
+                    каждого фермера. Наша задача — дать вам не просто данные, а ясное понимание состояния ваших полей и конкретные рекомендации 
+                    для принятия решений. Всё, что для этого нужно, — всего несколько кликов.<br /><br />
+                    <strong>Весь процесс от выбора поля до готового отчёта — прост и прозрачен</strong>
+                </p>
+                <div className='row-start-3 col-start-1'>
+                    <h2 className='text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-16'>
+                        ШАГ 1 →
+                    </h2>
+                    <div className='flex justify-center'>
+                        <Card title='Получение снимков' description={card2Description} image={card2Image}/>
+                    </div>
                 </div>
-            </div>
-            <div className='row-start-3 col-start-2'>
-                <div className='flex justify-center'>
-                <Card title='Выбор участка' description={card1Description} image={card1Image}/>
+                <div className='row-start-3 col-start-2'>
+                    <div className='flex justify-center'>
+                        <Card title='Выбор участка' description={card1Description} image={card1Image}/>
+                    </div>
+                    <h2 className='text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-32'>
+                        ← ШАГ 2
+                    </h2>
                 </div>
-                <h2 className='text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-32'>
-                ← ШАГ 2
-                </h2>
-            </div>
-            <div className='row-start-4 col-start-1'>
-                <h2 className='text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-16'>
-                ШАГ 3 →
-                </h2>
-                <div className='flex justify-center'>
-                <Card title='Подготовка отчета' description={card4Description} image={card4Image}/>
+                <div className='row-start-4 col-start-1'>
+                    <h2 className='text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-16'>
+                        ШАГ 3 →
+                    </h2>
+                    <div className='flex justify-center'>
+                        <Card title='Подготовка отчета' description={card4Description} image={card4Image}/>
+                    </div>
                 </div>
-            </div>
-            <div className='row-start-4 col-start-2'>
-                <div className='flex justify-center'>
-                <Card title='Анализ снимков' description={card3Description} image={card3Image}/>
+                <div className='row-start-4 col-start-2'>
+                    <div className='flex justify-center'>
+                        <Card title='Анализ снимков' description={card3Description} image={card3Image}/>
+                    </div>
+                    <h2 className='text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-32'>
+                        ← ШАГ 4
+                    </h2>
                 </div>
-                <h2 className='text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-32'>
-                ← ШАГ 4
-                </h2>
-            </div>
             </div>
         </div>
         </div>
