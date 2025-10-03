@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { Link } from "react-router-dom"
 import Header from "../components/Header"
 import Card from "../components/Card"
 import card1Image from "../assets/card1_image.jpg"
@@ -20,10 +21,10 @@ function Hero() {
             </p>
 
             <div className='flex-grow flex items-end justify-center pb-48'>
-            <button className='bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
-            transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl'>
-                Анализировать поле
-            </button>
+                <Link to="/registration" className='bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
+                transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl'>
+                    Анализировать поле
+                </Link>
             </div>
         </div>
         </div>
@@ -40,8 +41,8 @@ function AboutUs() {
     return (
     <>
         <div id="about-us" className='bg-[var(--neutral-color)] h-[200rem]'>
-        <div className='container mx-auto max-w-2/3 pt-16 pb-32'>
-            <div className='grid grid-cols-2 grid-rows-auto gap-y-16'>
+        <div className='lg:container mx-auto w-full lg:w-[max(2/3vw, 800px)] pt-16 pb-32'>
+            <div className='grid grid-cols-2 grid-rows-auto gap-y-16 gap-x-32'>
             <h2 className='text-8xl font-bold text-center col-span-2 self-center'>
                 О НАС
             </h2>

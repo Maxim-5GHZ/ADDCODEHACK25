@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 function Header({ isTransparent }) {
     let navButtonsStyle = isTransparent ? "text-[var(--neutral-color)] hover:text-[var(--accent-light-color)]" : "text-[var(--neutral-dark-color)] hover:text-[var(--accent-dark-color)]"
     return (
-    <header id='header' className={`shadow-md fixed w-dvw h-1/15 z-1 ${isTransparent ? "bg-[var(--header-blur)] backdrop-blur-xs" : "bg-[var(--neutral-color)]" }`}>
+    <header id='header' className={`shadow-md fixed w-dvw h-1/16 z-1 ${isTransparent ? "bg-[var(--header-blur)] backdrop-blur-xs" : "bg-[var(--neutral-color)]" }`}>
         <div className="px-32 h-full">
             <div className="flex items-center justify-between h-full">
                 <div className="flex flex-row flex-shrink-0 h-full items-center">
