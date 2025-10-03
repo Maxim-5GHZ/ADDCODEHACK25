@@ -4,7 +4,7 @@ function Header({ isTransparent }) {
     <header id='header' className={`shadow-md fixed w-dvw h-1/15 z-1 ${isTransparent ? "bg-[var(--header-blur)] backdrop-blur-xs" : "bg-[var(--neutral-color)]" }`}>
         <div className="px-32">
             <div className="flex items-center justify-between h-23">
-                <div className="flex flex-row flex-shrink-0 h-full space-x-4 items-center">
+                <div className="flex flex-row flex-shrink-0 h-full items-center">
                     <a href="index.html" className="flex items-center h-full">
                         <img src="/logo.svg" className="max-h-full" />
                     </a>
