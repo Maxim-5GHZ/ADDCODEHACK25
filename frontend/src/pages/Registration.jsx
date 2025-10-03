@@ -20,7 +20,7 @@ function Registration() {
                             Регистрация
                         </h1>
                     </div>
-                    <form method="post" className="flex flex-col justify-center space-y-16">
+                    <form method="post" className="flex flex-col justify-center space-y-8">
                         <div className="flex flex-col w-full">
                             <label for="email" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Почта
@@ -45,14 +45,11 @@ function Registration() {
                             className="text-2xl md:text-3xl bg-[var(--neutral-color)] rounded-4xl py-4 px-6 shadow-2xs 
                             focus:ring-[var(--accent-color)] focus:outline-0 focus:ring-2 w-full"/>
                         </div>
-                        <div className="flex justify-center items-center mt-8">
+                        <div className="flex justify-center items-center mt-16">
                             <input type="button" value="Зарегистрироваться" className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
                                 transition-[background-color] duration-100 cursor-pointer rounded-full text-2xl md:text-3xl px-5 py-5 text-[var(--neutral-color)] 
                                 shadow-2xs w-3/4"/>
                         </div>
-                        <p className="text-end self-end">
-                            Забыли пароль? <span className="text-[var(--accent-dark-color)]">Восстановить пароль</span>
-                        </p>
                     </form>
                 </div>
             </div> 
