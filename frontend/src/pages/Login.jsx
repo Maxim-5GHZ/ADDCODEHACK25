@@ -22,7 +22,7 @@ function Login() {
                     </div>
                     <form method="post" className="flex flex-col justify-center space-y-8">
                         <div className="flex flex-col w-full">
-                            <label for="email" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
+                            <label htmlFor="email" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Почта
                             </label>
                             <input id="email" name="email" type="email" placeholder="Ваша@почта.ru" 
@@ -30,7 +30,7 @@ function Login() {
                             focus:ring-[var(--accent-color)] focus:outline-0 focus:ring-2 w-full"/>
                         </div>
                         <div className="flex flex-col w-full">
-                            <label for="password" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
+                            <label htmlFor="password" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Пароль
                             </label>
                             <input id="password" name="password" type="password" placeholder="Ваш секретный пароль" 
@@ -43,7 +43,7 @@ function Login() {
                                 shadow-2xs w-3/4"/>
                         </div>
                         <p className="text-end self-end">
-                            Забыли пароль? <span className="text-[var(--accent-dark-color)]">Восстановить пароль</span>
+                            Забыли пароль? <span className="text-[var(--accent-dark-color)] cursor-pointer">Восстановить пароль</span>
                         </p>
                     </form>
                 </div>

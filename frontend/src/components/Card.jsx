@@ -10,7 +10,7 @@ function Card({ title, description, image }) {
                         {description}
                     </p>
                     <div className="flex-grow">
-                        <img src={image} alt={title} className="w-full h-full object-cover rounded-b-[8rem]"/>
+                        <img loading="lazy" src={image} alt={title} className="w-full h-full object-cover rounded-b-[8rem]"/>
                     </div>
                 </div>
             </div>
