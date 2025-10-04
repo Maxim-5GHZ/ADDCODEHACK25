@@ -18,4 +18,30 @@ function Card({ title, description, image }) {
     )
 }
 
-export default Card
+function HorizontalCard({ title, description, image }) {
+    return (
+        <div className="bg-[var(--neutral-secondary-color)] h-[40vh] min-h-[400px] w-[70vw] max-w-6xl rounded-[8rem] shadow-2xl overflow-hidden">
+            <div className="flex h-full">
+                <div className="flex flex-col justify-center py-8 px-12 w-7/12">
+                    <h3 className="text-3xl lg:text-5xl text-[var(--neutral-dark-color)] font-bold mb-6 text-center">
+                        {title}
+                    </h3>
+                    <p className="text-xl lg:text-2xl text-[var(--neutral-dark-color)] leading-relaxed text-start">
+                        {description}
+                    </p>
+                </div>
+
+                <div className="w-5/12">
+                    <img 
+                        loading="lazy" 
+                        src={image} 
+                        alt={title} 
+                        className="w-full h-full object-cover"
+                    />
+                </div>
+            </div>
+        </div>
+    )
+}
+
+export { Card, HorizontalCard }

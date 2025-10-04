@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Header from "../components/Header";
-import Card from "../components/Card";
+import { Card, HorizontalCard } from "../components/Card";
 import logoSVG from "../assets/logo.svg"
 import card1Image from "../assets/card1_image.jpg";
 import card2Image from "../assets/card2_image.jpg";
@@ -93,99 +93,62 @@ function AboutUs() {
 }
 
 function Advantages() {
-    const items = [
-        {
-            img: card1Image,
-            title: "Точность и скорость",
-            desc: "Мгновенный анализ спутниковых снимков и высокая детализация отчётов для принятия решений без задержек."
-        },
-        {
-            img: card2Image,
-            title: "Простота использования",
-            desc: "Интуитивный интерфейс: всё, что нужно — выбрать участок и получить результат. Без лишних действий."
-        },
-        {
-            img: card3Image,
-            title: "Экономия ресурсов",
-            desc: "Сокращение затрат на агрономию и мониторинг — вы платите только за результат и получаете максимум пользы."
-        },
-        {
-            img: card4Image,
-            title: "Актуальные рекомендации",
-            desc: "Персональные советы по уходу за полем, основанные на реальных данных и современных технологиях."
-        }
-    ];
-
-    const [active, setActive] = useState(0);
-    const intervalRef = useRef(null);
-
-    useEffect(() => {
-        intervalRef.current = setInterval(() => {
-            setActive(prev => (prev + 1) % items.length);
-        }, 3500);
-
-        return () => clearInterval(intervalRef.current);
-    }, [items.length]);
-
+    let card1Description = "Диагностируйте угрозы на самой ранней стадии, когда их ещё не видно глазом. Спасайте урожай, а не констатируйте потери."
+    let card2Description = "Никакого сложного оборудования и долгого обучения. Анализ поля — в несколько кликов, прямо в вашем браузере."
+    let card3Description = "Ваши поля под наблюдением 24/7. Спутники работают даже когда вы спите."
+    let card4Description = "Заменяйте догадки точными цифрами. Получайте конкретные рекомендации к действию: где полить, а где обработать от вредителей."
     return (
-        <div id="advantages" className="bg-gradient-to-br from-[#eafaf3] to-[#f6f6f6] py-32">
-            <div className="max-w-4xl mx-auto px-4">
-                <h2 className="text-7xl font-bold text-center text-[#009e4f] mb-20 tracking-tight drop-shadow-lg">
-                    Преимущества
-                </h2>
-                <div className="relative flex justify-center items-center h-[520px]">
-                    {items.map((item, idx) => (
-                        <div
-                            key={idx}
-                            className={`absolute left-0 right-0 mx-auto transition-opacity duration-700 ${
-                                active === idx ? "opacity-100 z-10" : "opacity-0 z-0"
-                            }`}
-                            style={{ width: "100%", maxWidth: "600px", height: "520px" }}
-                        >
-                            <div className="bg-white rounded-3xl shadow-2xl p-12 flex flex-col items-center text-center h-full justify-center">
-                                <img
-                                    src={item.img}
-                                    alt={item.title}
-                                    className="rounded-2xl mb-8 object-cover w-full h-64 shadow-lg"
-                                />
-                                <div className="text-3xl font-bold text-[#009e4f] mb-6">{item.title}</div>
-                                <div className="text-xl text-gray-600">{item.desc}</div>
-                            </div>
-                        </div>
-                    ))}
-                    <div className="absolute bottom-8 left-0 right-0 flex justify-center gap-3">
-                        {items.map((_, idx) => (
-                            <span
-                                key={idx}
-                                className={`w-4 h-4 rounded-full transition-all duration-300 ${
-                                    active === idx ? "bg-[#009e4f]" : "bg-[#b2e3c7]"
-                                }`}
-                            />
-                        ))}
+        <>
+            <div className="bg-[var(--neutral-secondary-color)] overflow-hidden">
+                <div id="advantages" className="bg-[var(--neutral-secondary-color)] py-32">
+                    <h3 className="text-8xl text-[var(--neutral-dark-color)] font-bold text-center">
+                        ПРЕИМУЩЕСТВА
+                    </h3>
+                </div>
+                <div className="flex justify-center bg-[var(--neutral-secondary-color)] h-full space-y-32">
+                    <div className="flex flex-row space-x-32">
+                        <HorizontalCard title="Предотвращение потерь урожая" description={card1Description} image={card1Image}/>
+                        <HorizontalCard title="Простота и доступность" description={card2Description} image={card2Image}/>
+                        <HorizontalCard title="Круглосуточный мониторинг" description={card3Description} image={card3Image}/>
+                        <HorizontalCard title="Принятие решений на основе данных" description={card4Description} image={card4Image}/>
                     </div>
                 </div>
+                <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] py-32">
+                    <Link
+                            to="/registration"
+                            className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
+                            transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl">
+                        Анализировать поле
+                    </Link>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
 
 function Footer() {
     return (
-        <footer className="bg-gradient-to-br from-[#eafaf3] to-[#d2f5e6] pt-16 pb-8 mt-24">
+        <footer className="bg-[var(--neutral-dark-color)] pt-16 pb-8">
             <div className="max-w-7xl mx-auto px-8">
-                <div className="flex flex-col md:flex-row justify-between items-center gap-8 pb-8 border-b border-[#b2e3c7]">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-8 pb-8 border-b border-[var(--neutral-color)]">
                     <div className="flex flex-col items-start">
                         <div className="flex items-center gap-4 mb-4">
-                            <img src={logoSVG} alt="FieldScan" className="h-12 w-12" />
+                            <img src={logoSVG} alt="FieldScan" className="h-16 w-16" />
                             <span className="text-4xl font-bold text-[var(--accent-color)] tracking-tight">FieldScan</span>
                         </div>
                         <span className="text-xl text-gray-500 font-medium mb-2">2025 © Все права защищены</span>
                         <span className="text-lg text-gray-400">Создано для будущего агроаналитики</span>
                     </div>
                     <nav className="flex flex-col md:flex-row gap-6 items-center">
-                        <a href="#main" className="text-2xl font-bold text-[#009e4f] hover:text-[#00c97b] transition-colors">Главная</a>
-                        <a href="#about-us" className="text-2xl font-bold text-[#009e4f] hover:text-[#00c97b] transition-colors">О нас</a>
-                        <a href="#advantages" className="text-2xl font-bold text-[#009e4f] hover:text-[#00c97b] transition-colors">Преимущества</a>
+                        <a href="#main" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            Главная
+                        </a>
+                        <a href="#about-us" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            О нас
+                        </a>
+                        <a href="#advantages" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            Преимущества
+                        </a>
                     </nav>
                 </div>
                 <div className="text-center text-gray-400 text-lg pt-6">
