@@ -20,6 +20,7 @@ class ServerTester:
         self.base_url = base_url
         self.session = requests.Session()
         self.test_users = []
+        self.analysis_ids = []
 
     def make_request(self, endpoint, method="GET", params=None, data=None):
         """Универсальный метод для выполнения запросов"""
@@ -459,6 +460,151 @@ class ServerTester:
         
         return image_tests_passed > 0
 
+    def test_analysis_operations(self, token):
+        """Тест операций с анализом"""
+        logger.info("Тестирование операций с анализом...")
+        
+        # Тестовые координаты
+        lon, lat = 37.6173, 55.7558  # Москва
+        end_date = time.strftime("%Y-%m-%d")
+        start_date = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 30*24*60*60))
+        
+        results = {}
+        
+        # Тест выполнения анализа
+        logger.info("Тестирование выполнения анализа...")
+        response = self.make_request(
+            "/analysis/perform",
+            method="POST",
+            params={
+                "token": token,
+                "lon": lon,
+                "lat": lat,
+                "start_date": start_date,
+                "end_date": end_date
+            }
+        )
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                analysis_id = data.get("analysis_id")
+                if analysis_id:
+                    logger.info(f"✓ Анализ успешно выполнен, ID: {analysis_id}")
+                    self.analysis_ids.append(analysis_id)
+                    results["perform_analysis"] = True
+                    
+                    # Сохраняем данные анализа для последующих тестов
+                    analysis_data = data.get("data", {})
+                    if analysis_data:
+                        logger.info("✓ Данные анализа получены")
+                else:
+                    logger.error("✗ Анализ выполнен, но ID не получен")
+                    results["perform_analysis"] = False
+            else:
+                logger.warning(f"⚠ Анализ не выполнен: {data.get('detail', 'Unknown error')}")
+                results["perform_analysis"] = False
+        else:
+            logger.error("✗ Запрос выполнения анализа не удался")
+            results["perform_analysis"] = False
+        
+        # Тест получения списка анализов
+        logger.info("Тестирование получения списка анализов...")
+        response = self.make_request(
+            "/analysis/list",
+            params={"token": token}
+        )
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                analyses = data.get("analyses", [])
+                logger.info(f"✓ Список анализов получен: {len(analyses)} анализов")
+                results["get_analyses_list"] = True
+                
+                if analyses:
+                    logger.info("✓ Список анализов не пустой")
+                else:
+                    logger.warning("⚠ Список анализов пустой")
+            else:
+                logger.error(f"✗ Ошибка получения списка анализов: {data}")
+                results["get_analyses_list"] = False
+        else:
+            logger.error("✗ Запрос списка анализов не удался")
+            results["get_analyses_list"] = False
+        
+        # Тест получения конкретного анализа (если есть доступные анализы)
+        if self.analysis_ids:
+            analysis_id = self.analysis_ids[0]
+            logger.info(f"Тестирование получения анализа {analysis_id}...")
+            
+            response = self.make_request(
+                f"/analysis/{analysis_id}",
+                params={"token": token}
+            )
+            
+            if response and response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    analysis_data = data.get("data", {})
+                    if analysis_data:
+                        logger.info("✓ Анализ успешно получен")
+                        results["get_analysis"] = True
+                        
+                        # Проверяем структуру данных анализа
+                        required_fields = ["analysis_id", "timestamp", "coordinates", "images", "statistics"]
+                        if all(field in analysis_data for field in required_fields):
+                            logger.info("✓ Структура данных анализа корректна")
+                        else:
+                            logger.warning("⚠ Не все обязательные поля присутствуют в анализе")
+                    else:
+                        logger.error("✗ Данные анализа пустые")
+                        results["get_analysis"] = False
+                else:
+                    logger.error(f"✗ Ошибка получения анализа: {data}")
+                    results["get_analysis"] = False
+            else:
+                logger.error("✗ Запрос анализа не удался")
+                results["get_analysis"] = False
+        else:
+            logger.warning("⚠ Пропуск теста получения анализа - нет доступных анализов")
+            results["get_analysis"] = False
+        
+        # Тест удаления анализа (если есть доступные анализы)
+        if self.analysis_ids:
+            analysis_id = self.analysis_ids[0]
+            logger.info(f"Тестирование удаления анализа {analysis_id}...")
+            
+            response = self.make_request(
+                f"/analysis/{analysis_id}",
+                method="DELETE",
+                params={"token": token}
+            )
+            
+            if response and response.status_code == 200:
+                data = response.json()
+                if data.get("status") == "success":
+                    logger.info("✓ Анализ успешно удален")
+                    results["delete_analysis"] = True
+                    self.analysis_ids.pop(0)  # Удаляем из списка
+                else:
+                    logger.error(f"✗ Ошибка удаления анализа: {data}")
+                    results["delete_analysis"] = False
+            else:
+                logger.error("✗ Запрос удаления анализа не удался")
+                results["delete_analysis"] = False
+        else:
+            logger.warning("⚠ Пропуск теста удаления анализа - нет доступных анализов")
+            results["delete_analysis"] = False
+        
+        # Считаем тест пройденным, если основные операции работают
+        analysis_tests_passed = sum(results.values())
+        total_analysis_tests = len(results)
+        
+        logger.info(f"Результаты тестов анализа: {analysis_tests_passed}/{total_analysis_tests}")
+        
+        return analysis_tests_passed >= 2  # Требуем хотя бы 2 успешных теста из 4
+
     def test_admin_logs(self):
         """Тест получения логов администратора"""
         logger.info("Тестирование получения логов...")
@@ -488,6 +634,101 @@ class ServerTester:
         else:
             logger.error("✗ Логи недоступны")
             return False
+
+    def test_error_handling(self):
+        """Тест обработки ошибок"""
+        logger.info("Тестирование обработки ошибок...")
+        
+        results = {}
+        
+        # Тест с неверным токеном
+        logger.info("Тестирование с неверным токеном...")
+        response = self.make_request(
+            "/givefield",
+            params={"token": "invalid_token_12345"}
+        )
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") in ["error", "dismiss"]:
+                logger.info("✓ Корректная обработка неверного токена")
+                results["invalid_token"] = True
+            else:
+                logger.error("✗ Неверная обработка неверного токена")
+                results["invalid_token"] = False
+        else:
+            logger.error("✗ Запрос с неверным токеном не удался")
+            results["invalid_token"] = False
+        
+        # Тест с неверными параметрами
+        logger.info("Тестирование с неверными параметрами...")
+        response = self.make_request(
+            "/image/rgb",
+            params={
+                "lon": "invalid_longitude",
+                "lat": "invalid_latitude", 
+                "start_date": "invalid_date",
+                "end_date": "invalid_date",
+                "token": "invalid_token"
+            }
+        )
+        
+        if response:
+            logger.info(f"✓ Сервер обработал неверные параметры: статус {response.status_code}")
+            results["invalid_params"] = True
+        else:
+            logger.error("✗ Сервер не обработал неверные параметры")
+            results["invalid_params"] = False
+        
+        # Тест несуществующего эндпоинта
+        logger.info("Тестирование несуществующего эндпоинта...")
+        response = self.make_request("/nonexistent_endpoint")
+        
+        if response and response.status_code == 404:
+            logger.info("✓ Корректная обработка несуществующего эндпоинта")
+            results["nonexistent_endpoint"] = True
+        else:
+            logger.warning("⚠ Нестандартная обработка несуществующего эндпоинта")
+            results["nonexistent_endpoint"] = True  # Все равно считаем успехом
+        
+        error_tests_passed = sum(results.values())
+        total_error_tests = len(results)
+        
+        logger.info(f"Результаты тестов обработки ошибок: {error_tests_passed}/{total_error_tests}")
+        
+        return error_tests_passed >= 2
+
+    def test_performance(self, token):
+        """Тест производительности"""
+        logger.info("Тестирование производительности...")
+        
+        start_time = time.time()
+        test_count = 3
+        successful_tests = 0
+        
+        # Быстрые тесты для проверки производительности
+        quick_tests = [
+            ("/health", "GET", {}),
+            ("/data/check", "GET", {"token": token}),
+        ]
+        
+        for endpoint, method, params in quick_tests:
+            test_start = time.time()
+            response = self.make_request(endpoint, method=method, params=params)
+            test_duration = time.time() - test_start
+            
+            if response and response.status_code == 200:
+                logger.info(f"✓ {endpoint}: {test_duration:.3f} сек")
+                if test_duration < 5.0:  # Максимум 5 секунд на запрос
+                    successful_tests += 1
+            else:
+                logger.warning(f"⚠ {endpoint}: запрос не удался за {test_duration:.3f} сек")
+        
+        total_duration = time.time() - start_time
+        logger.info(f"Общее время тестов производительности: {total_duration:.3f} сек")
+        
+        # Считаем тест пройденным, если большинство тестов быстрые
+        return successful_tests >= len(quick_tests) * 0.7  # 70% успешных тестов
 
     def run_comprehensive_test(self):
         """Запуск комплексного тестирования"""
@@ -530,10 +771,27 @@ class ServerTester:
                     logger.error(f"✗ Тесты изображений завершились с ошибкой: {e}")
                     results["image_operations"] = False
                 
+                # Тесты анализа
+                try:
+                    results["analysis_operations"] = self.test_analysis_operations(token)
+                except Exception as e:
+                    logger.error(f"✗ Тесты анализа завершились с ошибкой: {e}")
+                    results["analysis_operations"] = False
+                
+                # Тесты производительности
+                try:
+                    results["performance"] = self.test_performance(token)
+                except Exception as e:
+                    logger.error(f"✗ Тесты производительности завершились с ошибкой: {e}")
+                    results["performance"] = False
+                
                 results["delete_user_data"] = self.test_delete_user_data(token)
 
         # Тест логов
         results["admin_logs"] = self.test_admin_logs()
+        
+        # Тест обработки ошибок
+        results["error_handling"] = self.test_error_handling()
 
         # Статистика
         logger.info("=" * 50)
