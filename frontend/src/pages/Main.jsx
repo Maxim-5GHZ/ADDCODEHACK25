@@ -144,7 +144,7 @@ function Advantages() {
 
     return (
         <div className="bg-[var(--neutral-secondary-color)] overflow-hidden">
-            <div id="advantages" className="bg-[var(--neutral-secondary-color)] py-32">
+            <div id="advantages" className="bg-[var(--neutral-secondary-color)] pt-16">
                 <h3 className="text-8xl text-[var(--neutral-dark-color)] font-bold text-center">
                     ПРЕИМУЩЕСТВА
                 </h3>
@@ -171,7 +171,7 @@ function Advantages() {
                 <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
             </div>
 
-            <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] py-32">
+            <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] pt-16 pb-32">
                 <Link
                     to="/registration"
                     className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
