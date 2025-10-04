@@ -1,0 +1,11 @@
+{
+    "files": [
+        "bridge/__init__.py",
+        "bridge/map_bridge.py",
+        "form.ui",
+        "login.py",
+        "mainwindow.py",
+        "map.py",
+        "ui_form.py"
+    ]
+}
