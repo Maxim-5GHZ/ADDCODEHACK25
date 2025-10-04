@@ -233,6 +233,36 @@ class controller():
         ):
             return await self.func.check_field_exists(field, token)
 
+        @self.app.get("/image/rgb")
+        async def get_rgb_image(
+                lon: float = Query(..., description="Долгота"),
+                lat: float = Query(..., description="Широта"),
+                start_date: str = Query(..., description="Начальная дата (YYYY-MM-DD)"),
+                end_date: str = Query(..., description="Конечная дата (YYYY-MM-DD)"),
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            return await self.func.get_rgb_image(lon, lat, start_date, end_date, token)
+
+        @self.app.get("/image/red-channel")
+        async def get_red_channel_image(
+                lon: float = Query(..., description="Долгота"),
+                lat: float = Query(..., description="Широта"),
+                start_date: str = Query(..., description="Начальная дата (YYYY-MM-DD)"),
+                end_date: str = Query(..., description="Конечная дата (YYYY-MM-DD)"),
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            return await self.func.get_red_channel_image(lon, lat, start_date, end_date, token)
+
+        @self.app.get("/image/ndvi")
+        async def get_ndvi_image(
+                lon: float = Query(..., description="Долгота"),
+                lat: float = Query(..., description="Широта"),
+                start_date: str = Query(..., description="Начальная дата (YYYY-MM-DD)"),
+                end_date: str = Query(..., description="Конечная дата (YYYY-MM-DD)"),
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            return await self.func.get_ndvi_image(lon, lat, start_date, end_date, token)
+    
     def run(self):
         logger.info("Запуск сервера...")
         self._controllers()

@@ -3,6 +3,8 @@ import logging
 from fastapi.responses import FileResponse
 import time
 import os
+import json
+from ImageProvider import ImageProvider
 
 logger = logging.getLogger(__name__)
 
@@ -391,3 +393,172 @@ class controller_func():
         except Exception as e:
             logger.error(f"Ошибка при проверке поля {field}: {e}")
             return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+        
+    async def get_rgb_image(self, lon: float, lat: float, start_date: str, end_date: str, token: str):
+        """Получение RGB изображения по геолокации"""
+        logger.info(f"Запрос RGB изображения для координат: {lon}, {lat}")
+
+        try:
+            # Проверяем авторизацию пользователя
+            if not self.user_bd.if_token_exist(token):
+                logger.warning(f"Попытка получения изображения с невалидным токеном: {token}")
+                return {
+                    "status": "error",
+                    "detail": "Невалидный токен"
+                }
+
+            # Получаем изображение через ImageProvider
+            provider = ImageProvider.from_gee(
+                lon=lon,
+                lat=lat,
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            # Конвертируем RGB изображение в base64
+            import base64
+            from io import BytesIO
+            from PIL import Image
+            
+            # Конвертируем numpy array в PIL Image
+            rgb_image_pil = Image.fromarray(provider.rgb_image.astype('uint8'))
+            
+            # Конвертируем в base64
+            buffered = BytesIO()
+            rgb_image_pil.save(buffered, format="JPEG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+
+            logger.info(f"RGB изображение успешно получено для координат: {lon}, {lat}")
+            return {
+                "status": "success",
+                "image_type": "rgb",
+                "image_data": img_str,
+                "format": "jpeg",
+                "coordinates": {"lon": lon, "lat": lat},
+                "date_range": {"start": start_date, "end": end_date}
+            }
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении RGB изображения: {e}")
+            return {
+                "status": "error",
+                "detail": f"Не удалось получить изображение: {str(e)}"
+            }
+
+    async def get_red_channel_image(self, lon: float, lat: float, start_date: str, end_date: str, token: str):
+        """Получение изображения красного канала по геолокации"""
+        logger.info(f"Запрос красного канала для координат: {lon}, {lat}")
+
+        try:
+            # Проверяем авторизацию пользователя
+            if not self.user_bd.if_token_exist(token):
+                logger.warning(f"Попытка получения изображения с невалидным токеном: {token}")
+                return {
+                    "status": "error",
+                    "detail": "Невалидный токен"
+                }
+
+            # Получаем изображение через ImageProvider
+            provider = ImageProvider.from_gee(
+                lon=lon,
+                lat=lat,
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            # Нормализуем красный канал для визуализации
+            red_channel_normalized = (provider.red_channel - provider.red_channel.min()) / (provider.red_channel.max() - provider.red_channel.min()) * 255
+            red_channel_uint8 = red_channel_normalized.astype('uint8')
+
+            # Конвертируем в base64
+            import base64
+            from io import BytesIO
+            from PIL import Image
+            
+            red_image_pil = Image.fromarray(red_channel_uint8)
+            
+            buffered = BytesIO()
+            red_image_pil.save(buffered, format="JPEG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+
+            logger.info(f"Красный канал успешно получен для координат: {lon}, {lat}")
+            return {
+                "status": "success",
+                "image_type": "red_channel",
+                "image_data": img_str,
+                "format": "jpeg",
+                "coordinates": {"lon": lon, "lat": lat},
+                "date_range": {"start": start_date, "end": end_date},
+                "statistics": {
+                    "min_value": float(provider.red_channel.min()),
+                    "max_value": float(provider.red_channel.max()),
+                    "mean_value": float(provider.red_channel.mean())
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении красного канала: {e}")
+            return {
+                "status": "error",
+                "detail": f"Не удалось получить изображение: {str(e)}"
+            }
+
+    async def get_ndvi_image(self, lon: float, lat: float, start_date: str, end_date: str, token: str):
+        """Получение NDVI изображения по геолокации"""
+        logger.info(f"Запрос NDVI для координат: {lon}, {lat}")
+
+        try:
+            # Проверяем авторизацию пользователя
+            if not self.user_bd.if_token_exist(token):
+                logger.warning(f"Попытка получения NDVI с невалидным токеном: {token}")
+                return {
+                    "status": "error",
+                    "detail": "Невалидный токен"
+                }
+
+            # Получаем изображение через ImageProvider
+            provider = ImageProvider.from_gee(
+                lon=lon,
+                lat=lat,
+                start_date=start_date,
+                end_date=end_date
+            )
+
+            # Вычисляем NDVI
+            ndvi = (provider.nir_channel - provider.red_channel) / (provider.nir_channel + provider.red_channel + 1e-8)
+            
+            # Нормализуем NDVI от -1 до 1 для визуализации
+            ndvi_normalized = ((ndvi + 1) / 2 * 255).clip(0, 255).astype('uint8')
+
+            # Конвертируем в base64
+            import base64
+            from io import BytesIO
+            from PIL import Image
+            
+            ndvi_image_pil = Image.fromarray(ndvi_normalized)
+            
+            buffered = BytesIO()
+            ndvi_image_pil.save(buffered, format="JPEG")
+            img_str = base64.b64encode(buffered.getvalue()).decode()
+
+            logger.info(f"NDVI успешно получен для координат: {lon}, {lat}")
+            return {
+                "status": "success",
+                "image_type": "ndvi",
+                "image_data": img_str,
+                "format": "jpeg",
+                "coordinates": {"lon": lon, "lat": lat},
+                "date_range": {"start": start_date, "end": end_date},
+                "statistics": {
+                    "min_ndvi": float(ndvi.min()),
+                    "max_ndvi": float(ndvi.max()),
+                    "mean_ndvi": float(ndvi.mean())
+                }
+            }
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении NDVI: {e}")
+            return {
+                "status": "error",
+                "detail": f"Не удалось вычислить NDVI: {str(e)}"
+            }
