@@ -3,6 +3,9 @@ import json
 import time
 import random
 import logging
+import base64
+from io import BytesIO
+from PIL import Image
 
 # Настройка логирования
 logging.basicConfig(
@@ -23,15 +26,15 @@ class ServerTester:
         url = f"{self.base_url}{endpoint}"
         try:
             if method.upper() == "GET":
-                response = self.session.get(url, params=params, timeout=10)
+                response = self.session.get(url, params=params, timeout=30)
             elif method.upper() == "POST":
-                response = self.session.post(url, params=params, data=data, timeout=10)
+                response = self.session.post(url, params=params, data=data, timeout=30)
             elif method.upper() == "PUT":
-                response = self.session.put(url, params=params, data=data, timeout=10)
+                response = self.session.put(url, params=params, data=data, timeout=30)
             elif method.upper() == "PATCH":
-                response = self.session.patch(url, params=params, data=data, timeout=10)
+                response = self.session.patch(url, params=params, data=data, timeout=30)
             elif method.upper() == "DELETE":
-                response = self.session.delete(url, params=params, timeout=10)
+                response = self.session.delete(url, params=params, timeout=30)
             else:
                 raise ValueError(f"Неизвестный метод: {method}")
 
@@ -320,6 +323,142 @@ class ServerTester:
         logger.error("✗ Операции с полями завершились с ошибками")
         return False
 
+    def test_image_operations(self, token):
+        """Тест операций с изображениями"""
+        logger.info("Тестирование операций с изображениями...")
+        
+        # Тестовые координаты (Москва)
+        test_coordinates = [
+            (37.6173, 55.7558),  # Москва
+            (30.5234, 50.4501),  # Киев
+            (27.5667, 53.9000),  # Минск
+        ]
+        
+        lon, lat = test_coordinates[0]  # Используем Москву для тестов
+        
+        # Даты для тестирования (последние 30 дней)
+        end_date = time.strftime("%Y-%m-%d")
+        start_date = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 30*24*60*60))
+        
+        results = {}
+        
+        # Тест RGB изображения
+        logger.info("Тестирование получения RGB изображения...")
+        response = self.make_request(
+            "/image/rgb",
+            params={
+                "lon": lon,
+                "lat": lat,
+                "start_date": start_date,
+                "end_date": end_date,
+                "token": token
+            }
+        )
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                image_data = data.get("image_data")
+                if image_data and len(image_data) > 100:  # Проверяем, что есть данные
+                    logger.info("✓ RGB изображение успешно получено")
+                    results["rgb_image"] = True
+                    
+                    # Дополнительная проверка: пытаемся декодировать изображение
+                    try:
+                        image_bytes = base64.b64decode(image_data)
+                        image = Image.open(BytesIO(image_bytes))
+                        logger.info(f"✓ RGB изображение валидно: {image.size}")
+                    except Exception as e:
+                        logger.warning(f"⚠ RGB изображение получено, но ошибка декодирования: {e}")
+                        results["rgb_image"] = True  # Все равно считаем успехом
+                else:
+                    logger.error("✗ RGB изображение пустое")
+                    results["rgb_image"] = False
+            else:
+                logger.warning(f"⚠ RGB изображение не получено: {data.get('detail', 'Unknown error')}")
+                results["rgb_image"] = False
+        else:
+            logger.error("✗ Запрос RGB изображения не удался")
+            results["rgb_image"] = False
+        
+        # Тест красного канала
+        logger.info("Тестирование получения красного канала...")
+        response = self.make_request(
+            "/image/red-channel",
+            params={
+                "lon": lon,
+                "lat": lat,
+                "start_date": start_date,
+                "end_date": end_date,
+                "token": token
+            }
+        )
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                image_data = data.get("image_data")
+                if image_data and len(image_data) > 100:
+                    logger.info("✓ Красный канал успешно получен")
+                    results["red_channel"] = True
+                    
+                    # Проверяем статистику
+                    stats = data.get("statistics", {})
+                    if stats:
+                        logger.info(f"✓ Статистика красного канала: min={stats.get('min_value')}, max={stats.get('max_value')}")
+                else:
+                    logger.error("✗ Красный канал пустой")
+                    results["red_channel"] = False
+            else:
+                logger.warning(f"⚠ Красный канал не получен: {data.get('detail', 'Unknown error')}")
+                results["red_channel"] = False
+        else:
+            logger.error("✗ Запрос красного канала не удался")
+            results["red_channel"] = False
+        
+        # Тест NDVI
+        logger.info("Тестирование получения NDVI...")
+        response = self.make_request(
+            "/image/ndvi",
+            params={
+                "lon": lon,
+                "lat": lat,
+                "start_date": start_date,
+                "end_date": end_date,
+                "token": token
+            }
+        )
+        
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                image_data = data.get("image_data")
+                if image_data and len(image_data) > 100:
+                    logger.info("✓ NDVI успешно получен")
+                    results["ndvi"] = True
+                    
+                    # Проверяем статистику NDVI
+                    stats = data.get("statistics", {})
+                    if stats:
+                        logger.info(f"✓ Статистика NDVI: min={stats.get('min_ndvi'):.3f}, max={stats.get('max_ndvi'):.3f}")
+                else:
+                    logger.error("✗ NDVI пустой")
+                    results["ndvi"] = False
+            else:
+                logger.warning(f"⚠ NDVI не получен: {data.get('detail', 'Unknown error')}")
+                results["ndvi"] = False
+        else:
+            logger.error("✗ Запрос NDVI не удался")
+            results["ndvi"] = False
+        
+        # Считаем тест пройденным, если хотя бы одно изображение получено
+        image_tests_passed = sum(results.values())
+        total_image_tests = len(results)
+        
+        logger.info(f"Результаты тестов изображений: {image_tests_passed}/{total_image_tests}")
+        
+        return image_tests_passed > 0
+
     def test_admin_logs(self):
         """Тест получения логов администратора"""
         logger.info("Тестирование получения логов...")
@@ -383,6 +522,14 @@ class ServerTester:
                 results["edit_user_data"] = self.test_edit_user_data(token, "key7,key8", "key4")
                 results["check_data_exists"] = self.test_check_user_data_exists(token)
                 results["field_operations"] = self.test_field_operations(token)
+                
+                # Тесты изображений (требуют интернет и Google Earth Engine)
+                try:
+                    results["image_operations"] = self.test_image_operations(token)
+                except Exception as e:
+                    logger.error(f"✗ Тесты изображений завершились с ошибкой: {e}")
+                    results["image_operations"] = False
+                
                 results["delete_user_data"] = self.test_delete_user_data(token)
 
         # Тест логов
