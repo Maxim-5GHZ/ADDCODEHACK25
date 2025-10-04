@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import Card from "../components/Card";
+import logoSVG from "../assets/logo.svg"
 import card1Image from "../assets/card1_image.jpg";
 import card2Image from "../assets/card2_image.jpg";
 import card3Image from "../assets/card3_image.jpg";
@@ -175,8 +176,8 @@ function Footer() {
                 <div className="flex flex-col md:flex-row justify-between items-center gap-8 pb-8 border-b border-[#b2e3c7]">
                     <div className="flex flex-col items-start">
                         <div className="flex items-center gap-4 mb-4">
-                            <img src="/logo192.png" alt="FieldScan" className="h-12 w-12" />
-                            <span className="text-4xl font-bold text-[#009e4f] tracking-tight">FieldScan</span>
+                            <img src={logoSVG} alt="FieldScan" className="h-12 w-12" />
+                            <span className="text-4xl font-bold text-[var(--accent-color)] tracking-tight">FieldScan</span>
                         </div>
                         <span className="text-xl text-gray-500 font-medium mb-2">2025 © Все права защищены</span>
                         <span className="text-lg text-gray-400">Создано для будущего агроаналитики</span>

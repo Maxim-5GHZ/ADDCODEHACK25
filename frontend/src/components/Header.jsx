@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import logoSVG from "../assets/logo.svg"
 
 function Header({ isTransparent }) {
     let navButtonsStyle = isTransparent ? "text-[var(--neutral-color)] hover:text-[var(--accent-light-color)]" : "text-[var(--neutral-dark-color)] hover:text-[var(--accent-dark-color)]"
@@ -8,7 +9,7 @@ function Header({ isTransparent }) {
             <div className="flex items-center justify-between h-full">
                 <div className="flex flex-row flex-shrink-0 h-full items-center">
                     <Link to="/" className="flex items-center h-full">
-                        <img src="/logo.svg" className="max-h-full" />
+                        <img src={logoSVG} className="max-h-full" />
                     </Link>
                     <Link to="/" className={`text-4xl poppins-medium mt-2
                         ${isTransparent ? "text-[var(--neutral-color)]" : "text-[var(--neutral-dark-color)]"}`}>
