@@ -2,6 +2,7 @@ import random
 import logging
 from fastapi.responses import FileResponse
 import time
+from analysis_manager import AnalysisManager
 import os
 import json
 from ImageProvider import ImageProvider
@@ -13,6 +14,7 @@ class controller_func():
         self.user_bd = user_bd
         self.user_data = user_data
         self.field_data = field_data
+        self.analysis_manager = AnalysisManager(user_data, field_data)
 
     async def reed__root(self):
         logger.info("Запрос главной страницы")
@@ -561,4 +563,97 @@ class controller_func():
             return {
                 "status": "error",
                 "detail": f"Не удалось вычислить NDVI: {str(e)}"
+            }
+    async def perform_analysis(self, token: str, lon: float, lat: float, 
+                             start_date: str, end_date: str):
+        """Выполняет полный анализ по координатам"""
+        logger.info(f"Запрос полного анализа для координат: {lon}, {lat}")
+
+        try:
+            # Проверяем авторизацию пользователя
+            if not self.user_bd.if_token_exist(token):
+                logger.warning(f"Попытка анализа с невалидным токеном: {token}")
+                return {
+                    "status": "error",
+                    "detail": "Невалидный токен"
+                }
+
+            result = self.analysis_manager.perform_complete_analysis(
+                token, lon, lat, start_date, end_date
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Ошибка при выполнении анализа: {e}")
+            return {
+                "status": "error",
+                "detail": f"Не удалось выполнить анализ: {str(e)}"
+            }
+
+    async def get_analyses_list(self, token: str):
+        """Получает список всех анализов пользователя"""
+        logger.info(f"Запрос списка анализов для токена: {token}")
+
+        try:
+            if not self.user_bd.if_token_exist(token):
+                return {
+                    "status": "error",
+                    "detail": "Невалидный токен"
+                }
+
+            analyses_list = self.analysis_manager.get_user_analyses_list(token)
+
+            return {
+                "status": "success",
+                "analyses": analyses_list['analyses']
+            }
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении списка анализов: {e}")
+            return {
+                "status": "error",
+                "detail": str(e)
+            }
+
+    async def get_analysis(self, token: str, analysis_id: str):
+        """Получает конкретный анализ по ID"""
+        logger.info(f"Запрос анализа {analysis_id} для токена: {token}")
+
+        try:
+            if not self.user_bd.if_token_exist(token):
+                return {
+                    "status": "error",
+                    "detail": "Невалидный токен"
+                }
+
+            result = self.analysis_manager.get_analysis_by_id(token, analysis_id)
+            return result
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении анализа: {e}")
+            return {
+                "status": "error",
+                "detail": str(e)
+            }
+
+    async def delete_analysis(self, token: str, analysis_id: str):
+        """Удаляет анализ"""
+        logger.info(f"Запрос удаления анализа {analysis_id} для токена: {token}")
+
+        try:
+            if not self.user_bd.if_token_exist(token):
+                return {
+                    "status": "error",
+                    "detail": "Невалидный токен"
+                }
+
+            result = self.analysis_manager.delete_analysis(token, analysis_id)
+            return result
+
+        except Exception as e:
+            logger.error(f"Ошибка при удалении анализа: {e}")
+            return {
+                "status": "error",
+                "detail": str(e)
             }
