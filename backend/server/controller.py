@@ -262,6 +262,38 @@ class controller():
                 token: str = Query(..., description="Токен пользователя")
         ):
             return await self.func.get_ndvi_image(lon, lat, start_date, end_date, token)
+        
+        @self.app.post("/analysis/perform")
+        async def perform_analysis(
+                token: str = Query(..., description="Токен пользователя"),
+                lon: float = Query(..., description="Долгота"),
+                lat: float = Query(..., description="Широта"),
+                start_date: str = Query(..., description="Начальная дата (YYYY-MM-DD)"),
+                end_date: str = Query(..., description="Конечная дата (YYYY-MM-DD)")
+        ):
+            return await self.func.perform_analysis(token, lon, lat, start_date, end_date)
+
+        @self.app.get("/analysis/list")
+        async def get_analyses_list(
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            return await self.func.get_analyses_list(token)
+
+        @self.app.get("/analysis/{analysis_id}")
+        async def get_analysis(
+                analysis_id: str,
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            return await self.func.get_analysis(token, analysis_id)
+
+        @self.app.delete("/analysis/{analysis_id}")
+        async def delete_analysis(
+                analysis_id: str,
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            return await self.func.delete_analysis(token, analysis_id)
+        
+        
     
     def run(self):
         logger.info("Запуск сервера...")
