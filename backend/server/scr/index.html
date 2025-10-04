@@ -1,10 +1,572 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализ спутниковых снимков</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --border-radius: 0.25rem;
+            --box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: #e9ecef;
+            color: var(--dark-color);
+            margin: 0;
+            padding: 1.5rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        .card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--primary-color);
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button.active {
+            border-bottom-color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #ced4da;
+            border-radius: var(--border-radius);
+            box-sizing: border-box;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.6rem 1.2rem;
+            font-size: 1rem;
+            font-weight: 500;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid transparent;
+            border-radius: var(--border-radius);
+            transition: all 0.2s ease-in-out;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        #status-message {
+            text-align: center;
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: var(--border-radius);
+            font-weight: 500;
+        }
+
+        .status-success { background-color: #d4edda; color: #155724; }
+        .status-error { background-color: #f8d7da; color: #721c24; }
+
+        .hidden { display: none; }
+
+        #main-app { margin-top: 2rem; }
+        
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+
+        #results-container .image-card, #results-container .stats-card {
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+            padding: 1rem;
+            background: var(--light-color);
+        }
+        
+        #results-container h3 {
+            margin-top: 0;
+            text-align: center;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        #results-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: var(--border-radius);
+        }
+        
+        .stats-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .stats-table th, .stats-table td {
+            text-align: left;
+            padding: 0.5rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .stats-table th { font-weight: 600; }
+
+        #past-analyses-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #past-analyses-list li {
+            background: var(--light-color);
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: var(--border-radius);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .analysis-info { font-size: 0.9rem; }
+        .analysis-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        
+        @media (max-width: 768px) {
+            .form-row { flex-direction: column; }
+            .grid-container { grid-template-columns: 1fr; }
+            body { padding: 0.5rem; }
+            .card { padding: 1rem; }
+        }
+
+    </style>
 </head>
 <body>
 
+<div class="container">
+    <h1>Анализ спутниковых снимков</h1>
+
+    <!-- AUTHENTICATION SECTION -->
+    <div id="auth-section" class="card">
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('login')">Вход</button>
+            <button class="tab-button" onclick="switchTab('register')">Регистрация</button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form">
+            <div class="form-group">
+                <label for="login-username">Логин</label>
+                <input type="text" id="login-username" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Пароль</label>
+                <input type="password" id="login-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Войти</button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="register-form" class="hidden">
+            <div class="form-group">
+                <label for="register-username">Логин</label>
+                <input type="text" id="register-username" required>
+            </div>
+            <div class="form-group">
+                <label for="register-password">Пароль</label>
+                <input type="password" id="register-password" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+        </form>
+        <div id="auth-status-message"></div>
+    </div>
+    
+    <!-- MAIN APPLICATION -->
+    <div id="main-app" class="hidden">
+        <p>Вы вошли в систему. Ваш токен: <b id="user-token"></b></p>
+        
+        <!-- NEW ANALYSIS -->
+        <div class="card">
+            <h2>Провести новый анализ</h2>
+            <form id="analysis-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="lon">Долгота (Longitude)</label>
+                        <input type="number" step="any" id="lon" value="37.6173" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lat">Широта (Latitude)</label>
+                        <input type="number" step="any" id="lat" value="55.7558" required>
+                    </div>
+                </div>
+                 <div class="form-row">
+                    <div class="form-group">
+                        <label for="start-date">Начальная дата</label>
+                        <input type="date" id="start-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="end-date">Конечная дата</label>
+                        <input type="date" id="end-date" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Выполнить анализ</button>
+            </form>
+             <div id="analysis-status-message"></div>
+        </div>
+
+        <!-- RESULTS -->
+        <div id="results-container" class="card hidden">
+            <h2>Результаты анализа <span id="analysis-id-display"></span></h2>
+            <div class="grid-container">
+                 <div class="stats-card">
+                    <h3>Общая информация</h3>
+                    <div id="results-metadata"></div>
+                </div>
+                <div class="stats-card">
+                    <h3>Статистика</h3>
+                    <div id="results-stats"></div>
+                </div>
+                <div class="image-card">
+                    <h3>RGB Изображение</h3>
+                    <img id="rgb-image" alt="RGB Image">
+                </div>
+                <div class="image-card">
+                    <h3>Красный канал</h3>
+                    <img id="red-channel-image" alt="Red Channel Image">
+                </div>
+                <div class="image-card">
+                    <h3>Индекс NDVI</h3>
+                    <img id="ndvi-image" alt="NDVI Image">
+                </div>
+                <div class="image-card">
+                    <h3>Индекс VARI</h3>
+                    <img id="vari-image" alt="VARI Image">
+                </div>
+            </div>
+        </div>
+        
+        <!-- PAST ANALYSES -->
+        <div class="card">
+            <h2>Прошлые анализы</h2>
+            <button id="fetch-analyses-btn" class="btn btn-secondary">Обновить список</button>
+            <ul id="past-analyses-list"></ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE_URL = window.location.origin;
+
+    // --- STATE MANAGEMENT ---
+    let authToken = null;
+
+    // --- DOM ELEMENTS ---
+    const authSection = document.getElementById('auth-section');
+    const mainApp = document.getElementById('main-app');
+    const loginForm = document.getElementById('login-form');
+    const registerForm = document.getElementById('register-form');
+    const analysisForm = document.getElementById('analysis-form');
+    const userTokenDisplay = document.getElementById('user-token');
+    const pastAnalysesList = document.getElementById('past-analyses-list');
+    const fetchAnalysesBtn = document.getElementById('fetch-analyses-btn');
+    const resultsContainer = document.getElementById('results-container');
+
+    // --- UI FUNCTIONS ---
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`.tab-button[onclick="switchTab('${tabName}')"]`).classList.add('active');
+        
+        if (tabName === 'login') {
+            loginForm.classList.remove('hidden');
+            registerForm.classList.add('hidden');
+        } else {
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+        }
+    }
+
+    function showStatusMessage(elementId, message, isError = false) {
+        const el = document.getElementById(elementId);
+        el.textContent = message;
+        el.className = isError ? 'status-error' : 'status-success';
+        el.style.display = 'block';
+    }
+
+    function hideStatusMessage(elementId) {
+        document.getElementById(elementId).style.display = 'none';
+    }
+    
+    function setDateDefaults() {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+
+        document.getElementById('end-date').value = endDate.toISOString().split('T')[0];
+        document.getElementById('start-date').value = startDate.toISOString().split('T')[0];
+    }
+    
+    function renderAnalysisData(data) {
+        resultsContainer.classList.remove('hidden');
+        
+        document.getElementById('analysis-id-display').textContent = `(ID: ${data.analysis_id})`;
+
+        // Metadata
+        document.getElementById('results-metadata').innerHTML = `
+            <table class="stats-table">
+                <tr><th>ID Анализа</th><td>${data.analysis_id}</td></tr>
+                <tr><th>Время</th><td>${new Date(data.timestamp * 1000).toLocaleString()}</td></tr>
+                <tr><th>Координаты</th><td>${data.coordinates.lat.toFixed(4)}, ${data.coordinates.lon.toFixed(4)}</td></tr>
+                <tr><th>Диапазон дат</th><td>${data.date_range.start} to ${data.date_range.end}</td></tr>
+                 <tr><th>Источник</th><td>${data.metadata.source} (${data.metadata.resolution})</td></tr>
+            </table>`;
+            
+        // Statistics
+        const stats = data.statistics;
+        document.getElementById('results-stats').innerHTML = `
+            <table class="stats-table">
+                <tr><th>Индекс</th><th>Min</th><th>Max</th><th>Mean</th></tr>
+                <tr><td><b>NDVI</b></td><td>${stats.ndvi.min.toFixed(3)}</td><td>${stats.ndvi.max.toFixed(3)}</td><td>${stats.ndvi.mean.toFixed(3)}</td></tr>
+                <tr><td><b>VARI</b></td><td>${stats.vari.min.toFixed(3)}</td><td>${stats.vari.max.toFixed(3)}</td><td>${stats.vari.mean.toFixed(3)}</td></tr>
+                <tr><td><b>Red Ch.</b></td><td>${stats.red_channel.min.toFixed(0)}</td><td>${stats.red_channel.max.toFixed(0)}</td><td>${stats.red_channel.mean.toFixed(0)}</td></tr>
+            </table>`;
+            
+        // Images
+        document.getElementById('rgb-image').src = `data:image/jpeg;base64,${data.images.rgb}`;
+        document.getElementById('red-channel-image').src = `data:image/jpeg;base64,${data.images.red_channel}`;
+        document.getElementById('ndvi-image').src = `data:image/jpeg;base64,${data.images.ndvi}`;
+        document.getElementById('vari-image').src = `data:image/jpeg;base64,${data.images.vari}`;
+        
+        resultsContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // --- API CALLS ---
+    async function apiRequest(endpoint, method = 'GET', body = null) {
+        const url = `${API_BASE_URL}${endpoint}`;
+        const options = { method };
+        if (body) {
+            options.body = body;
+        }
+        
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'HTTP error!' }));
+                throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('API Request Error:', error);
+            throw error;
+        }
+    }
+
+    // --- EVENT HANDLERS ---
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideStatusMessage('auth-status-message');
+        const login = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+        const url = `/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+        
+        try {
+            const data = await apiRequest(url);
+            if (data.status === 'success') {
+                authToken = data.token;
+                userTokenDisplay.textContent = authToken;
+                authSection.classList.add('hidden');
+                mainApp.classList.remove('hidden');
+                fetchPastAnalyses(); // Initial fetch
+            } else {
+                throw new Error(data.detail);
+            }
+        } catch (error) {
+            showStatusMessage('auth-status-message', `Ошибка входа: ${error.message}`, true);
+        }
+    });
+
+    registerForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideStatusMessage('auth-status-message');
+        const login = document.getElementById('register-username').value;
+        const password = document.getElementById('register-password').value;
+        const url = `/add_user?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+
+        try {
+            const data = await apiRequest(url, 'POST');
+            if (data.status === 'success') {
+                showStatusMessage('auth-status-message', 'Регистрация успешна! Теперь вы можете войти.');
+                switchTab('login');
+            } else {
+                throw new Error(data.detail);
+            }
+        } catch (error) {
+            showStatusMessage('auth-status-message', `Ошибка регистрации: ${error.message}`, true);
+        }
+    });
+    
+    analysisForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        hideStatusMessage('analysis-status-message');
+        showStatusMessage('analysis-status-message', 'Выполняется анализ... Это может занять некоторое время.');
+        
+        const lon = document.getElementById('lon').value;
+        const lat = document.getElementById('lat').value;
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+        
+        const url = `/analysis/perform?token=${authToken}&lon=${lon}&lat=${lat}&start_date=${startDate}&end_date=${endDate}`;
+        
+        try {
+            const data = await apiRequest(url, 'POST');
+            if (data.status === 'success') {
+                hideStatusMessage('analysis-status-message');
+                renderAnalysisData(data.data);
+                fetchPastAnalyses(); // Refresh list
+            } else {
+                throw new Error(data.detail);
+            }
+        } catch (error) {
+            showStatusMessage('analysis-status-message', `Ошибка анализа: ${error.message}`, true);
+        }
+    });
+    
+    async function fetchPastAnalyses() {
+        pastAnalysesList.innerHTML = '<li>Загрузка...</li>';
+        try {
+            const data = await apiRequest(`/analysis/list?token=${authToken}`);
+            if (data.status === 'success') {
+                pastAnalysesList.innerHTML = '';
+                if (data.analyses.length === 0) {
+                     pastAnalysesList.innerHTML = '<li>Вы еще не проводили анализы.</li>';
+                }
+                data.analyses.forEach(analysis => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <div class="analysis-info">
+                            <b>ID:</b> ${analysis.analysis_id} | 
+                            <b>Дата:</b> ${new Date(analysis.timestamp * 1000).toLocaleDateString()} | 
+                            <b>Координаты:</b> ${analysis.coordinates.lat.toFixed(2)}, ${analysis.coordinates.lon.toFixed(2)}
+                        </div>
+                        <div class="analysis-actions">
+                            <button class="btn btn-primary" onclick="viewAnalysis('${analysis.analysis_id}')">Просмотр</button>
+                            <button class="btn btn-danger" onclick="deleteAnalysis('${analysis.analysis_id}')">Удалить</button>
+                        </div>
+                    `;
+                    pastAnalysesList.appendChild(li);
+                });
+            } else {
+                 throw new Error(data.detail);
+            }
+        } catch (error) {
+             pastAnalysesList.innerHTML = `<li>Ошибка загрузки: ${error.message}</li>`;
+        }
+    }
+    
+    async function viewAnalysis(analysisId) {
+        resultsContainer.classList.add('hidden');
+        alert(`Загрузка данных для анализа ID: ${analysisId}`);
+        try {
+            const data = await apiRequest(`/analysis/${analysisId}?token=${authToken}`);
+             if (data.status === 'success') {
+                renderAnalysisData(data.data);
+            } else {
+                 throw new Error(data.detail);
+            }
+        } catch(error) {
+            alert(`Ошибка при загрузке анализа: ${error.message}`);
+        }
+    }
+    
+    async function deleteAnalysis(analysisId) {
+        if (!confirm(`Вы уверены, что хотите удалить анализ с ID: ${analysisId}?`)) {
+            return;
+        }
+        try {
+            const data = await apiRequest(`/analysis/${analysisId}?token=${authToken}`, 'DELETE');
+            if (data.status === 'success') {
+                alert(data.message);
+                fetchPastAnalyses(); // Refresh the list
+            } else {
+                 throw new Error(data.detail);
+            }
+        } catch (error) {
+            alert(`Ошибка удаления: ${error.message}`);
+        }
+    }
+
+    fetchAnalysesBtn.addEventListener('click', fetchPastAnalyses);
+
+    // --- INITIALIZATION ---
+    window.onload = () => {
+        setDateDefaults();
+    };
+
+</script>
 </body>
 </html>
