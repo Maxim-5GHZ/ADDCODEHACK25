@@ -1,9 +1,149 @@
+import Header from "../components/Header"
+import { useState } from "react"
+
 function Profile() {
-    return (
-        <>
-            <h1>Profile page</h1>
-        </>
-    )
+  const user = {
+    name: "Никита Кузин",
+    email: "example.email@domen.com"
+  }
+
+  // State для активной вкладки
+  const [activeTab, setActiveTab] = useState("profile");
+
+  return (
+    <>
+      <Header isTransparent={false} />
+      <div className="bg-[#f6f6f6] min-h-screen pt-32 pb-16">
+        <div className="flex max-w-7xl mx-auto gap-12">
+          {/* Sidebar */}
+          <aside className="bg-white rounded-3xl shadow-xl w-80 flex flex-col items-center py-10 px-6 mt-2 h-fit sticky top-32">
+            <div className="flex flex-col items-center mb-10">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#009e4f] to-[#00c97b] flex items-center justify-center mb-3 shadow-lg">
+                {/* SVG аватар */}
+                <svg width="40" height="40" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="12" cy="8" r="4"/>
+                  <path d="M4 20c0-4 8-4 8-4s8 0 8 4"/>
+                </svg>
+              </div>
+              <span className="text-2xl font-bold text-[#009e4f]">{user.name}</span>
+            </div>
+            <nav className="flex flex-col gap-3 w-full">
+              <button
+                className={`text-lg font-semibold rounded-xl py-2 px-4 shadow transition-all text-left ${
+                  activeTab === "profile"
+                    ? "bg-[#f6f6f6] text-[#009e4f]"
+                    : "text-gray-500 hover:text-[#009e4f] hover:bg-[#f6f6f6]"
+                }`}
+                onClick={() => setActiveTab("profile")}
+              >
+                Профиль
+              </button>
+              <button
+                className={`text-lg font-semibold rounded-xl py-2 px-4 shadow transition-all text-left ${
+                  activeTab === "fields"
+                    ? "bg-[#f6f6f6] text-[#009e4f]"
+                    : "text-gray-500 hover:text-[#009e4f] hover:bg-[#f6f6f6]"
+                }`}
+                onClick={() => setActiveTab("fields")}
+              >
+                Список полей
+              </button>
+              <button
+                className={`text-lg font-semibold rounded-xl py-2 px-4 shadow transition-all text-left ${
+                  activeTab === "add"
+                    ? "bg-[#f6f6f6] text-[#009e4f]"
+                    : "text-gray-500 hover:text-[#009e4f] hover:bg-[#f6f6f6]"
+                }`}
+                onClick={() => setActiveTab("add")}
+              >
+                Добавить поле
+              </button>
+            </nav>
+          </aside>
+          {/* Main profile info */}
+          <main className="flex-1 bg-white rounded-3xl shadow-xl p-14 mt-2">
+            <div className="flex justify-between items-center mb-10">
+              <h1 className="text-5xl font-bold text-[#009e4f] tracking-tight">
+                {activeTab === "profile"
+                  ? "Мой профиль"
+                  : activeTab === "fields"
+                  ? "Список полей"
+                  : "Добавить поле"}
+              </h1>
+            </div>
+            {/* Контент вкладок */}
+            {activeTab === "profile" && (
+              <>
+                <div className="grid grid-cols-2 gap-y-8 gap-x-16 mb-14">
+                  <div className="text-2xl text-gray-500">Имя</div>
+                  <div className="text-2xl font-semibold text-gray-900">{user.name}</div>
+                  <div className="text-2xl text-gray-500">Email</div>
+                  <div className="text-2xl font-semibold text-gray-900">{user.email}</div>
+                </div>
+                <div className="flex gap-8">
+                  <button className="bg-[#009e4f] hover:bg-[#00c97b] text-white rounded-xl px-10 py-4 text-2xl font-bold shadow transition-colors">
+                    Редактировать профиль
+                  </button>
+                  <button className="bg-white border-2 border-[#009e4f] text-[#009e4f] rounded-xl px-10 py-4 text-2xl font-bold shadow hover:bg-[#f6f6f6] transition-colors">
+                    Сменить пароль
+                  </button>
+                </div>
+              </>
+            )}
+            {activeTab === "fields" && (
+              <div>
+                <div className="text-2xl font-semibold mb-4">Ваши поля:</div>
+                <ul className="space-y-4">
+                  <li className="bg-[#f6f6f6] rounded-xl px-6 py-4 shadow flex justify-between items-center">
+                    <span className="text-xl font-medium text-gray-900">Поле №1 — Воронежская область</span>
+                    <button className="text-[#009e4f] hover:underline text-lg">Подробнее</button>
+                  </li>
+                  <li className="bg-[#f6f6f6] rounded-xl px-6 py-4 shadow flex justify-between items-center">
+                    <span className="text-xl font-medium text-gray-900">Поле №2 — Краснодарский край</span>
+                    <button className="text-[#009e4f] hover:underline text-lg">Подробнее</button>
+                  </li>
+                </ul>
+              </div>
+            )}
+            {activeTab === "add" && (
+              <div>
+                <form className="max-w-xl">
+                  <div className="mb-8">
+                    <label className="block text-2xl font-semibold mb-2" htmlFor="fieldName">
+                      Название поля
+                    </label>
+                    <input
+                      id="fieldName"
+                      type="text"
+                      className="w-full border rounded-xl px-6 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-[#009e4f]"
+                      placeholder="Введите название"
+                    />
+                  </div>
+                  <div className="mb-8">
+                    <label className="block text-2xl font-semibold mb-2" htmlFor="fieldLocation">
+                      Местоположение
+                    </label>
+                    <input
+                      id="fieldLocation"
+                      type="text"
+                      className="w-full border rounded-xl px-6 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-[#009e4f]"
+                      placeholder="Введите регион или координаты"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="bg-[#009e4f] hover:bg-[#00c97b] text-white rounded-xl px-10 py-4 text-2xl font-bold shadow transition-colors"
+                  >
+                    Добавить поле
+                  </button>
+                </form>
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    </>
+  )
 }
 
 export default Profile

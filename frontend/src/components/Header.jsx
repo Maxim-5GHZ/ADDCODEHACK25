@@ -10,7 +10,7 @@ function Header({ isTransparent }) {
                     <Link to="/" className="flex items-center h-full">
                         <img src="/logo.svg" className="max-h-full" />
                     </Link>
-                    <Link to="/" className={`text-6xl cousine-regular mt-2
+                    <Link to="/" className={`text-4xl poppins-medium mt-2
                         ${isTransparent ? "text-[var(--neutral-color)]" : "text-[var(--neutral-dark-color)]"}`}>
                             FieldScan
                     </Link>
