@@ -1,4 +1,4 @@
-import Header from "../components/Header"
+import { Link } from "react-router-dom"
 import { useState } from "react"
 
 function Profile() {
@@ -12,7 +12,9 @@ function Profile() {
 
   return (
     <>
-      <Header isTransparent={false} />
+      <Link to="/" className="absolute text-2xl md:text-3xl self-start left-2 mx-16 my-8 hover:text-[var(--accent-dark-color)] transition-[color] duration-100">
+        ← На главную
+      </Link>
       <div className="bg-[#f6f6f6] min-h-screen pt-32 pb-16">
         <div className="flex max-w-7xl mx-auto gap-12">
           {/* Sidebar */}
