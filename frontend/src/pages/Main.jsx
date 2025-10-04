@@ -7,6 +7,10 @@ import card1Image from "../assets/card1_image.jpg";
 import card2Image from "../assets/card2_image.jpg";
 import card3Image from "../assets/card3_image.jpg";
 import card4Image from "../assets/card4_image.jpg";
+import carousel1Image from "../assets/carousel_image1.jpg"
+import carousel2Image from "../assets/carousel_image2.jpg"
+import carousel3Image from "../assets/carousel_image3.jpg"
+import carousel4Image from "../assets/carousel_image4.jpg"
 
 function Hero() {
     return (
@@ -101,13 +105,12 @@ function Advantages() {
     let card4Description = "Заменяйте догадки точными цифрами. Получайте конкретные рекомендации к действию: где полить, а где обработать от вредителей."
 
     const cards = [
-        { title: "Предотвращение потерь урожая", description: card1Description, image: card1Image },
-        { title: "Простота и доступность", description: card2Description, image: card2Image },
-        { title: "Круглосуточный мониторинг", description: card3Description, image: card3Image },
-        { title: "Принятие решений на основе данных", description: card4Description, image: card4Image }
+        { title: "Предотвращение потерь урожая", description: card1Description, image: carousel1Image },
+        { title: "Простота и доступность", description: card2Description, image: carousel2Image },
+        { title: "Круглосуточный мониторинг", description: card3Description, image: carousel3Image },
+        { title: "Принятие решений на основе данных", description: card4Description, image: carousel4Image }
     ];
 
-    // Дублируем карточки для бесконечного эффекта
     const duplicatedCards = [...cards, ...cards, ...cards];
 
     useEffect(() => {
@@ -115,13 +118,12 @@ function Advantages() {
         if (!carousel) return;
 
         let animationId;
-        const speed = 0.5; // Скорость прокрутки (пикселей за кадр)
+        const speed = 0.7;
         let position = 0;
 
         const animate = () => {
             position -= speed;
             
-            // Если прокрутили на ширину одного набора карточек - сбрасываем позицию
             if (position <= -carousel.scrollWidth / 3) {
                 position = 0;
             }
@@ -130,7 +132,6 @@ function Advantages() {
             animationId = requestAnimationFrame(animate);
         };
 
-        // Запускаем анимацию после небольшой задержки для инициализации
         const startAnimation = setTimeout(() => {
             animationId = requestAnimationFrame(animate);
         }, 100);
@@ -149,7 +150,6 @@ function Advantages() {
                 </h3>
             </div>
             
-            {/* Карусель */}
             <div className="relative bg-[var(--neutral-secondary-color)] py-20 overflow-hidden">
                 <div 
                     ref={carouselRef}
@@ -167,7 +167,6 @@ function Advantages() {
                     ))}
                 </div>
                 
-                {/* Градиентные overlay для плавного перехода */}
                 <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
                 <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
             </div>
@@ -184,6 +183,7 @@ function Advantages() {
         </div>
     );
 }
+
 
 function Footer() {
     return (
