@@ -43,8 +43,8 @@ function AboutUs() {
     const card4Description = "Вы получаете структурированный отчёт с визуализацией проблемных зон и конкретными советами: где полить, чем обработать и на что обратить внимание.";
 
     return (
-        <div id="about-us" className="bg-[var(--neutral-color)]">
-            <div className="md:container mx-auto w-full lg:w-[max(2/3vw, 1000px)] pt-16 pb-32">
+        <div id="about-us" className="bg-[var(--neutral-color)] w-full">
+            <div className="lg:container mx-auto lg:w-[max(3/4vw, 1000px)] pt-16 pb-32">
                 <div className="grid grid-cols-2 grid-rows-auto gap-y-16 gap-x-32">
                     <h2 className="text-8xl font-bold text-center col-span-2 self-center">О НАС</h2>
                     <p className="text-4xl text-start col-span-2 tracking-wider">
@@ -93,36 +93,95 @@ function AboutUs() {
 }
 
 function Advantages() {
+    const carouselRef = useRef(null);
+    
     let card1Description = "Диагностируйте угрозы на самой ранней стадии, когда их ещё не видно глазом. Спасайте урожай, а не констатируйте потери."
     let card2Description = "Никакого сложного оборудования и долгого обучения. Анализ поля — в несколько кликов, прямо в вашем браузере."
     let card3Description = "Ваши поля под наблюдением 24/7. Спутники работают даже когда вы спите."
     let card4Description = "Заменяйте догадки точными цифрами. Получайте конкретные рекомендации к действию: где полить, а где обработать от вредителей."
+
+    const cards = [
+        { title: "Предотвращение потерь урожая", description: card1Description, image: card1Image },
+        { title: "Простота и доступность", description: card2Description, image: card2Image },
+        { title: "Круглосуточный мониторинг", description: card3Description, image: card3Image },
+        { title: "Принятие решений на основе данных", description: card4Description, image: card4Image }
+    ];
+
+    // Дублируем карточки для бесконечного эффекта
+    const duplicatedCards = [...cards, ...cards, ...cards];
+
+    useEffect(() => {
+        const carousel = carouselRef.current;
+        if (!carousel) return;
+
+        let animationId;
+        const speed = 0.5; // Скорость прокрутки (пикселей за кадр)
+        let position = 0;
+
+        const animate = () => {
+            position -= speed;
+            
+            // Если прокрутили на ширину одного набора карточек - сбрасываем позицию
+            if (position <= -carousel.scrollWidth / 3) {
+                position = 0;
+            }
+            
+            carousel.style.transform = `translateX(${position}px)`;
+            animationId = requestAnimationFrame(animate);
+        };
+
+        // Запускаем анимацию после небольшой задержки для инициализации
+        const startAnimation = setTimeout(() => {
+            animationId = requestAnimationFrame(animate);
+        }, 100);
+
+        return () => {
+            clearTimeout(startAnimation);
+            cancelAnimationFrame(animationId);
+        };
+    }, []);
+
     return (
-        <>
-            <div className="bg-[var(--neutral-secondary-color)] overflow-hidden">
-                <div id="advantages" className="bg-[var(--neutral-secondary-color)] py-32">
-                    <h3 className="text-8xl text-[var(--neutral-dark-color)] font-bold text-center">
-                        ПРЕИМУЩЕСТВА
-                    </h3>
-                </div>
-                <div className="flex justify-center bg-[var(--neutral-secondary-color)] h-full space-y-32">
-                    <div className="flex flex-row space-x-32">
-                        <HorizontalCard title="Предотвращение потерь урожая" description={card1Description} image={card1Image}/>
-                        <HorizontalCard title="Простота и доступность" description={card2Description} image={card2Image}/>
-                        <HorizontalCard title="Круглосуточный мониторинг" description={card3Description} image={card3Image}/>
-                        <HorizontalCard title="Принятие решений на основе данных" description={card4Description} image={card4Image}/>
-                    </div>
-                </div>
-                <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] py-32">
-                    <Link
-                            to="/registration"
-                            className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
-                            transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl">
-                        Анализировать поле
-                    </Link>
-                </div>
+        <div className="bg-[var(--neutral-secondary-color)] overflow-hidden">
+            <div id="advantages" className="bg-[var(--neutral-secondary-color)] py-32">
+                <h3 className="text-8xl text-[var(--neutral-dark-color)] font-bold text-center">
+                    ПРЕИМУЩЕСТВА
+                </h3>
             </div>
-        </>
+            
+            {/* Карусель */}
+            <div className="relative bg-[var(--neutral-secondary-color)] py-20 overflow-hidden">
+                <div 
+                    ref={carouselRef}
+                    className="flex space-x-32 transition-transform duration-0"
+                    style={{ willChange: 'transform' }}
+                >
+                    {duplicatedCards.map((card, index) => (
+                        <div key={index} className="flex-shrink-0">
+                            <HorizontalCard 
+                                title={card.title} 
+                                description={card.description} 
+                                image={card.image} 
+                            />
+                        </div>
+                    ))}
+                </div>
+                
+                {/* Градиентные overlay для плавного перехода */}
+                <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
+            </div>
+
+            <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] py-32">
+                <Link
+                    to="/registration"
+                    className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
+                    transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl"
+                >
+                    Анализировать поле
+                </Link>
+            </div>
+        </div>
     );
 }
 

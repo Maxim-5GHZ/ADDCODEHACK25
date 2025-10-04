@@ -23,7 +23,7 @@ function Registration() {
                     </div>
                     <form method="post" className="flex flex-col justify-center space-y-8">
                         <div className="flex flex-col w-full">
-                            <label for="email" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
+                            <label htmlFor="email" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Почта
                             </label>
                             <input id="email" name="email" type="email" placeholder="Ваша@почта.ru" 
@@ -31,7 +31,7 @@ function Registration() {
                             focus:ring-[var(--accent-color)] focus:outline-0 focus:ring-2 w-full"/>
                         </div>
                         <div className="flex flex-col w-full">
-                            <label for="password" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
+                            <label htmlFor="password" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Пароль
                             </label>
                             <input id="password" name="password" type="password" placeholder="Ваш секретный пароль" 
@@ -39,7 +39,7 @@ function Registration() {
                             focus:ring-[var(--accent-color)] focus:outline-0 focus:ring-2 w-full"/>
                         </div>
                         <div className="flex flex-col w-full">
-                            <label for="password-again" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
+                            <label htmlFor="password-again" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Пароль ещё раз
                             </label>
                             <input id="password-again" type="password" placeholder="Введите ваш пароль ещё раз" 

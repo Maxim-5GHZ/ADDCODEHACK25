@@ -3,10 +3,10 @@ function Card({ title, description, image }) {
         <>
             <div className='bg-[var(--neutral-dark-color)] h-[60rem] w-[50rem] rounded-[8rem] shadow-2xl pt-16'>
                 <div className='flex flex-col h-full'>
-                    <h3 className='text-6xl text-center text-[var(--neutral-color)] font-bold'>
+                    <h3 className='text-4xl lg:text-6xl text-center text-[var(--neutral-color)] font-bold'>
                         {title}
                     </h3>
-                    <p className='text-3xl text-[var(--neutral-secondary-color)] m-12 tracking-wider'>
+                    <p className='text-2xl lg:text-3xl text-[var(--neutral-secondary-color)] m-12 tracking-wider'>
                         {description}
                     </p>
                     <div className="flex-grow">
@@ -23,10 +23,10 @@ function HorizontalCard({ title, description, image }) {
         <div className="bg-[var(--neutral-secondary-color)] h-[40vh] min-h-[400px] w-[70vw] max-w-6xl rounded-[8rem] shadow-2xl overflow-hidden">
             <div className="flex h-full">
                 <div className="flex flex-col justify-center py-8 px-12 w-7/12">
-                    <h3 className="text-3xl lg:text-5xl text-[var(--neutral-dark-color)] font-bold mb-6 text-center">
+                    <h3 className="text-3xl lg:text-4xl text-[var(--neutral-dark-color)] font-bold mb-6 text-start">
                         {title}
                     </h3>
-                    <p className="text-xl lg:text-2xl text-[var(--neutral-dark-color)] leading-relaxed text-start">
+                    <p className="text-xl lg:text-2xl text-[var(--neutral-dark-color)] leading-tighter text-start">
                         {description}
                     </p>
                 </div>
@@ -41,7 +41,7 @@ function HorizontalCard({ title, description, image }) {
                 </div>
             </div>
         </div>
-    )
+    );
 }
 
 export { Card, HorizontalCard }
