@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 import time
 import os
 import pathlib
+from fastapi.middleware.cors import CORSMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,14 @@ class controller():
         print("Для остановки сервера нажмите Ctrl+C")
         self._kill_process_on_port(port)
         self.app = FastAPI()
+
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["http://localhost:3000"],  # URL вашего React приложения
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
         self.user_bd = dbrequest.requequest_to_user_login()
         self.user_data = dbrequest.request_to_user_data()
         self.field_data = dbrequest.request_to_field_data()
