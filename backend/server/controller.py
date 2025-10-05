@@ -18,20 +18,30 @@ logger = logging.getLogger(__name__)
 
 
 class controller():
-    def __init__(self, port):
+    def __init__(self, port, use_https=True):
         logger.info("Инициализация контроллера...")
+        self.use_https = use_https
+        self.ssl_keyfile = None
+        self.ssl_certfile = None
+
+        protocol = "https" if self.use_https else "http"
 
         # Настройка путей для SSL сертификатов
-        self.ssl_keyfile = pathlib.Path("key.pem")
-        self.ssl_certfile = pathlib.Path("cert.pem")
-        # Проверка и генерация SSL сертификатов при необходимости
-        self._setup_ssl()
+        if self.use_https:
+            self.ssl_keyfile = pathlib.Path("key.pem")
+            self.ssl_certfile = pathlib.Path("cert.pem")
+            # Проверка и генерация SSL сертификатов при необходимости
+            self._setup_ssl()
 
         ip = self.get_local_ip()
-        print(f"Сервер будет доступен по адресам (HTTPS):")
-        print(f"Локально: https://localhost:8000")
-        print(f"В сети: https://{ip}:8000")
+        print(f"Сервер будет доступен по адресам ({protocol.upper()}):")
+        print(f"Локально: {protocol}://localhost:8000")
+        print(f"В сети: {protocol}://{ip}:8000")
+        if not self.use_https:
+            print("\nВНИМАНИЕ: Сервер запущен в небезопасном режиме HTTP.")
+            print("Для производственного использования рекомендуется HTTPS.\n")
         print("Для остановки сервера нажмите Ctrl+C")
+
         self._kill_process_on_port(port)
         self.app = FastAPI()
 
@@ -356,17 +366,26 @@ class controller():
         
     
     def run(self):
-        logger.info("Запуск HTTPS сервера...")
+        protocol = "HTTPS" if self.use_https else "HTTP"
+        logger.info(f"Запуск {protocol} сервера...")
         self._controllers()
-        logger.info("Сервер запущен на 0.0.0.0:8000 с использованием HTTPS")
-        uvicorn.run(
-            self.app,
-            host="0.0.0.0",
-            port=8000,
-            log_level="info",
-            access_log=True,
-            timeout_keep_alive=5,
-            # Добавляем параметры для запуска uvicorn с SSL
-            ssl_keyfile=str(self.ssl_keyfile),
-            ssl_certfile=str(self.ssl_certfile)
-        )
+        logger.info(f"Сервер запущен на 0.0.0.0:8000 с использованием {protocol}")
+        
+        uvicorn_config = {
+            "host": "0.0.0.0",
+            "port": 8000,
+            "log_level": "info",
+            "access_log": True,
+            "timeout_keep_alive": 5,
+        }
+
+        if self.use_https:
+            if not self.ssl_keyfile or not self.ssl_certfile:
+                 logger.error("SSL файлы не были установлены для HTTPS режима.")
+                 return
+            uvicorn_config["ssl_keyfile"] = str(self.ssl_keyfile)
+            uvicorn_config["ssl_certfile"] = str(self.ssl_certfile)
+        
+        uvicorn.run(self.app, **uvicorn_config)
+
+

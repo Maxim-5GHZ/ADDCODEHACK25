@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     logger.info("Запуск приложения...")
     try:
-        server = controller.controller('8000')
+        server = controller.controller(port="8000", use_https=False)
         server.run()
     except Exception as e:
         logger.error(f"Критическая ошибка при запуске сервера: {e}")
