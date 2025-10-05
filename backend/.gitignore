@@ -5,3 +5,4 @@ user_data.db
 user.db
 *.log
 hack25*.json
+*.pem
