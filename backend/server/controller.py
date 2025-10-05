@@ -10,6 +10,7 @@ from fastapi import FastAPI, Query
 from fastapi.staticfiles import StaticFiles
 import time
 import os
+import pathlib
 
 logger = logging.getLogger(__name__)
 
@@ -18,10 +19,17 @@ logger = logging.getLogger(__name__)
 class controller():
     def __init__(self, port):
         logger.info("Инициализация контроллера...")
+
+        # Настройка путей для SSL сертификатов
+        self.ssl_keyfile = pathlib.Path("key.pem")
+        self.ssl_certfile = pathlib.Path("cert.pem")
+        # Проверка и генерация SSL сертификатов при необходимости
+        self._setup_ssl()
+
         ip = self.get_local_ip()
-        print(f"Сервер будет доступен по адресам:")
-        print(f"Локально: http://localhost:8000")
-        print(f"В сети: http://{ip}:8000")
+        print(f"Сервер будет доступен по адресам (HTTPS):")
+        print(f"Локально: https://localhost:8000")
+        print(f"В сети: https://{ip}:8000")
         print("Для остановки сервера нажмите Ctrl+C")
         self._kill_process_on_port(port)
         self.app = FastAPI()
@@ -35,6 +43,49 @@ class controller():
 
         self.app.mount("/static", StaticFiles(directory="."), name="static")
         logger.info("Контроллер инициализирован")
+
+    def _setup_ssl(self):
+        """Проверяет наличие SSL-сертификатов и генерирует их, если они отсутствуют."""
+        logger.info("Проверка SSL-сертификатов...")
+        if self.ssl_keyfile.exists() and self.ssl_certfile.exists():
+            logger.info("Найдены существующие SSL-сертификаты. Используются они.")
+            print("Найдены существующие SSL-сертификаты (key.pem, cert.pem).")
+            return
+
+        logger.warning("SSL-сертификаты не найдены. Генерация самоподписанных сертификатов...")
+        print("\nВНИМАНИЕ: SSL-сертификаты не найдены.")
+        print("Генерируются самоподписанные сертификаты (key.pem, cert.pem).")
+        print("Браузер будет выдавать предупреждение о безопасности, это нормально для самоподписанных сертификатов.")
+        print("Для производственного использования замените эти файлы на сертификаты, выданные центром сертификации (CA).\n")
+
+        try:
+            # Команда для генерации сертификата с помощью OpenSSL
+            command = [
+                'openssl', 'req', '-x509',
+                '-newkey', 'rsa:4096',
+                '-keyout', str(self.ssl_keyfile),
+                '-out', str(self.ssl_certfile),
+                '-sha256',
+                '-days', '365',
+                '-nodes',  # Без пароля для ключа
+                '-subj', '/CN=localhost' # Устанавливаем Common Name, чтобы избежать интерактивного ввода
+            ]
+            
+            # Выполняем команду
+            result = subprocess.run(command, check=True, capture_output=True, text=True)
+            logger.info("Самоподписанные SSL-сертификаты успешно сгенерированы.")
+            print("Сертификаты успешно сгенерированы.")
+
+        except FileNotFoundError:
+            error_message = "КРИТИЧЕСКАЯ ОШИБКА: OpenSSL не найден. Невозможно сгенерировать SSL-сертификаты. Установите OpenSSL и попробуйте снова."
+            logger.error(error_message)
+            print(f"ОШИБКА: {error_message}")
+            raise
+        except subprocess.CalledProcessError as e:
+            error_message = f"Ошибка при генерации сертификатов: {e.stderr}"
+            logger.error(error_message)
+            print(f"ОШИБКА: {error_message}")
+            raise
 
     def get_local_ip(self):
         """Получает локальный IP-адрес компьютера"""
@@ -296,14 +347,17 @@ class controller():
         
     
     def run(self):
-        logger.info("Запуск сервера...")
+        logger.info("Запуск HTTPS сервера...")
         self._controllers()
-        logger.info("Сервер запущен на 0.0.0.0:8000")
+        logger.info("Сервер запущен на 0.0.0.0:8000 с использованием HTTPS")
         uvicorn.run(
             self.app,
             host="0.0.0.0",
             port=8000,
             log_level="info",
             access_log=True,
-            timeout_keep_alive=5
+            timeout_keep_alive=5,
+            # Добавляем параметры для запуска uvicorn с SSL
+            ssl_keyfile=str(self.ssl_keyfile),
+            ssl_certfile=str(self.ssl_certfile)
         )
