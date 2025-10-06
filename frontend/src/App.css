@@ -142,6 +142,7 @@ html {
     --accent-color: hsl(140, 50%, 50%);
     --accent-light-color: hsl(140, 50%, 60%);
     --accent-dark-color: hsl(140, 50%, 30%);
+    --neutral-light-color: hsl(140, 2%, 98%);
     --neutral-color: hsl(140, 6%, 90%);
     --neutral-secondary-color: hsl(140, 4%, 85%);
     --neutral-dark-color: hsl(140, 5%, 10%);
