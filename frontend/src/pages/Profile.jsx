@@ -1,14 +1,36 @@
-import { Link } from "react-router-dom"
-import { useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+// import { getCookie } from "../utils/cookies";
 
 export default function Profile() {
-  const user = {
-    name: "Никита Кузин",
-    email: "example.email@domen.com"
-  }
-
   // State для активной вкладки
   const [activeTab, setActiveTab] = useState("profile");
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkAuth = () => {
+      // const token = getCookie('token');
+      const token = true; // Временная заглушка 
+      
+      if (token) {
+        // Временная заглушка
+        setUser({
+          name: "Иван Иванов",
+          email: "example.email@domen.com"
+        });
+      } else {
+        setUser(null);
+        navigate('/login');
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+  
+  if (!user) {
+    return null;
+  }
 
   return (
     <>
@@ -37,7 +59,7 @@ export default function Profile() {
 
             <nav className="flex flex-col gap-3 w-full">
               <button
-                className={`text-2xl font-semibold rounded-xl py-2 px-4 transition-all text-left w-full text-start ${
+                className={`text-2xl font-semibold rounded-xl py-2 px-4 transition-all w-full text-start ${
                   activeTab === "profile"
                     ? "bg-[var(--neutral-color)] text-[var(--accent-color)]"
                     : "text-gray-500 hover:text-[var(--accent-light-color)] hover:bg-[var(--neutral-color)]"
@@ -48,7 +70,7 @@ export default function Profile() {
               </button>
 
               <button
-                className={`text-2xl font-semibold rounded-xl py-2 px-4 transition-all text-left w-full text-start ${
+                className={`text-2xl font-semibold rounded-xl py-2 px-4 transition-all w-full text-start ${
                   activeTab === "fields"
                     ? "bg-[var(--neutral-color)] text-[var(--accent-color)]"
                     : "text-gray-500 hover:text-[var(--accent-light-color)] hover:bg-[var(--neutral-color)]"
@@ -59,7 +81,7 @@ export default function Profile() {
               </button>
 
               <button
-                className={`text-2xl font-semibold rounded-xl py-2 px-4 transition-all text-left w-full text-start ${
+                className={`text-2xl font-semibold rounded-xl py-2 px-4 transition-all w-full text-start ${
                   activeTab === "add"
                     ? "bg-[var(--neutral-color)] text-[var(--accent-color)]"
                     : "text-gray-500 hover:text-[var(--accent-light-color)] hover:bg-[var(--neutral-color)]"
