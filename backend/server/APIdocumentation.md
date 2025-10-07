@@ -20,3 +20,5 @@
 | **Получение RGB изображения** | GET | Получение RGB снимка по геолокации | `fetch(/image/rgb?lon=${lon}&lat=${lat}&start_date=${startDate}&end_date=${endDate}&token=${encodeURIComponent(token)})` |
 | **Получение красного канала** | GET | Получение изображения красного канала | `fetch(/image/red-channel?lon=${lon}&lat=${lat}&start_date=${startDate}&end_date=${endDate}&token=${encodeURIComponent(token)})` |
 | **Получение NDVI изображения** | GET | Получение NDVI карты растительности | `fetch(/image/ndvi?lon=${lon}&lat=${lat}&start_date=${startDate}&end_date=${endDate}&token=${encodeURIComponent(token)})` |
+
+обнови
