@@ -447,58 +447,45 @@ class MainWindow(QMainWindow):
         if self.is_authenticated and self.fields:
             self.save_fields_to_server()
 
+    def get_field_display_text(self, field_name, field_data):
+        """Генерирует текст для отображения поля в комбобоксе"""
+        try:
+            if isinstance(field_data, list) and len(field_data) == 4:
+                # Режим области - 4 точки
+                center_lat = sum(coord[0] for coord in field_data) / 4
+                center_lng = sum(coord[1] for coord in field_data) / 4
+                return f"{field_name} (центр: {center_lat:.6f}, {center_lng:.6f})"
+            elif isinstance(field_data, tuple) and len(field_data) == 3:
+                # Режим точки и радиуса
+                lat, lng, radius = field_data
+                return f"{field_name} (точка: {lat:.6f}, {lng:.6f}, радиус: {radius}м)"
+            else:
+                # Неизвестный формат - используем просто название
+                return field_name
+        except Exception as e:
+            print(f"Ошибка в get_field_display_text: {e}")
+            return field_name
+
     def update_fields_combobox(self):
         """Обновляет комбобокс полями из self.fields"""
         if hasattr(self.ui, 'comboBox_field'):
             self.ui.comboBox_field.clear()
-            for field_name, coords in self.fields.items():
-                if isinstance(coords, (list, tuple)) and len(coords) >= 2:
-                    lat, lng = coords[0], coords[1]
-                    field_text = f"{field_name} ({lat:.6f}, {lng:.6f})"
-                    self.ui.comboBox_field.addItem(field_text)
-                else:
-                    print(f"Некорректные координаты для поля {field_name}: {coords}")
+            for field_name, field_data in self.fields.items():
+                field_text = self.get_field_display_text(field_name, field_data)
+                self.ui.comboBox_field.addItem(field_text)
 
-    def handle_map_click(self, lat, lng):
-        """Обрабатывает клик по карте - получает координаты"""
-        try:
-            self._current_lat = lat
-            self._current_lng = lng
 
-            coordinates_text = f"Широта: {lat:.6f}, Долгота: {lng:.6f}"
-
-            # Выводим координаты в label_analyze
-            if hasattr(self.ui, 'label_analyze'):
-                self.ui.label_analyze.setText(coordinates_text)
-                self.ui.label_analyze.setStyleSheet("""
-                    color: #90EE90;
-                    font-weight: bold;
-                    padding: 10px;
-                    border: 2px solid rgba(50, 205, 50, 0.7);
-                    border-radius: 10px;
-                    background-color: rgba(240, 255, 240, 0.2);
-                """)
-                print("Координаты установлены в label_analyze")
-            else:
-                print("label_analyze не найден в UI")
-
-            # Принудительно обновляем интерфейс
-            QApplication.processEvents()
-
-        except Exception as e:
-            print(f"Ошибка в handle_map_click: {e}")
-
-    def handle_add_field(self, field_name, lat, lng):
-        """Обрабатывает добавление нового поля с названием и координатами"""
+    def handle_add_field(self, field_name, field_data):
+        """Обрабатывает добавление нового поля с областью или точкой с радиусом"""
         try:
             # Сохраняем поле в словаре
-            self.fields[field_name] = (lat, lng)
+            self.fields[field_name] = field_data
 
             # Обновляем комбобокс
             self.update_fields_combobox()
 
             # Устанавливаем текущий элемент в комбобоксе
-            field_text = f"{field_name} ({lat:.6f}, {lng:.6f})"
+            field_text = self.get_field_display_text(field_name, field_data)
             index = self.ui.comboBox_field.findText(field_text)
             if index >= 0:
                 self.ui.comboBox_field.setCurrentIndex(index)
@@ -557,14 +544,30 @@ class MainWindow(QMainWindow):
             return
 
         field_text = self.ui.comboBox_field.currentText()
-        field_name = field_text.split(' (')[0]
+        field_name = field_text.split(' (')[0]  # Извлекаем название поля
 
-        # Получаем координаты выбранного поля
+        # Получаем данные выбранного поля
         if field_name not in self.fields:
             self.show_message("Ошибка", f"Поле '{field_name}' не найдено", QMessageBox.Critical)
             return
 
-        lat, lng = self.fields[field_name]
+        field_data = self.fields[field_name]
+
+        # Извлекаем координаты в зависимости от формата данных
+        try:
+            if isinstance(field_data, list) and len(field_data) >= 4:
+                # Режим области - берем первую точку
+                lat, lng = field_data[0][0], field_data[0][1]
+            elif isinstance(field_data, tuple) and len(field_data) == 3:
+                # Режим точки и радиуса
+                lat, lng, radius = field_data
+            else:
+                self.show_message("Ошибка", f"Некорректный формат данных для поля '{field_name}'", QMessageBox.Critical)
+                return
+        except Exception as e:
+            print(f"Ошибка при извлечении координат: {e}")
+            self.show_message("Ошибка", f"Не удалось извлечь координаты поля: {str(e)}", QMessageBox.Critical)
+            return
 
         # Создаем прогресс-диалог
         self.progress_dialog = QProgressDialog(f"Анализ поля '{field_name}'...", "Отмена", 0, 0, self)
@@ -633,46 +636,45 @@ class MainWindow(QMainWindow):
 
          # Создаем диалог с картой
          map_dialog = MapDialog(self, field_name_callback=self.handle_add_field)
+         # map_dialog = InteractiveMapDialog(self, field_name_callback=self.handle_add_field)
          map_dialog.exec()
 
     def delete_selected_field(self):
-        """Удаляет выбранное поле из комбобокса и с сервера"""
-        # Проверяем авторизацию пользователя
-        if not self.is_authenticated:
-            self.show_message("Предупреждение",
-                             "Войдите или зарегистрируйтесь",
-                             QMessageBox.Warning)
-            return
+         """Удаляет выбранное поле из комбобокса и с сервера"""
+         # Проверяем авторизацию пользователя
+         if not self.is_authenticated:
+             self.show_message("Предупреждение", "Войдите или зарегистрируйтесь", QMessageBox.Warning)
+             return
 
-        try:
-            current_index = self.ui.comboBox_field.currentIndex()
-            if current_index >= 0:
-                field_text = self.ui.comboBox_field.currentText()
-                field_name = field_text.split(' (')[0]
+         try:
+             current_index = self.ui.comboBox_field.currentIndex()
+             if current_index >= 0:
+                 field_text = self.ui.comboBox_field.currentText()
+                 field_name = field_text.split(' (')[0]  # Извлекаем название поля
 
-                # Удаляем поле из словаря
-                if field_name in self.fields:
-                    del self.fields[field_name]
+                 # Удаляем поле из словаря
+                 if field_name in self.fields:
+                     del self.fields[field_name]
 
-                # Удаляем поле из комбобокса
-                self.ui.comboBox_field.removeItem(current_index)
+                 # Удаляем поле из комбобокса
+                 self.ui.comboBox_field.removeItem(current_index)
 
-                # Обновляем историю
-                if hasattr(self.ui, 'label_history'):
-                    history_text = f"Удалено поле: {field_name}"
-                    self.ui.label_history.setText(history_text)
+                 # Обновляем историю
+                 if hasattr(self.ui, 'label_history'):
+                     history_text = f"Удалено поле: {field_name}"
+                     self.ui.label_history.setText(history_text)
 
-                # Асинхронно сохраняем изменения на сервер
-                if self.save_fields_to_server():
-                    self.show_message("Успех", f"Поле '{field_name}' удалено!", QMessageBox.Information)
-                else:
-                    self.show_message("Предупреждение", "Поле удалено локально, но не на сервере", QMessageBox.Warning)
-            else:
-                self.show_message("Предупреждение", "Нет выбранного поля для удаления", QMessageBox.Warning)
+                 # Асинхронно сохраняем изменения на сервер
+                 if self.save_fields_to_server():
+                     self.show_message("Успех", f"Поле '{field_name}' удалено!", QMessageBox.Information)
+                 else:
+                     self.show_message("Предупреждение", "Поле удалено локально, но не на сервере", QMessageBox.Warning)
+             else:
+                 self.show_message("Предупреждение", "Нет выбранного поля для удаления", QMessageBox.Warning)
 
-        except Exception as e:
-            print(f"Ошибка при удалении поля: {e}")
-            self.show_message("Ошибка", f"Не удалось удалить поле: {str(e)}", QMessageBox.Critical)
+         except Exception as e:
+             print(f"Ошибка при удалении поля: {e}")
+             self.show_message("Ошибка", f"Не удалось удалить поле: {str(e)}", QMessageBox.Critical)
 
     def show_message(self, title, text, icon):
         """Показывает сообщение с увеличенным шрифтом и черным текстом"""
@@ -689,7 +691,7 @@ class MainWindow(QMainWindow):
         msg.setFont(font)
 
         # Устанавливаем размер
-        msg.setFixedSize(400, 200)
+        msg.setFixedSize(600, 200)
 
         # Применяем стили CSS с черным текстом
         msg.setStyleSheet("""
@@ -709,7 +711,7 @@ class MainWindow(QMainWindow):
             QMessageBox QPushButton {
                 font-size: 20px;
                 min-width: 80px;
-                min-height: 30px;
+                min-height: 20px;
                 padding: 6px;
                 color: black;
                 background-color: #f0f0f0;
