@@ -164,7 +164,6 @@
         .analysis-info { font-size: 0.9rem; }
         .analysis-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
         
-        /* New styles for map integration */
         #analysis-layout { display: flex; gap: 2rem; flex-wrap: wrap; }
         #analysis-controls { flex: 1; min-width: 300px; }
         #map-container { flex: 1.5; min-width: 400px; }
@@ -319,11 +318,14 @@
 
     // --- MAP FUNCTIONS ---
     function initMap() {
-        if (map) return; // Initialize map only once
+        if (map) return; 
 
         map = L.map('map').setView([latInput.value, lonInput.value], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        
+        // *** ИСПРАВЛЕНИЕ ЗДЕСЬ ***
+        // Используем надежный и нейтральный источник карт от Esri
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri'
         }).addTo(map);
 
         // Initialize layers
@@ -476,7 +478,7 @@
                 userTokenDisplay.textContent = authToken;
                 authSection.classList.add('hidden');
                 mainApp.classList.remove('hidden');
-                setTimeout(() => initMap(), 100); // Initialize map after container is visible
+                setTimeout(() => initMap(), 100); 
                 fetchPastAnalyses();
             } else { throw new Error(data.detail); }
         } catch (error) { showStatusMessage('auth-status-message', `Ошибка входа: ${error.message}`, true); }
@@ -508,7 +510,6 @@
             params.append('radius_km', radiusInput.value);
         } else {
             try {
-                // Leaflet uses [lat, lng], API expects [lon, lat]
                 const apiCoords = polygonPoints.map(p => [p[1], p[0]]); 
                 if (apiCoords.length < 3) { throw new Error('Для полигона необходимо минимум 3 точки.'); }
                 params.append('polygon_coords', JSON.stringify(apiCoords));
