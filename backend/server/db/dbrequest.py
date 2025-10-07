@@ -1,3 +1,5 @@
+
+
 import sqlite3
 import os
 import logging
@@ -12,17 +14,21 @@ class requequest_to_user_login():
         os.makedirs(os.path.dirname(self.user_log), exist_ok=True)
         logger.info(f"Инициализация базы данных: {self.user_log}")
         self._create_table()
+        self._update_schema() # Добавим вызов для обновления схемы
 
     def _create_table(self):
         """Создает таблицу пользователей, если она не существует"""
         try:
             with sqlite3.connect(self.user_log) as conn:
                 cursor = conn.cursor()
+                # Обновляем схему, добавляя новые поля
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS users (
                         login TEXT PRIMARY KEY,
                         password TEXT NOT NULL,
-                        token TEXT UNIQUE
+                        token TEXT UNIQUE,
+                        first_name TEXT NOT NULL DEFAULT '',
+                        last_name TEXT NOT NULL DEFAULT ''
                     )
                 ''')
                 # Создаем индекс для быстрого поиска по токену
@@ -33,6 +39,34 @@ class requequest_to_user_login():
                 logger.info(f"База данных создана/проверена: {self.user_log}")
         except Exception as e:
             logger.error(f"Ошибка при создании базы данных: {e}")
+            raise
+
+    def _update_schema(self):
+        """Добавляет новые столбцы в существующую таблицу, если их нет."""
+        logger.info("Проверка и обновление схемы таблицы users...")
+        try:
+            with sqlite3.connect(self.user_log) as conn:
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT ''")
+                    logger.info("Столбец 'first_name' успешно добавлен.")
+                except sqlite3.OperationalError as e:
+                    if "duplicate column name" in str(e):
+                        logger.debug("Столбец 'first_name' уже существует.")
+                    else:
+                        raise
+                
+                try:
+                    cursor.execute("ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT ''")
+                    logger.info("Столбец 'last_name' успешно добавлен.")
+                except sqlite3.OperationalError as e:
+                    if "duplicate column name" in str(e):
+                        logger.debug("Столбец 'last_name' уже существует.")
+                    else:
+                        raise
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Ошибка при обновлении схемы таблицы users: {e}")
             raise
 
     def get_token(self, login, password):
@@ -56,16 +90,16 @@ class requequest_to_user_login():
             logger.error(f"Ошибка при получении токена для {login}: {e}")
             return None
 
-    def add_new_user(self, login, password, token=None):
-        """Добавляет нового пользователя"""
+    def add_new_user(self, login, password, token=None, first_name="", last_name=""):
+        """Добавляет нового пользователя с именем и фамилией"""
         try:
             logger.info(f"Добавление нового пользователя: {login}")
             with sqlite3.connect(self.user_log) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
-                    INSERT INTO users (login, password, token)
-                    VALUES (?, ?, ?)
-                ''', (login, password, token))
+                    INSERT INTO users (login, password, token, first_name, last_name)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (login, password, token, first_name, last_name))
                 conn.commit()
                 logger.info(f"Пользователь {login} успешно добавлен")
                 return True
@@ -75,6 +109,43 @@ class requequest_to_user_login():
         except Exception as e:
             logger.error(f"Ошибка при добавлении пользователя {login}: {e}")
             return False
+
+    def get_all_users(self):
+        """Получает список всех пользователей (без паролей и токенов)"""
+        try:
+            logger.info("Запрос списка всех пользователей")
+            with sqlite3.connect(self.user_log) as conn:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT login, first_name, last_name FROM users
+                ''')
+                users = cursor.fetchall()
+                # Преобразуем список кортежей в список словарей для удобства
+                users_list = [
+                    {"login": row[0], "first_name": row[1], "last_name": row[2]}
+                    for row in users
+                ]
+                logger.info(f"Найдено пользователей: {len(users_list)}")
+                return users_list
+        except Exception as e:
+            logger.error(f"Ошибка при получении списка всех пользователей: {e}")
+            return []
+
+    def get_user_info(self, login):
+        """Получает информацию о пользователе (имя, фамилия) по логину"""
+        try:
+            logger.debug(f"Запрос информации о пользователе: {login}")
+            with sqlite3.connect(self.user_log) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT first_name, last_name FROM users WHERE login = ?', (login,))
+                result = cursor.fetchone()
+                if result:
+                    return {"first_name": result[0], "last_name": result[1]}
+                return None
+        except Exception as e:
+            logger.error(f"Ошибка при получении информации о пользователе {login}: {e}")
+            return None
+
 
     def user_exists(self, login):
         """Проверяет существование пользователя"""
@@ -396,11 +467,3 @@ class request_to_field_data():
         except Exception as e:
             logger.error(f"Ошибка при проверке поля {field}: {e}")
             return False
-
-
-
-
-
-
-
-

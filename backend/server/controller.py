@@ -1,3 +1,5 @@
+
+
 import uvicorn
 from db import dbrequest
 import subprocess
@@ -238,9 +240,17 @@ class controller():
         @self.app.post("/add_user")
         async def add_user(
                 login: str = Query(..., description="Логин пользователя"),
-                password: str = Query(..., description="Пароль пользователя")
+                password: str = Query(..., description="Пароль пользователя"),
+                first_name: str = Query(..., description="Имя пользователя"),
+                last_name: str = Query(..., description="Фамилия пользователя")
         ):
-            return await self.func.add_user(login, password)
+            return await self.func.add_user(login, password, first_name, last_name)
+
+        @self.app.get("/users/all")
+        async def get_all_users(
+                password: str = Query(..., description="Пароль администратора")
+        ):
+            return await self.func.get_all_users(password)
 
         @self.app.get("/health")
         async def health_check():
@@ -387,5 +397,3 @@ class controller():
             uvicorn_config["ssl_certfile"] = str(self.ssl_certfile)
         
         uvicorn.run(self.app, **uvicorn_config)
-
-

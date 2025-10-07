@@ -234,6 +234,16 @@
 
         <!-- Register Form -->
         <form id="register-form" class="hidden">
+            <div class="form-row">
+                 <div class="form-group">
+                    <label for="register-first-name">Имя</label>
+                    <input type="text" id="register-first-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-last-name">Фамилия</label>
+                    <input type="text" id="register-last-name" required>
+                </div>
+            </div>
             <div class="form-group">
                 <label for="register-username">Логин</label>
                 <input type="text" id="register-username" required>
@@ -455,13 +465,24 @@
         hideStatusMessage('auth-status-message');
         const login = document.getElementById('register-username').value;
         const password = document.getElementById('register-password').value;
-        const url = `/add_user?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+        const firstName = document.getElementById('register-first-name').value;
+        const lastName = document.getElementById('register-last-name').value;
+        
+        const params = new URLSearchParams({
+            login: login,
+            password: password,
+            first_name: firstName,
+            last_name: lastName
+        });
+
+        const url = `/add_user?${params.toString()}`;
 
         try {
             const data = await apiRequest(url, 'POST');
             if (data.status === 'success') {
                 showStatusMessage('auth-status-message', 'Регистрация успешна! Теперь вы можете войти.');
                 switchTab('login');
+                registerForm.reset(); // Очищаем форму после успешной регистрации
             } else {
                 throw new Error(data.detail);
             }

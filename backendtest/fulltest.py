@@ -79,24 +79,31 @@ class ServerTester:
             return False
 
     def test_user_registration(self, username_suffix=None):
-        """Тест регистрации пользователя"""
+        """Тест регистрации пользователя с именем и фамилией"""
         if username_suffix is None:
             username_suffix = str(int(time.time()))
 
         login = f"testuser_{username_suffix}"
         password = "testpass123"
+        first_name = "Test"
+        last_name = f"User_{username_suffix}"
 
         logger.info(f"Тестирование регистрации пользователя {login}...")
         response = self.make_request(
             "/add_user",
             method="POST",
-            params={"login": login, "password": password}
+            params={
+                "login": login,
+                "password": password,
+                "first_name": first_name,
+                "last_name": last_name
+            }
         )
 
         if response and response.status_code == 200:
             data = response.json()
             if data.get("status") == "success":
-                logger.info(f"✓ Регистрация успешна: {login}")
+                logger.info(f"✓ Регистрация успешна: {login} ({first_name} {last_name})")
                 self.test_users.append({"login": login, "password": password})
                 return True
             else:
@@ -635,6 +642,49 @@ class ServerTester:
             logger.error("✗ Логи недоступны")
             return False
 
+    def test_get_all_users(self, created_user_login):
+        """Тест получения списка всех пользователей (админ)"""
+        logger.info("Тестирование получения списка всех пользователей...")
+
+        # Неправильный пароль
+        response_fail = self.make_request("/users/all", params={"password": "wrong_password"})
+        if response_fail and response_fail.status_code == 200:
+            data = response_fail.json()
+            if data.get("status") == "error":
+                logger.info("✓ Защита списка пользователей работает (неправильный пароль отклонен)")
+            else:
+                logger.warning("⚠ Неожиданный ответ при неправильном пароле для списка пользователей")
+        else:
+            logger.error("✗ Не удалось проверить защиту списка пользователей")
+            return False
+
+        # Правильный пароль
+        response_success = self.make_request("/users/all", params={"password": "12345"})
+        if not (response_success and response_success.status_code == 200):
+            logger.error("✗ Запрос списка пользователей с верным паролем не удался")
+            return False
+
+        data = response_success.json()
+        if data.get("status") != "success":
+            logger.error(f"✗ Ошибка при получении списка пользователей: {data.get('detail')}")
+            return False
+
+        users = data.get("users", [])
+        if not isinstance(users, list) or not users:
+            logger.error("✗ Получен пустой или некорректный список пользователей")
+            return False
+
+        # Проверяем, что наш созданный пользователь есть в списке
+        found_user = any(user.get("login") == created_user_login for user in users)
+        if not found_user:
+            logger.error(f"✗ Созданный пользователь {created_user_login} не найден в общем списке")
+            return False
+        
+        logger.info(f"✓ Список пользователей успешно получен и содержит {len(users)} записей.")
+        logger.info(f"✓ Тестовый пользователь {created_user_login} найден в списке.")
+        return True
+
+
     def test_error_handling(self):
         """Тест обработки ошибок"""
         logger.info("Тестирование обработки ошибок...")
@@ -785,9 +835,12 @@ class ServerTester:
                     logger.error(f"✗ Тесты производительности завершились с ошибкой: {e}")
                     results["performance"] = False
                 
+                # Тест получения списка пользователей (админ)
+                results["get_all_users"] = self.test_get_all_users(test_user["login"])
+
                 results["delete_user_data"] = self.test_delete_user_data(token)
 
-        # Тест логов
+        # Тест логов (админ)
         results["admin_logs"] = self.test_admin_logs()
         
         # Тест обработки ошибок

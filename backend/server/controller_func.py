@@ -142,9 +142,9 @@ class controller_func():
             logger.error(f"Ошибка в get_token для {login}: {e}")
             return {"status": "error", "detail": "Внутренняя ошибка сервера"}
 
-    async def add_user(self, login: str, password: str):
+    async def add_user(self, login: str, password: str, first_name: str, last_name: str):
         """
-        Добавление нового пользователя
+        Добавление нового пользователя с именем и фамилией
         """
         logger.info(f"Запрос на добавление пользователя: {login}")
 
@@ -163,7 +163,7 @@ class controller_func():
                 token = str(random.randint(10 * 10 ** 20, 10 * 10 ** 21))
 
             logger.info(f"Добавление пользователя {login} с токеном: {token}")
-            success = self.user_bd.add_new_user(login, password, token)
+            success = self.user_bd.add_new_user(login, password, token, first_name, last_name)
 
             if not success:
                 logger.error(f"Не удалось добавить пользователя: {login}")
@@ -176,11 +176,35 @@ class controller_func():
             return {
                 "status": "success",
                 "message": "Пользователь успешно добавлен",
-                "login": login
+                "login": login,
+                "first_name": first_name,
+                "last_name": last_name
             }
         except Exception as e:
             logger.error(f"Ошибка в add_user для {login}: {e}")
             return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+    async def get_all_users(self, password: str):
+        """Получение списка всех пользователей (только для администратора)"""
+        logger.info("Запрос списка всех пользователей")
+        try:
+            if password != "12345":
+                logger.warning("Неудачная попытка доступа к списку пользователей")
+                return {
+                    "status": "error",
+                    "detail": "Доступ запрещен"
+                }
+            
+            users_list = self.user_bd.get_all_users()
+            return {
+                "status": "success",
+                "users": users_list
+            }
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении списка пользователей: {e}")
+            return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
 
     async def update_user_data(self, token: str, key_array: str):
         """Обновление данных пользователя по токену"""
