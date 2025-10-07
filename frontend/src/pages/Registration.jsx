@@ -1,7 +1,8 @@
 import { useState, useRef } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import logoImage from "../assets/logo.svg"
 import { BarLoader } from "react-spinners"
+import { setCookie } from "../utils/cookies"
 
 function Registration() {
     const [isButtonClicked, setIsButtonClicked] = useState(false);
@@ -11,6 +12,8 @@ function Registration() {
     const [password, setPassword] = useState("");
     const [passwordAgain, setPasswordAgain] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+
+    const navigate = useNavigate();
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordRegex = /^[A-Za-z0-9]{5,}$/;
@@ -32,6 +35,7 @@ function Registration() {
 
     const handleRegistration = async () => {
         setIsButtonClicked(true);
+        setError("");
         
         if (!isFormValid) {
             console.log("Форма невалидна, регистрация прервана");
@@ -40,11 +44,38 @@ function Registration() {
         
         setIsLoading(true);
         console.log("Регистрация...", { email, password });
-        registerUser();
+        await registerUser();
     }
 
     const registerUser = async () => {
-        fetch()
+        try {
+            const registrationResponse = await fetch(`/api/add_user?login=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&first_name=${encodeURIComponent(name)}&last_name=${encodeURIComponent(surname)}`, {
+                method: 'POST'
+            });
+
+            if (!registrationResponse.ok) {
+                const errorText = await registrationResponse.text();
+                throw new Error(errorText || 'Ошибка регистрации');
+            }
+
+            const tokenResponse = await fetch(`/api/get_token?login=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
+
+            if (!tokenResponse.ok) {
+                const errorText = await tokenResponse.text();
+                throw new Error(errorText || 'Ошибка получения токена');
+            }
+
+            const token = await tokenResponse.text();
+            setCookie('token', token, 7);
+            console.log("Регистрация успешна! Токен сохранен.");
+            navigate("/");
+
+        } catch (error) {
+            console.error("Ошибка регистрации:", error);
+            setError(error.message || "Произошла ошибка при регистрации");
+        } finally {
+            setIsLoading(false);
+        }
     }
 
     const getEmailErrorMessage = () => {
@@ -88,6 +119,7 @@ function Registration() {
                             Регистрация
                         </h1>
                     </div>
+                    
                     <form method="post" className="flex flex-col justify-center space-y-8">
                         <div className="flex flex-col w-full">
                             <label htmlFor="user-name" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
