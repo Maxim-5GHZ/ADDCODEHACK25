@@ -110,16 +110,27 @@ class AnalysisManager:
             logger.error(f"Ошибка загрузки анализа: {e}")
             return None
     
-    def perform_complete_analysis(self, token: str, lon: float, lat: float, 
-                                start_date: str, end_date: str) -> Dict:
+    def perform_complete_analysis(self, token: str, start_date: str, end_date: str, 
+                                lon: Optional[float] = None, lat: Optional[float] = None, 
+                                radius_km: float = 0.5, 
+                                polygon_coords: Optional[List[List[float]]] = None) -> Dict:
         """Выполняет полный анализ и сохраняет результаты"""
         try:
-            logger.info(f"Запуск полного анализа для координат: {lon}, {lat}")
-            
+            area_info = {}
+            if polygon_coords:
+                area_info = {'type': 'polygon', 'coordinates': polygon_coords}
+                logger.info(f"Запуск полного анализа для полигона...")
+            elif lon is not None and lat is not None:
+                area_info = {'type': 'point_radius', 'lon': lon, 'lat': lat, 'radius_km': radius_km}
+                logger.info(f"Запуск полного анализа для координат: {lon}, {lat} с радиусом {radius_km} км")
+            else:
+                raise ValueError("Не указана область для анализа (ни точка с радиусом, ни полигон).")
+
             # Получаем данные изображения
             provider = ImageProvider.from_gee(
-                lon=lon, lat=lat, 
-                start_date=start_date, end_date=end_date
+                start_date=start_date, end_date=end_date,
+                lon=lon, lat=lat, radius_km=radius_km,
+                polygon_coords=polygon_coords
             )
             
             # Вычисляем индексы
@@ -130,7 +141,7 @@ class AnalysisManager:
             analysis_data = {
                 'analysis_id': analysis_id,
                 'timestamp': time.time(),
-                'coordinates': {'lon': lon, 'lat': lat},
+                'area_of_interest': area_info,
                 'date_range': {'start': start_date, 'end': end_date},
                 'images': {
                     'rgb': self._array_to_base64(provider.rgb_image),
@@ -185,7 +196,7 @@ class AnalysisManager:
             new_analysis = {
                 'analysis_id': analysis_id,
                 'timestamp': analysis_data['timestamp'],
-                'coordinates': analysis_data['coordinates'],
+                'area_of_interest': analysis_data['area_of_interest'],
                 'date_range': analysis_data['date_range'],
                 'statistics_summary': {
                     'ndvi_mean': analysis_data['statistics']['ndvi']['mean'],

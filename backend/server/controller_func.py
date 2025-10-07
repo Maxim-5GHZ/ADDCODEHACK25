@@ -588,10 +588,12 @@ class controller_func():
                 "status": "error",
                 "detail": f"Не удалось вычислить NDVI: {str(e)}"
             }
-    async def perform_analysis(self, token: str, lon: float, lat: float, 
-                             start_date: str, end_date: str):
-        """Выполняет полный анализ по координатам"""
-        logger.info(f"Запрос полного анализа для координат: {lon}, {lat}")
+    async def perform_analysis(self, token: str, start_date: str, end_date: str,
+                             lon: float = None, lat: float = None,
+                             radius_km: float = 0.5,
+                             polygon_coords: str = None):
+        """Выполняет полный анализ по координатам точки с радиусом или по полигону."""
+        logger.info(f"Запрос полного анализа для токена {token}")
 
         try:
             # Проверяем авторизацию пользователя
@@ -602,8 +604,29 @@ class controller_func():
                     "detail": "Невалидный токен"
                 }
 
+            parsed_polygon_coords = None
+            if polygon_coords:
+                try:
+                    parsed_polygon_coords = json.loads(polygon_coords)
+                    if not isinstance(parsed_polygon_coords, list) or not all(
+                            isinstance(p, list) and len(p) == 2 and all(
+                                isinstance(coord, (int, float)) for coord in p) for p in parsed_polygon_coords):
+                        raise ValueError("polygon_coords должен быть списком списков координат [[lon, lat], ...]")
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.error(f"Ошибка парсинга polygon_coords='{polygon_coords}': {e}")
+                    return {
+                        "status": "error",
+                        "detail": f"Неверный формат polygon_coords: {e}"
+                    }
+
             result = self.analysis_manager.perform_complete_analysis(
-                token, lon, lat, start_date, end_date
+                token=token,
+                start_date=start_date,
+                end_date=end_date,
+                lon=lon,
+                lat=lat,
+                radius_km=radius_km,
+                polygon_coords=parsed_polygon_coords
             )
 
             return result

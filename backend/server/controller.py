@@ -1,5 +1,3 @@
-
-
 import uvicorn
 from db import dbrequest
 import subprocess
@@ -346,12 +344,14 @@ class controller():
         @self.app.post("/analysis/perform")
         async def perform_analysis(
                 token: str = Query(..., description="Токен пользователя"),
-                lon: float = Query(..., description="Долгота"),
-                lat: float = Query(..., description="Широта"),
                 start_date: str = Query(..., description="Начальная дата (YYYY-MM-DD)"),
-                end_date: str = Query(..., description="Конечная дата (YYYY-MM-DD)")
+                end_date: str = Query(..., description="Конечная дата (YYYY-MM-DD)"),
+                lon: float = Query(None, description="Долгота центральной точки для анализа по радиусу"),
+                lat: float = Query(None, description="Широта центральной точки для анализа по радиусу"),
+                radius_km: float = Query(0.5, description="Радиус в километрах от центральной точки"),
+                polygon_coords: str = Query(None, description="Координаты полигона в виде JSON-строки, например '[[37.6,55.7],[37.7,55.7],[37.7,55.8],[37.6,55.8]]'")
         ):
-            return await self.func.perform_analysis(token, lon, lat, start_date, end_date)
+            return await self.func.perform_analysis(token, start_date, end_date, lon, lat, radius_km, polygon_coords)
 
         @self.app.get("/analysis/list")
         async def get_analyses_list(

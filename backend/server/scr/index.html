@@ -76,13 +76,14 @@
             font-weight: 500;
         }
 
-        .form-group input {
+        .form-group input, .form-group textarea {
             width: 100%;
             padding: 0.5rem;
             font-size: 1rem;
             border: 1px solid #ced4da;
             border-radius: var(--border-radius);
             box-sizing: border-box;
+            font-family: inherit;
         }
         
         .form-row {
@@ -259,22 +260,49 @@
     
     <!-- MAIN APPLICATION -->
     <div id="main-app" class="hidden">
-        <p>Вы вошли в систему. Ваш токен: <b id="user-token"></b></p>
+        <p>Вы вошли в систему. Ваш токен: <b id="user-token" style="word-break: break-all;"></b></p>
         
         <!-- NEW ANALYSIS -->
         <div class="card">
             <h2>Провести новый анализ</h2>
             <form id="analysis-form">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="lon">Долгота (Longitude)</label>
-                        <input type="number" step="any" id="lon" value="37.6173" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="lat">Широта (Latitude)</label>
-                        <input type="number" step="any" id="lat" value="55.7558" required>
+                <div class="form-group">
+                    <label>Тип области анализа</label>
+                    <div>
+                        <input type="radio" id="analysis-type-point" name="analysis-type" value="point" checked>
+                        <label for="analysis-type-point">По точке и радиусу</label>
+                        &nbsp;&nbsp;
+                        <input type="radio" id="analysis-type-polygon" name="analysis-type" value="polygon">
+                        <label for="analysis-type-polygon">По полигону</label>
                     </div>
                 </div>
+
+                <!-- Point Input -->
+                <div id="point-input-section">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="lon">Долгота (Longitude)</label>
+                            <input type="number" step="any" id="lon" value="37.6173">
+                        </div>
+                        <div class="form-group">
+                            <label for="lat">Широта (Latitude)</label>
+                            <input type="number" step="any" id="lat" value="55.7558">
+                        </div>
+                         <div class="form-group">
+                            <label for="radius">Радиус (км)</label>
+                            <input type="number" step="0.1" id="radius" value="0.5">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Polygon Input -->
+                <div id="polygon-input-section" class="hidden">
+                    <div class="form-group">
+                        <label for="polygon-coords">Координаты полигона (4 пары: долгота, широта)</label>
+                        <textarea id="polygon-coords" rows="5" placeholder="Каждая пара на новой строке, например:&#10;37.60, 55.75&#10;37.62, 55.75&#10;37.62, 55.76&#10;37.60, 55.76"></textarea>
+                    </div>
+                </div>
+
                  <div class="form-row">
                     <div class="form-group">
                         <label for="start-date">Начальная дата</label>
@@ -346,19 +374,17 @@
     const pastAnalysesList = document.getElementById('past-analyses-list');
     const fetchAnalysesBtn = document.getElementById('fetch-analyses-btn');
     const resultsContainer = document.getElementById('results-container');
+    const pointInputSection = document.getElementById('point-input-section');
+    const polygonInputSection = document.getElementById('polygon-input-section');
+    const analysisTypeRadios = document.querySelectorAll('input[name="analysis-type"]');
 
     // --- UI FUNCTIONS ---
     function switchTab(tabName) {
         document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.tab-button[onclick="switchTab('${tabName}')"]`).classList.add('active');
         
-        if (tabName === 'login') {
-            loginForm.classList.remove('hidden');
-            registerForm.classList.add('hidden');
-        } else {
-            loginForm.classList.add('hidden');
-            registerForm.classList.remove('hidden');
-        }
+        loginForm.classList.toggle('hidden', tabName !== 'login');
+        registerForm.classList.toggle('hidden', tabName !== 'register');
     }
 
     function showStatusMessage(elementId, message, isError = false) {
@@ -381,6 +407,15 @@
         document.getElementById('start-date').value = startDate.toISOString().split('T')[0];
     }
     
+    function renderAreaOfInterest(aoi) {
+        if (aoi.type === 'point_radius') {
+            return `Точка: ${aoi.lat.toFixed(4)}, ${aoi.lon.toFixed(4)} (Радиус: ${aoi.radius_km} км)`;
+        } else if (aoi.type === 'polygon') {
+            return `Полигон (${aoi.coordinates.length} точек)`;
+        }
+        return 'Неизвестная область';
+    }
+    
     function renderAnalysisData(data) {
         resultsContainer.classList.remove('hidden');
         
@@ -391,8 +426,8 @@
             <table class="stats-table">
                 <tr><th>ID Анализа</th><td>${data.analysis_id}</td></tr>
                 <tr><th>Время</th><td>${new Date(data.timestamp * 1000).toLocaleString()}</td></tr>
-                <tr><th>Координаты</th><td>${data.coordinates.lat.toFixed(4)}, ${data.coordinates.lon.toFixed(4)}</td></tr>
-                <tr><th>Диапазон дат</th><td>${data.date_range.start} to ${data.date_range.end}</td></tr>
+                <tr><th>Область</th><td>${renderAreaOfInterest(data.area_of_interest)}</td></tr>
+                <tr><th>Диапазон дат</th><td>${data.date_range.start} - ${data.date_range.end}</td></tr>
                  <tr><th>Источник</th><td>${data.metadata.source} (${data.metadata.resolution})</td></tr>
             </table>`;
             
@@ -463,18 +498,12 @@
     registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideStatusMessage('auth-status-message');
-        const login = document.getElementById('register-username').value;
-        const password = document.getElementById('register-password').value;
-        const firstName = document.getElementById('register-first-name').value;
-        const lastName = document.getElementById('register-last-name').value;
-        
         const params = new URLSearchParams({
-            login: login,
-            password: password,
-            first_name: firstName,
-            last_name: lastName
+            login: document.getElementById('register-username').value,
+            password: document.getElementById('register-password').value,
+            first_name: document.getElementById('register-first-name').value,
+            last_name: document.getElementById('register-last-name').value
         });
-
         const url = `/add_user?${params.toString()}`;
 
         try {
@@ -482,7 +511,7 @@
             if (data.status === 'success') {
                 showStatusMessage('auth-status-message', 'Регистрация успешна! Теперь вы можете войти.');
                 switchTab('login');
-                registerForm.reset(); // Очищаем форму после успешной регистрации
+                registerForm.reset();
             } else {
                 throw new Error(data.detail);
             }
@@ -494,21 +523,48 @@
     analysisForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideStatusMessage('analysis-status-message');
-        showStatusMessage('analysis-status-message', 'Выполняется анализ... Это может занять некоторое время.');
+        showStatusMessage('analysis-status-message', 'Выполняется анализ... Это может занять до минуты.');
         
-        const lon = document.getElementById('lon').value;
-        const lat = document.getElementById('lat').value;
-        const startDate = document.getElementById('start-date').value;
-        const endDate = document.getElementById('end-date').value;
+        const params = new URLSearchParams({
+            token: authToken,
+            start_date: document.getElementById('start-date').value,
+            end_date: document.getElementById('end-date').value,
+        });
+
+        const analysisType = document.querySelector('input[name="analysis-type"]:checked').value;
+
+        if (analysisType === 'point') {
+            params.append('lon', document.getElementById('lon').value);
+            params.append('lat', document.getElementById('lat').value);
+            params.append('radius_km', document.getElementById('radius').value);
+        } else {
+            try {
+                const coordsText = document.getElementById('polygon-coords').value;
+                const coordsArray = coordsText.trim().split('\n').map(line => {
+                    const parts = line.split(/[\s,]+/).map(Number);
+                    if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
+                        throw new Error('Неверный формат координат.');
+                    }
+                    return parts;
+                });
+                if (coordsArray.length < 3) {
+                     throw new Error('Для полигона необходимо минимум 3 точки.');
+                }
+                params.append('polygon_coords', JSON.stringify(coordsArray));
+            } catch (error) {
+                showStatusMessage('analysis-status-message', `Ошибка формата координат полигона: ${error.message}`, true);
+                return;
+            }
+        }
         
-        const url = `/analysis/perform?token=${authToken}&lon=${lon}&lat=${lat}&start_date=${startDate}&end_date=${endDate}`;
+        const url = `/analysis/perform?${params.toString()}`;
         
         try {
             const data = await apiRequest(url, 'POST');
             if (data.status === 'success') {
                 hideStatusMessage('analysis-status-message');
                 renderAnalysisData(data.data);
-                fetchPastAnalyses(); // Refresh list
+                fetchPastAnalyses();
             } else {
                 throw new Error(data.detail);
             }
@@ -517,6 +573,14 @@
         }
     });
     
+    analysisTypeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const isPoint = e.target.value === 'point';
+            pointInputSection.classList.toggle('hidden', !isPoint);
+            polygonInputSection.classList.toggle('hidden', isPoint);
+        });
+    });
+
     async function fetchPastAnalyses() {
         pastAnalysesList.innerHTML = '<li>Загрузка...</li>';
         try {
@@ -525,6 +589,7 @@
                 pastAnalysesList.innerHTML = '';
                 if (data.analyses.length === 0) {
                      pastAnalysesList.innerHTML = '<li>Вы еще не проводили анализы.</li>';
+                     return;
                 }
                 data.analyses.forEach(analysis => {
                     const li = document.createElement('li');
@@ -532,7 +597,7 @@
                         <div class="analysis-info">
                             <b>ID:</b> ${analysis.analysis_id} | 
                             <b>Дата:</b> ${new Date(analysis.timestamp * 1000).toLocaleDateString()} | 
-                            <b>Координаты:</b> ${analysis.coordinates.lat.toFixed(2)}, ${analysis.coordinates.lon.toFixed(2)}
+                            <b>Область:</b> ${renderAreaOfInterest(analysis.area_of_interest)}
                         </div>
                         <div class="analysis-actions">
                             <button class="btn btn-primary" onclick="viewAnalysis('${analysis.analysis_id}')">Просмотр</button>
@@ -551,28 +616,31 @@
     
     async function viewAnalysis(analysisId) {
         resultsContainer.classList.add('hidden');
-        alert(`Загрузка данных для анализа ID: ${analysisId}`);
+        showStatusMessage('analysis-status-message', `Загрузка данных для анализа ID: ${analysisId}...`);
         try {
             const data = await apiRequest(`/analysis/${analysisId}?token=${authToken}`);
              if (data.status === 'success') {
+                hideStatusMessage('analysis-status-message');
                 renderAnalysisData(data.data);
             } else {
                  throw new Error(data.detail);
             }
         } catch(error) {
-            alert(`Ошибка при загрузке анализа: ${error.message}`);
+            showStatusMessage('analysis-status-message', `Ошибка при загрузке анализа: ${error.message}`, true);
         }
     }
     
     async function deleteAnalysis(analysisId) {
-        if (!confirm(`Вы уверены, что хотите удалить анализ с ID: ${analysisId}?`)) {
-            return;
-        }
+        if (!confirm(`Вы уверены, что хотите удалить анализ с ID: ${analysisId}?`)) return;
+        
         try {
             const data = await apiRequest(`/analysis/${analysisId}?token=${authToken}`, 'DELETE');
             if (data.status === 'success') {
                 alert(data.message);
-                fetchPastAnalyses(); // Refresh the list
+                fetchPastAnalyses();
+                if (document.getElementById('analysis-id-display').textContent.includes(analysisId)) {
+                    resultsContainer.classList.add('hidden');
+                }
             } else {
                  throw new Error(data.detail);
             }

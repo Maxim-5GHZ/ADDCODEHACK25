@@ -4,6 +4,7 @@ import numpy as np
 import requests
 import ee
 import json
+from typing import List
 
 
 class ImageProvider:
@@ -33,10 +34,13 @@ class ImageProvider:
         return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
     @classmethod
-    def from_gee(cls, lon: float, lat: float, start_date: str, end_date: str, buffer_size_km: float = 0.5,
+    def from_gee(cls, start_date: str, end_date: str, 
+                 lon: float = None, lat: float = None, radius_km: float = 0.5,
+                 polygon_coords: List[List[float]] = None,
                  service_account_key_path: str = "hack25addcode-3171f61bba2c.json"):
         """
         Фабричный метод для создания экземпляра класса с НАУЧНЫМИ данными из Google Earth Engine.
+        Принимает либо точку (lon, lat) с радиусом, либо полигон (polygon_coords).
         """
         try:
             if service_account_key_path and os.path.exists(service_account_key_path):
@@ -50,8 +54,16 @@ class ImageProvider:
         except Exception as e:
             raise ConnectionError(f"Ошибка инициализации Earth Engine: {e}")
 
-        point = ee.Geometry.Point([lon, lat])
-        area_of_interest = point.buffer(buffer_size_km * 1000).bounds()
+        if polygon_coords:
+            if len(polygon_coords) < 3:
+                raise ValueError("Для полигона необходимо как минимум 3 точки.")
+            area_of_interest = ee.Geometry.Polygon(polygon_coords)
+        elif lon is not None and lat is not None:
+            point = ee.Geometry.Point([lon, lat])
+            area_of_interest = point.buffer(radius_km * 1000).bounds()
+        else:
+            raise ValueError("Необходимо указать либо координаты точки (lon, lat) и радиус, либо координаты полигона.")
+
 
         # --- НАДЕЖНЫЙ ПОДХОД: ИСПОЛЬЗУЕМ ОДИН, САМЫЙ ЧИСТЫЙ СНИМОК ---
         collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
