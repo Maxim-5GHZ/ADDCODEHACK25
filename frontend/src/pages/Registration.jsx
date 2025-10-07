@@ -5,6 +5,8 @@ import { BarLoader } from "react-spinners"
 
 function Registration() {
     const [isButtonClicked, setIsButtonClicked] = useState(false);
+    const [name, setName] = useState("");
+    const [surname, setSurname] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [passwordAgain, setPasswordAgain] = useState("");
@@ -12,16 +14,21 @@ function Registration() {
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordRegex = /^[A-Za-z0-9]{5,}$/;
+    const nameRegex = /^[A-Za-zА-Яа-яЁё\s\-']{2,}$/;
     
     const isEmailValid = emailRegex.test(email);
     const isPasswordFormatValid = passwordRegex.test(password);
     const passwordsMatch = password === passwordAgain;
+    const isNameValid = nameRegex.test(name);
+    const isSurnameValid = nameRegex.test(surname);
     
     const emailError = isButtonClicked && !isEmailValid;
     const passwordFormatError = isButtonClicked && !isPasswordFormatValid;
     const passwordMatchError = isButtonClicked && !passwordsMatch;
+    const nameError = isButtonClicked && !isNameValid;
+    const surnameError = isButtonClicked && !isSurnameValid;
 
-    const isFormValid = isEmailValid && isPasswordFormatValid && passwordsMatch;
+    const isFormValid = isNameValid && isSurnameValid && isEmailValid && isPasswordFormatValid && passwordsMatch;
 
     const handleRegistration = async () => {
         setIsButtonClicked(true);
@@ -33,7 +40,7 @@ function Registration() {
         
         setIsLoading(true);
         console.log("Регистрация...", { email, password });
-        
+        registerUser();
     }
 
     const registerUser = async () => {
@@ -49,6 +56,18 @@ function Registration() {
         if (!password) return "Введите пароль";
         if (password.length < 5) return "Пароль должен содержать минимум 5 символов";
         return "Пароль должен содержать только буквы и цифры";
+    }
+
+    const getNameErrorMessage = () => {
+        if (!name) return "Введите имя";
+        if (name.length < 2) return "Имя должно содержать минимум 2 символа";
+        return "Имя должно содержать только буквы, пробелы, дефисы и апострофы";
+    }
+
+    const getSurnameErrorMessage = () => {
+        if (!surname) return "Введите фамилию";
+        if (surname.length < 2) return "Фамилия должна содержать минимум 2 символа";
+        return "Фамилия должна содержать только буквы, пробелы, дефисы и апострофы";
     }
 
     return (
@@ -70,6 +89,56 @@ function Registration() {
                         </h1>
                     </div>
                     <form method="post" className="flex flex-col justify-center space-y-8">
+                        <div className="flex flex-col w-full">
+                            <label htmlFor="user-name" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
+                                Имя
+                            </label>
+                            <input 
+                                value={name}
+                                onChange={(e) => setName(e.target.value)}
+                                id="user-name" 
+                                name="user-name" 
+                                type="text" 
+                                placeholder="Иван" 
+                                className={`text-2xl md:text-3xl bg-[var(--neutral-color)] rounded-4xl py-4 px-6 shadow-2xs 
+                                focus:outline-0 focus:ring-2 w-full ${
+                                    nameError 
+                                    ? "outline-1 outline-red-500 focus:ring-red-500" 
+                                    : "focus:ring-[var(--accent-color)]"
+                                }`}
+                            />
+                            {nameError && (
+                                <span className="text-red-500 text-xl mt-2 ml-4">
+                                    {getNameErrorMessage()}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className="flex flex-col w-full">
+                            <label htmlFor="user-surname" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
+                                Фамилия
+                            </label>
+                            <input 
+                                value={surname}
+                                onChange={(e) => setSurname(e.target.value)}
+                                id="user-surname" 
+                                name="user-surname" 
+                                type="text" 
+                                placeholder="Иванов" 
+                                className={`text-2xl md:text-3xl bg-[var(--neutral-color)] rounded-4xl py-4 px-6 shadow-2xs 
+                                focus:outline-0 focus:ring-2 w-full ${
+                                    surnameError 
+                                    ? "outline-1 outline-red-500 focus:ring-red-500" 
+                                    : "focus:ring-[var(--accent-color)]"
+                                }`}
+                            />
+                            {surnameError && (
+                                <span className="text-red-500 text-xl mt-2 ml-4">
+                                    {getSurnameErrorMessage()}
+                                </span>
+                            )}
+                        </div>
+
                         <div className="flex flex-col w-full">
                             <label htmlFor="email" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Почта
