@@ -1,11 +1,3 @@
-Конечно, вот обновленная и дополненная документация по API в формате Markdown.
-
-Я сгруппировал запросы по категориям, добавил недостающие эндпоинты (для управления пользователями и анализами) и уточнил параметры и примеры для всех запросов, включая новый функционал анализа по точке или полигону.
-
-***
-
-### Документация по API
-
 | Имя запроса | Метод | Описание | Пример fetch запроса |
 | :--- | :--- | :--- | :--- |
 | **Общие и серверные запросы** |
@@ -28,11 +20,10 @@
 | Получение данных поля | GET | Получение данных по названию поля (ключа). | `fetch(/field/get?field=${encodeURIComponent(field)})` |
 | Проверка существования поля | GET | Проверка, существует ли поле с указанным именем. | `fetch(/field/check?field=${encodeURIComponent(field)})` |
 | Удаление данных поля | DELETE | Удаление поля и его данных по названию. | `fetch(/field/delete?field=${field}&token=${token}, {method: 'DELETE'})` |
-| **Получение изображений (устаревшие)** |
 | Получение RGB изображения | GET | Получение RGB снимка по геолокации. | `fetch(/image/rgb?lon=${lon}&lat=${lat}&start_date=${start}&end_date=${end}&token=${token})` |
 | Получение красного канала | GET | Получение изображения красного канала. | `fetch(/image/red-channel?lon=${lon}&lat=${lat}&start_date=${start}&end_date=${end}&token=${token})` |
 | Получение NDVI изображения | GET | Получение NDVI карты растительности. | `fetch(/image/ndvi?lon=${lon}&lat=${lat}&start_date=${start}&end_date=${end}&token=${token})` |
-| **Анализ (рекомендуемый способ)** |
+
 | **Выполнить полный анализ** | POST | Запускает полный анализ по **точке и радиусу** ИЛИ по **полигону**. Сохраняет результат. | `// По точке и радиусу` <br> `fetch(/analysis/perform?token=${token}&start_date=${start}&end_date=${end}&lon=${lon}&lat=${lat}&radius_km=${radius}, {method: 'POST'})` <br><br> `// По полигону (координаты - JSON-строка)` <br> `const poly = JSON.stringify([[lon1, lat1], [lon2, lat2], ...]);` <br> `fetch(/analysis/perform?token=${token}&start_date=${start}&end_date=${end}&polygon_coords=${encodeURIComponent(poly)}, {method: 'POST'})` |
 | Получить список анализов | GET | Возвращает список всех ранее выполненных анализов для пользователя. | `fetch(/analysis/list?token=${token})` |
 | Получить конкретный анализ | GET | Получает полные данные сохраненного анализа по его ID. | `fetch(/analysis/${analysisId}?token=${token})` |
