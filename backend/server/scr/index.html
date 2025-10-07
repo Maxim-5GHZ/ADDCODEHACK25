@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Анализ спутниковых снимков</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
     <style>
         :root {
             --primary-color: #007bff;
@@ -127,16 +131,8 @@
             font-size: 0.8rem;
         }
 
-        #status-message {
-            text-align: center;
-            padding: 1rem;
-            margin-top: 1rem;
-            border-radius: var(--border-radius);
-            font-weight: 500;
-        }
-
-        .status-success { background-color: #d4edda; color: #155724; }
-        .status-error { background-color: #f8d7da; color: #721c24; }
+        .status-success { background-color: #d4edda; color: #155724; padding: 1rem; margin-top: 1rem; border-radius: var(--border-radius); text-align: center; }
+        .status-error { background-color: #f8d7da; color: #721c24; padding: 1rem; margin-top: 1rem; border-radius: var(--border-radius); text-align: center; }
 
         .hidden { display: none; }
 
@@ -155,57 +151,34 @@
             background: var(--light-color);
         }
         
-        #results-container h3 {
-            margin-top: 0;
-            text-align: center;
-            border-bottom: 1px solid #ccc;
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        #results-container img {
-            max-width: 100%;
-            height: auto;
-            border-radius: var(--border-radius);
-        }
+        #results-container h3 { margin-top: 0; text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; margin-bottom: 1rem; }
+        #results-container img { max-width: 100%; height: auto; border-radius: var(--border-radius); }
         
-        .stats-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .stats-table th, .stats-table td {
-            text-align: left;
-            padding: 0.5rem;
-            border-bottom: 1px solid #dee2e6;
-        }
+        .stats-table { width: 100%; border-collapse: collapse; }
+        .stats-table th, .stats-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #dee2e6; }
         .stats-table th { font-weight: 600; }
 
-        #past-analyses-list {
-            list-style-type: none;
-            padding: 0;
-        }
-
-        #past-analyses-list li {
-            background: var(--light-color);
-            padding: 1rem;
-            margin-bottom: 0.5rem;
-            border-radius: var(--border-radius);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
+        #past-analyses-list { list-style-type: none; padding: 0; }
+        #past-analyses-list li { background: var(--light-color); padding: 1rem; margin-bottom: 0.5rem; border-radius: var(--border-radius); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
         
         .analysis-info { font-size: 0.9rem; }
         .analysis-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
         
+        /* New styles for map integration */
+        #analysis-layout { display: flex; gap: 2rem; flex-wrap: wrap; }
+        #analysis-controls { flex: 1; min-width: 300px; }
+        #map-container { flex: 1.5; min-width: 400px; }
+        #map { height: 450px; width: 100%; border-radius: var(--border-radius); border: 1px solid #dee2e6; z-index: 1; }
+
+        @media (max-width: 992px) {
+            #analysis-layout { flex-direction: column; }
+        }
         @media (max-width: 768px) {
             .form-row { flex-direction: column; }
             .grid-container { grid-template-columns: 1fr; }
             body { padding: 0.5rem; }
             .card { padding: 1rem; }
         }
-
     </style>
 </head>
 <body>
@@ -219,41 +192,19 @@
             <button class="tab-button active" onclick="switchTab('login')">Вход</button>
             <button class="tab-button" onclick="switchTab('register')">Регистрация</button>
         </div>
-
-        <!-- Login Form -->
         <form id="login-form">
-            <div class="form-group">
-                <label for="login-username">Логин</label>
-                <input type="text" id="login-username" required>
-            </div>
-            <div class="form-group">
-                <label for="login-password">Пароль</label>
-                <input type="password" id="login-password" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Войти</button>
+             <div class="form-group"><label for="login-username">Логин</label><input type="text" id="login-username" required></div>
+             <div class="form-group"><label for="login-password">Пароль</label><input type="password" id="login-password" required></div>
+             <button type="submit" class="btn btn-primary">Войти</button>
         </form>
-
-        <!-- Register Form -->
         <form id="register-form" class="hidden">
             <div class="form-row">
-                 <div class="form-group">
-                    <label for="register-first-name">Имя</label>
-                    <input type="text" id="register-first-name" required>
-                </div>
-                <div class="form-group">
-                    <label for="register-last-name">Фамилия</label>
-                    <input type="text" id="register-last-name" required>
-                </div>
+                 <div class="form-group"><label for="register-first-name">Имя</label><input type="text" id="register-first-name" required></div>
+                 <div class="form-group"><label for="register-last-name">Фамилия</label><input type="text" id="register-last-name" required></div>
             </div>
-            <div class="form-group">
-                <label for="register-username">Логин</label>
-                <input type="text" id="register-username" required>
-            </div>
-            <div class="form-group">
-                <label for="register-password">Пароль</label>
-                <input type="password" id="register-password" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+             <div class="form-group"><label for="register-username">Логин</label><input type="text" id="register-username" required></div>
+             <div class="form-group"><label for="register-password">Пароль</label><input type="password" id="register-password" required></div>
+             <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
         </form>
         <div id="auth-status-message"></div>
     </div>
@@ -266,54 +217,44 @@
         <div class="card">
             <h2>Провести новый анализ</h2>
             <form id="analysis-form">
-                <div class="form-group">
-                    <label>Тип области анализа</label>
-                    <div>
-                        <input type="radio" id="analysis-type-point" name="analysis-type" value="point" checked>
-                        <label for="analysis-type-point">По точке и радиусу</label>
-                        &nbsp;&nbsp;
-                        <input type="radio" id="analysis-type-polygon" name="analysis-type" value="polygon">
-                        <label for="analysis-type-polygon">По полигону</label>
-                    </div>
-                </div>
-
-                <!-- Point Input -->
-                <div id="point-input-section">
-                    <div class="form-row">
+                <div id="analysis-layout">
+                    <!-- Left Side: Controls -->
+                    <div id="analysis-controls">
                         <div class="form-group">
-                            <label for="lon">Долгота (Longitude)</label>
-                            <input type="number" step="any" id="lon" value="37.6173">
+                            <label>Тип области анализа</label>
+                            <div>
+                                <input type="radio" id="analysis-type-point" name="analysis-type" value="point" checked>
+                                <label for="analysis-type-point">По точке и радиусу</label>
+                                &nbsp;&nbsp;
+                                <input type="radio" id="analysis-type-polygon" name="analysis-type" value="polygon">
+                                <label for="analysis-type-polygon">По полигону</label>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="lat">Широта (Latitude)</label>
-                            <input type="number" step="any" id="lat" value="55.7558">
+                        <div id="point-input-section">
+                            <div class="form-row">
+                                <div class="form-group"><label for="lon">Долгота</label><input type="number" step="any" id="lon" value="37.6173"></div>
+                                <div class="form-group"><label for="lat">Широта</label><input type="number" step="any" id="lat" value="55.7558"></div>
+                            </div>
+                            <div class="form-group"><label for="radius">Радиус (км)</label><input type="number" step="0.1" id="radius" value="0.5"></div>
                         </div>
-                         <div class="form-group">
-                            <label for="radius">Радиус (км)</label>
-                            <input type="number" step="0.1" id="radius" value="0.5">
+                        <div id="polygon-input-section" class="hidden">
+                            <div class="form-group">
+                                <label for="polygon-coords">Координаты полигона (долгота, широта)</label>
+                                <textarea id="polygon-coords" rows="5" placeholder="Кликайте на карту для добавления точек..." readonly></textarea>
+                                <button type="button" id="clear-polygon-btn" class="btn btn-secondary" style="margin-top: 0.5rem;">Очистить полигон</button>
+                            </div>
                         </div>
+                        <div class="form-row">
+                            <div class="form-group"><label for="start-date">Начальная дата</label><input type="date" id="start-date" required></div>
+                            <div class="form-group"><label for="end-date">Конечная дата</label><input type="date" id="end-date" required></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Выполнить анализ</button>
+                    </div>
+                    <!-- Right Side: Map -->
+                    <div id="map-container">
+                        <div id="map"></div>
                     </div>
                 </div>
-
-                <!-- Polygon Input -->
-                <div id="polygon-input-section" class="hidden">
-                    <div class="form-group">
-                        <label for="polygon-coords">Координаты полигона (4 пары: долгота, широта)</label>
-                        <textarea id="polygon-coords" rows="5" placeholder="Каждая пара на новой строке, например:&#10;37.60, 55.75&#10;37.62, 55.75&#10;37.62, 55.76&#10;37.60, 55.76"></textarea>
-                    </div>
-                </div>
-
-                 <div class="form-row">
-                    <div class="form-group">
-                        <label for="start-date">Начальная дата</label>
-                        <input type="date" id="start-date" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="end-date">Конечная дата</label>
-                        <input type="date" id="end-date" required>
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-primary">Выполнить анализ</button>
             </form>
              <div id="analysis-status-message"></div>
         </div>
@@ -322,30 +263,12 @@
         <div id="results-container" class="card hidden">
             <h2>Результаты анализа <span id="analysis-id-display"></span></h2>
             <div class="grid-container">
-                 <div class="stats-card">
-                    <h3>Общая информация</h3>
-                    <div id="results-metadata"></div>
-                </div>
-                <div class="stats-card">
-                    <h3>Статистика</h3>
-                    <div id="results-stats"></div>
-                </div>
-                <div class="image-card">
-                    <h3>RGB Изображение</h3>
-                    <img id="rgb-image" alt="RGB Image">
-                </div>
-                <div class="image-card">
-                    <h3>Красный канал</h3>
-                    <img id="red-channel-image" alt="Red Channel Image">
-                </div>
-                <div class="image-card">
-                    <h3>Индекс NDVI</h3>
-                    <img id="ndvi-image" alt="NDVI Image">
-                </div>
-                <div class="image-card">
-                    <h3>Индекс VARI</h3>
-                    <img id="vari-image" alt="VARI Image">
-                </div>
+                 <div class="stats-card"><h3>Общая информация</h3><div id="results-metadata"></div></div>
+                <div class="stats-card"><h3>Статистика</h3><div id="results-stats"></div></div>
+                <div class="image-card"><h3>RGB Изображение</h3><img id="rgb-image" alt="RGB Image"></div>
+                <div class="image-card"><h3>Красный канал</h3><img id="red-channel-image" alt="Red Channel Image"></div>
+                <div class="image-card"><h3>Индекс NDVI</h3><img id="ndvi-image" alt="NDVI Image"></div>
+                <div class="image-card"><h3>Индекс VARI</h3><img id="vari-image" alt="VARI Image"></div>
             </div>
         </div>
         
@@ -358,10 +281,14 @@
     </div>
 </div>
 
-<script>
-    const API_BASE_URL = window.location.origin;
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
 
-    // --- STATE MANAGEMENT ---
+<script>
+    // --- GLOBAL STATE & CONSTANTS ---
+    const API_BASE_URL = window.location.origin;
     let authToken = null;
 
     // --- DOM ELEMENTS ---
@@ -377,12 +304,100 @@
     const pointInputSection = document.getElementById('point-input-section');
     const polygonInputSection = document.getElementById('polygon-input-section');
     const analysisTypeRadios = document.querySelectorAll('input[name="analysis-type"]');
+    const lonInput = document.getElementById('lon');
+    const latInput = document.getElementById('lat');
+    const radiusInput = document.getElementById('radius');
+    const polygonCoordsTextarea = document.getElementById('polygon-coords');
+    const clearPolygonBtn = document.getElementById('clear-polygon-btn');
 
-    // --- UI FUNCTIONS ---
+    // --- MAP VARIABLES ---
+    let map;
+    let marker;
+    let radiusCircle;
+    let polygonLayer;
+    let polygonPoints = [];
+
+    // --- MAP FUNCTIONS ---
+    function initMap() {
+        if (map) return; // Initialize map only once
+
+        map = L.map('map').setView([latInput.value, lonInput.value], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Initialize layers
+        marker = L.marker([latInput.value, lonInput.value]).addTo(map);
+        radiusCircle = L.circle([latInput.value, lonInput.value], {
+            radius: radiusInput.value * 1000,
+            color: 'blue',
+            fillColor: '#30f',
+            fillOpacity: 0.2
+        }).addTo(map);
+        polygonLayer = L.polygon(polygonPoints, { color: 'red' }).addTo(map);
+
+        updateMapVisibility();
+
+        map.on('click', (e) => {
+            const analysisType = document.querySelector('input[name="analysis-type"]:checked').value;
+            if (analysisType === 'point') {
+                const { lat, lng } = e.latlng;
+                latInput.value = lat.toFixed(6);
+                lonInput.value = lng.toFixed(6);
+                updateMapFromPointInputs();
+            } else if (analysisType === 'polygon') {
+                 const { lat, lng } = e.latlng;
+                 polygonPoints.push([lat, lng]);
+                 updatePolygonOnMapAndTextarea();
+            }
+        });
+    }
+
+    function updateMapFromPointInputs() {
+        const lat = parseFloat(latInput.value);
+        const lon = parseFloat(lonInput.value);
+        const radius = parseFloat(radiusInput.value) * 1000;
+
+        if (!isNaN(lat) && !isNaN(lon)) {
+            const newLatLng = [lat, lon];
+            marker.setLatLng(newLatLng);
+            radiusCircle.setLatLng(newLatLng);
+            map.panTo(newLatLng);
+        }
+        if (!isNaN(radius) && radius > 0) {
+            radiusCircle.setRadius(radius);
+        }
+    }
+    
+    function updatePolygonOnMapAndTextarea() {
+        polygonLayer.setLatLngs(polygonPoints);
+        const coordsString = polygonPoints.map(p => `${p[1].toFixed(6)}, ${p[0].toFixed(6)}`).join('\n');
+        polygonCoordsTextarea.value = coordsString;
+    }
+    
+    function clearPolygon() {
+        polygonPoints = [];
+        updatePolygonOnMapAndTextarea();
+    }
+
+    function updateMapVisibility() {
+        if (!map) return;
+        const analysisType = document.querySelector('input[name="analysis-type"]:checked').value;
+        if (analysisType === 'point') {
+            map.addLayer(marker);
+            map.addLayer(radiusCircle);
+            map.removeLayer(polygonLayer);
+        } else {
+            map.removeLayer(marker);
+            map.removeLayer(radiusCircle);
+            map.addLayer(polygonLayer);
+        }
+    }
+
+    // --- UI HELPER FUNCTIONS ---
     function switchTab(tabName) {
         document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`.tab-button[onclick="switchTab('${tabName}')"]`).classList.add('active');
-        
         loginForm.classList.toggle('hidden', tabName !== 'login');
         registerForm.classList.toggle('hidden', tabName !== 'register');
     }
@@ -395,14 +410,14 @@
     }
 
     function hideStatusMessage(elementId) {
-        document.getElementById(elementId).style.display = 'none';
+        const el = document.getElementById(elementId);
+        if (el) el.style.display = 'none';
     }
     
     function setDateDefaults() {
         const endDate = new Date();
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() - 1);
-
         document.getElementById('end-date').value = endDate.toISOString().split('T')[0];
         document.getElementById('start-date').value = startDate.toISOString().split('T')[0];
     }
@@ -418,35 +433,14 @@
     
     function renderAnalysisData(data) {
         resultsContainer.classList.remove('hidden');
-        
         document.getElementById('analysis-id-display').textContent = `(ID: ${data.analysis_id})`;
-
-        // Metadata
-        document.getElementById('results-metadata').innerHTML = `
-            <table class="stats-table">
-                <tr><th>ID Анализа</th><td>${data.analysis_id}</td></tr>
-                <tr><th>Время</th><td>${new Date(data.timestamp * 1000).toLocaleString()}</td></tr>
-                <tr><th>Область</th><td>${renderAreaOfInterest(data.area_of_interest)}</td></tr>
-                <tr><th>Диапазон дат</th><td>${data.date_range.start} - ${data.date_range.end}</td></tr>
-                 <tr><th>Источник</th><td>${data.metadata.source} (${data.metadata.resolution})</td></tr>
-            </table>`;
-            
-        // Statistics
+        document.getElementById('results-metadata').innerHTML = `<table class="stats-table"><tr><th>ID Анализа</th><td>${data.analysis_id}</td></tr><tr><th>Время</th><td>${new Date(data.timestamp * 1000).toLocaleString()}</td></tr><tr><th>Область</th><td>${renderAreaOfInterest(data.area_of_interest)}</td></tr><tr><th>Диапазон дат</th><td>${data.date_range.start} - ${data.date_range.end}</td></tr><tr><th>Источник</th><td>${data.metadata.source} (${data.metadata.resolution})</td></tr></table>`;
         const stats = data.statistics;
-        document.getElementById('results-stats').innerHTML = `
-            <table class="stats-table">
-                <tr><th>Индекс</th><th>Min</th><th>Max</th><th>Mean</th></tr>
-                <tr><td><b>NDVI</b></td><td>${stats.ndvi.min.toFixed(3)}</td><td>${stats.ndvi.max.toFixed(3)}</td><td>${stats.ndvi.mean.toFixed(3)}</td></tr>
-                <tr><td><b>VARI</b></td><td>${stats.vari.min.toFixed(3)}</td><td>${stats.vari.max.toFixed(3)}</td><td>${stats.vari.mean.toFixed(3)}</td></tr>
-                <tr><td><b>Red Ch.</b></td><td>${stats.red_channel.min.toFixed(0)}</td><td>${stats.red_channel.max.toFixed(0)}</td><td>${stats.red_channel.mean.toFixed(0)}</td></tr>
-            </table>`;
-            
-        // Images
+        document.getElementById('results-stats').innerHTML = `<table class="stats-table"><tr><th>Индекс</th><th>Min</th><th>Max</th><th>Mean</th></tr><tr><td><b>NDVI</b></td><td>${stats.ndvi.min.toFixed(3)}</td><td>${stats.ndvi.max.toFixed(3)}</td><td>${stats.ndvi.mean.toFixed(3)}</td></tr><tr><td><b>VARI</b></td><td>${stats.vari.min.toFixed(3)}</td><td>${stats.vari.max.toFixed(3)}</td><td>${stats.vari.mean.toFixed(3)}</td></tr><tr><td><b>Red Ch.</b></td><td>${stats.red_channel.min.toFixed(0)}</td><td>${stats.red_channel.max.toFixed(0)}</td><td>${stats.red_channel.mean.toFixed(0)}</td></tr></table>`;
         document.getElementById('rgb-image').src = `data:image/jpeg;base64,${data.images.rgb}`;
         document.getElementById('red-channel-image').src = `data:image/jpeg;base64,${data.images.red_channel}`;
         document.getElementById('ndvi-image').src = `data:image/jpeg;base64,${data.images.ndvi}`;
         document.getElementById('vari-image').src = `data:image/jpeg;base64,${data.images.vari}`;
-        
         resultsContainer.scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -454,10 +448,7 @@
     async function apiRequest(endpoint, method = 'GET', body = null) {
         const url = `${API_BASE_URL}${endpoint}`;
         const options = { method };
-        if (body) {
-            options.body = body;
-        }
-        
+        if (body) options.body = body;
         try {
             const response = await fetch(url, options);
             if (!response.ok) {
@@ -478,7 +469,6 @@
         const login = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
         const url = `/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
-        
         try {
             const data = await apiRequest(url);
             if (data.status === 'success') {
@@ -486,91 +476,55 @@
                 userTokenDisplay.textContent = authToken;
                 authSection.classList.add('hidden');
                 mainApp.classList.remove('hidden');
-                fetchPastAnalyses(); // Initial fetch
-            } else {
-                throw new Error(data.detail);
-            }
-        } catch (error) {
-            showStatusMessage('auth-status-message', `Ошибка входа: ${error.message}`, true);
-        }
+                setTimeout(() => initMap(), 100); // Initialize map after container is visible
+                fetchPastAnalyses();
+            } else { throw new Error(data.detail); }
+        } catch (error) { showStatusMessage('auth-status-message', `Ошибка входа: ${error.message}`, true); }
     });
 
     registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideStatusMessage('auth-status-message');
-        const params = new URLSearchParams({
-            login: document.getElementById('register-username').value,
-            password: document.getElementById('register-password').value,
-            first_name: document.getElementById('register-first-name').value,
-            last_name: document.getElementById('register-last-name').value
-        });
-        const url = `/add_user?${params.toString()}`;
-
+        const params = new URLSearchParams({ login: document.getElementById('register-username').value, password: document.getElementById('register-password').value, first_name: document.getElementById('register-first-name').value, last_name: document.getElementById('register-last-name').value });
         try {
-            const data = await apiRequest(url, 'POST');
+            const data = await apiRequest(`/add_user?${params.toString()}`, 'POST');
             if (data.status === 'success') {
                 showStatusMessage('auth-status-message', 'Регистрация успешна! Теперь вы можете войти.');
                 switchTab('login');
                 registerForm.reset();
-            } else {
-                throw new Error(data.detail);
-            }
-        } catch (error) {
-            showStatusMessage('auth-status-message', `Ошибка регистрации: ${error.message}`, true);
-        }
+            } else { throw new Error(data.detail); }
+        } catch (error) { showStatusMessage('auth-status-message', `Ошибка регистрации: ${error.message}`, true); }
     });
     
     analysisForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideStatusMessage('analysis-status-message');
         showStatusMessage('analysis-status-message', 'Выполняется анализ... Это может занять до минуты.');
-        
-        const params = new URLSearchParams({
-            token: authToken,
-            start_date: document.getElementById('start-date').value,
-            end_date: document.getElementById('end-date').value,
-        });
-
+        const params = new URLSearchParams({ token: authToken, start_date: document.getElementById('start-date').value, end_date: document.getElementById('end-date').value });
         const analysisType = document.querySelector('input[name="analysis-type"]:checked').value;
-
         if (analysisType === 'point') {
-            params.append('lon', document.getElementById('lon').value);
-            params.append('lat', document.getElementById('lat').value);
-            params.append('radius_km', document.getElementById('radius').value);
+            params.append('lon', lonInput.value);
+            params.append('lat', latInput.value);
+            params.append('radius_km', radiusInput.value);
         } else {
             try {
-                const coordsText = document.getElementById('polygon-coords').value;
-                const coordsArray = coordsText.trim().split('\n').map(line => {
-                    const parts = line.split(/[\s,]+/).map(Number);
-                    if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
-                        throw new Error('Неверный формат координат.');
-                    }
-                    return parts;
-                });
-                if (coordsArray.length < 3) {
-                     throw new Error('Для полигона необходимо минимум 3 точки.');
-                }
-                params.append('polygon_coords', JSON.stringify(coordsArray));
+                // Leaflet uses [lat, lng], API expects [lon, lat]
+                const apiCoords = polygonPoints.map(p => [p[1], p[0]]); 
+                if (apiCoords.length < 3) { throw new Error('Для полигона необходимо минимум 3 точки.'); }
+                params.append('polygon_coords', JSON.stringify(apiCoords));
             } catch (error) {
-                showStatusMessage('analysis-status-message', `Ошибка формата координат полигона: ${error.message}`, true);
+                showStatusMessage('analysis-status-message', `Ошибка координат полигона: ${error.message}`, true);
                 return;
             }
         }
-        
-        const url = `/analysis/perform?${params.toString()}`;
-        
         try {
-            const data = await apiRequest(url, 'POST');
+            const data = await apiRequest(`/analysis/perform?${params.toString()}`, 'POST');
             if (data.status === 'success') {
                 hideStatusMessage('analysis-status-message');
                 renderAnalysisData(data.data);
                 fetchPastAnalyses();
-            } else {
-                throw new Error(data.detail);
-            }
-        } catch (error) {
-            showStatusMessage('analysis-status-message', `Ошибка анализа: ${error.message}`, true);
-        }
+            } else { throw new Error(data.detail); }
+        } catch (error) { showStatusMessage('analysis-status-message', `Ошибка анализа: ${error.message}`, true); }
     });
     
     analysisTypeRadios.forEach(radio => {
@@ -578,8 +532,13 @@
             const isPoint = e.target.value === 'point';
             pointInputSection.classList.toggle('hidden', !isPoint);
             polygonInputSection.classList.toggle('hidden', isPoint);
+            updateMapVisibility();
         });
     });
+    
+    [latInput, lonInput, radiusInput].forEach(input => input.addEventListener('input', updateMapFromPointInputs));
+    clearPolygonBtn.addEventListener('click', clearPolygon);
+    fetchAnalysesBtn.addEventListener('click', fetchPastAnalyses);
 
     async function fetchPastAnalyses() {
         pastAnalysesList.innerHTML = '<li>Загрузка...</li>';
@@ -591,27 +550,13 @@
                      pastAnalysesList.innerHTML = '<li>Вы еще не проводили анализы.</li>';
                      return;
                 }
-                data.analyses.forEach(analysis => {
+                data.analyses.slice().reverse().forEach(analysis => {
                     const li = document.createElement('li');
-                    li.innerHTML = `
-                        <div class="analysis-info">
-                            <b>ID:</b> ${analysis.analysis_id} | 
-                            <b>Дата:</b> ${new Date(analysis.timestamp * 1000).toLocaleDateString()} | 
-                            <b>Область:</b> ${renderAreaOfInterest(analysis.area_of_interest)}
-                        </div>
-                        <div class="analysis-actions">
-                            <button class="btn btn-primary" onclick="viewAnalysis('${analysis.analysis_id}')">Просмотр</button>
-                            <button class="btn btn-danger" onclick="deleteAnalysis('${analysis.analysis_id}')">Удалить</button>
-                        </div>
-                    `;
+                    li.innerHTML = `<div class="analysis-info"><b>ID:</b> ${analysis.analysis_id} | <b>Дата:</b> ${new Date(analysis.timestamp * 1000).toLocaleDateString()} | <b>Область:</b> ${renderAreaOfInterest(analysis.area_of_interest)}</div><div class="analysis-actions"><button class="btn btn-primary" onclick="viewAnalysis('${analysis.analysis_id}')">Просмотр</button><button class="btn btn-danger" onclick="deleteAnalysis('${analysis.analysis_id}')">Удалить</button></div>`;
                     pastAnalysesList.appendChild(li);
                 });
-            } else {
-                 throw new Error(data.detail);
-            }
-        } catch (error) {
-             pastAnalysesList.innerHTML = `<li>Ошибка загрузки: ${error.message}</li>`;
-        }
+            } else { throw new Error(data.detail); }
+        } catch (error) { pastAnalysesList.innerHTML = `<li>Ошибка загрузки: ${error.message}</li>`; }
     }
     
     async function viewAnalysis(analysisId) {
@@ -622,17 +567,12 @@
              if (data.status === 'success') {
                 hideStatusMessage('analysis-status-message');
                 renderAnalysisData(data.data);
-            } else {
-                 throw new Error(data.detail);
-            }
-        } catch(error) {
-            showStatusMessage('analysis-status-message', `Ошибка при загрузке анализа: ${error.message}`, true);
-        }
+            } else { throw new Error(data.detail); }
+        } catch(error) { showStatusMessage('analysis-status-message', `Ошибка при загрузке анализа: ${error.message}`, true); }
     }
     
     async function deleteAnalysis(analysisId) {
         if (!confirm(`Вы уверены, что хотите удалить анализ с ID: ${analysisId}?`)) return;
-        
         try {
             const data = await apiRequest(`/analysis/${analysisId}?token=${authToken}`, 'DELETE');
             if (data.status === 'success') {
@@ -641,21 +581,14 @@
                 if (document.getElementById('analysis-id-display').textContent.includes(analysisId)) {
                     resultsContainer.classList.add('hidden');
                 }
-            } else {
-                 throw new Error(data.detail);
-            }
-        } catch (error) {
-            alert(`Ошибка удаления: ${error.message}`);
-        }
+            } else { throw new Error(data.detail); }
+        } catch (error) { alert(`Ошибка удаления: ${error.message}`); }
     }
-
-    fetchAnalysesBtn.addEventListener('click', fetchPastAnalyses);
 
     // --- INITIALIZATION ---
     window.onload = () => {
         setDateDefaults();
     };
-
 </script>
 </body>
 </html>
