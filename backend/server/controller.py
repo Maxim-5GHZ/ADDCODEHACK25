@@ -249,6 +249,12 @@ class controller():
                 password: str = Query(..., description="Пароль администратора")
         ):
             return await self.func.get_all_users(password)
+            
+        @self.app.get("/users/profile")
+        async def get_user_profile(
+            token: str = Query(..., description="Токен пользователя для получения его профиля")
+        ):
+            return await self.func.get_user_profile(token)
 
         @self.app.get("/health")
         async def health_check():
@@ -349,7 +355,7 @@ class controller():
                 lon: float = Query(None, description="Долгота центральной точки для анализа по радиусу"),
                 lat: float = Query(None, description="Широта центральной точки для анализа по радиусу"),
                 radius_km: float = Query(0.5, description="Радиус в километрах от центральной точки"),
-                polygon_coords: str = Query(None, description="Координаты полигона в виде JSON-строки, например '[[37.6,55.7],[37.7,55.7],[37.7,55.8],[37.6,55.8]]'")
+                polygon_coords: str = Query(None, description="Координаты полигона в виде JSON-строки, например '[[37.6,55.7],[37.7,55.7],[3.7,55.8],[37.6,55.8]]'")
         ):
             return await self.func.perform_analysis(token, start_date, end_date, lon, lat, radius_km, polygon_coords)
 
@@ -373,8 +379,29 @@ class controller():
         ):
             return await self.func.delete_analysis(token, analysis_id)
         
-        
-    
+        # --- НОВЫЕ МАРШРУТЫ ДЛЯ УПРАВЛЕНИЯ ПОЛЯМИ ---
+        @self.app.post("/fields/save")
+        async def save_user_field(
+                token: str = Query(..., description="Токен пользователя"),
+                field_name: str = Query(..., description="Название для нового поля"),
+                area_of_interest: str = Query(..., description="JSON-строка с данными об области")
+        ):
+            return await self.func.save_user_field(token, field_name, area_of_interest)
+
+        @self.app.get("/fields/list")
+        async def get_user_fields(
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            return await self.func.get_user_fields(token)
+
+        @self.app.delete("/fields/{field_id}")
+        async def delete_user_field(
+                field_id: str,
+                token: str = Query(..., description="Токен пользователя")
+        ):
+            return await self.func.delete_user_field(token, field_id)
+
+
     def run(self):
         protocol = "HTTPS" if self.use_https else "HTTP"
         logger.info(f"Запуск {protocol} сервера...")
