@@ -220,7 +220,7 @@ function Advantages() {
 }
 
 
-function Footer() {
+export function Footer({ showNavigation=true }) {
     return (
         <footer className="bg-[var(--neutral-dark-color)] pt-16 pb-8">
             <div className="max-w-7xl mx-auto px-8">
@@ -233,17 +233,28 @@ function Footer() {
                         <span className="text-xl text-gray-500 font-medium mb-2">2025 © Все права защищены</span>
                         <span className="text-lg text-gray-400">Создано для будущего агроаналитики</span>
                     </div>
-                    <nav className="flex flex-col md:flex-row gap-6 items-center">
-                        <a href="#main" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
-                            Главная
-                        </a>
-                        <a href="#about-us" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
-                            О нас
-                        </a>
-                        <a href="#advantages" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
-                            Преимущества
-                        </a>
-                    </nav>
+                    {showNavigation ? (
+                        <nav className="flex flex-col md:flex-row gap-6 items-center">
+                            <a href="#main" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                                Главная
+                            </a>
+                            <a href="#about-us" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                                О нас
+                            </a>
+                            <a href="#advantages" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                                Преимущества
+                            </a>
+                        </nav>
+                    ) : (
+                        <nav className="flex flex-col md:flex-row gap-6 items-center">
+                            <Link to="/" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                                    Главная
+                            </Link>
+                            <Link to="/" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                                    Выйти
+                            </Link>
+                        </nav>
+                    )}
                 </div>
                 <div className="text-center text-gray-400 text-lg pt-6">
                     FieldScan — ваш помощник в цифровом сельском хозяйстве
