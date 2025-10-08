@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom"
 import { useState, useEffect } from "react"
-// import { getCookie } from "../utils/cookies";
+import { getCookie } from "../utils/cookies";
 
 export default function Profile() {
   // State для активной вкладки
@@ -47,7 +47,7 @@ export default function Profile() {
           {/* Sidebar (левое меню) — без теней, остаётся фиксированной ширины */}
           <aside className="rounded-2xl w-80 flex flex-col items-center py-8 px-6 mt-2 h-fit sticky top-24">
             <div className="flex flex-col items-center mb-8">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[var(--accent-dark-color)] to-[var(--accent-light-color)] flex items-center justify-center mb-3">
+              <div className="w-20 h-20 rounded-full bg-[var(--accent-color)] flex items-center justify-center mb-3">
                 {/* SVG аватар */}
                 <svg width="40" height="40" fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24">
                   <circle cx="12" cy="8" r="4"/>

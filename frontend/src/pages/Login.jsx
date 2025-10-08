@@ -1,7 +1,22 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom"
 import logoImage from "../assets/logo.svg"
+import { getCookie } from "../utils/cookies";
 
 function Login() {
+    const navigate = useNavigate();
+    useEffect(() => {
+        const checkAuth = () => {
+            const token = getCookie("token");
+
+            if (token) {
+                navigate("/profile");
+            }
+        }
+
+        checkAuth();
+    }, [])
     return (
         <>
             <div className="absolute h-[100vh] w-[100vw] bg-[var(--neutral-color)] -z-1">

@@ -1,10 +1,23 @@
-import { useState, useRef } from "react"
+import { useEffect, useState, useRef } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import logoImage from "../assets/logo.svg"
 import { BarLoader } from "react-spinners"
-import { setCookie } from "../utils/cookies"
+import { getCookie, setCookie } from "../utils/cookies"
+import { registerUser, getToken } from "../utils/fetch"
 
 function Registration() {
+    const navigate = useNavigate();
+    useEffect(() => {
+        const checkAuth = () => {
+            const token = getCookie("token");
+            if (token) {
+                navigate("/profile");
+            }
+        }
+
+        checkAuth();
+    }, [])
+
     const [isButtonClicked, setIsButtonClicked] = useState(false);
     const [name, setName] = useState("");
     const [surname, setSurname] = useState("");
@@ -12,8 +25,6 @@ function Registration() {
     const [password, setPassword] = useState("");
     const [passwordAgain, setPasswordAgain] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-
-    const navigate = useNavigate();
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordRegex = /^[A-Za-z0-9]{5,}$/;
@@ -44,21 +55,19 @@ function Registration() {
         
         setIsLoading(true);
         console.log("Регистрация...", { email, password });
-        await registerUser();
+        await register();
     }
 
-    const registerUser = async () => {
+    const register = async () => {
         try {
-            const registrationResponse = await fetch(`/api/add_user?login=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&first_name=${encodeURIComponent(name)}&last_name=${encodeURIComponent(surname)}`, {
-                method: 'POST'
-            });
+            const registrationResponse = await registerUser(email, password, name, surname);
 
             if (!registrationResponse.ok) {
                 const errorText = await registrationResponse.text();
                 throw new Error(errorText || 'Ошибка регистрации');
             }
 
-            const tokenResponse = await fetch(`/api/get_token?login=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`);
+            const tokenResponse = await getToken(email, password);
 
             if (!tokenResponse.ok) {
                 const errorText = await tokenResponse.text();
@@ -68,7 +77,7 @@ function Registration() {
             const token = await tokenResponse.text();
             setCookie('token', token, 7);
             console.log("Регистрация успешна! Токен сохранен.");
-            navigate("/");
+            navigate("/profile");
 
         } catch (error) {
             console.error("Ошибка регистрации:", error);
