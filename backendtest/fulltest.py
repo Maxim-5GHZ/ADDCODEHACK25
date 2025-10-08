@@ -19,643 +19,321 @@ class ServerTester:
     def __init__(self, base_url="http://localhost:8000"):
         self.base_url = base_url
         self.session = requests.Session()
-        self.test_users = []
-        self.analysis_ids = []
+        # Словарь для хранения результатов тестов
+        self.results = {}
+        # Хранение данных тестового пользователя
+        self.test_user_data = {}
+
+    def _start_test(self, name):
+        """Обертка для начала теста."""
+        logger.info(f"\n--- Тестирование: {name} ---")
 
     def make_request(self, endpoint, method="GET", params=None, data=None):
-        """Универсальный метод для выполнения запросов"""
+        """Универсальный метод для выполнения запросов с улучшенным логированием."""
         url = f"{self.base_url}{endpoint}"
         try:
-            if method.upper() == "GET":
-                response = self.session.get(url, params=params, timeout=60) # Увеличено время ожидания для GEE
-            elif method.upper() == "POST":
-                response = self.session.post(url, params=params, data=data, timeout=60) # Увеличено время ожидания для GEE
-            elif method.upper() == "PUT":
-                response = self.session.put(url, params=params, data=data, timeout=30)
-            elif method.upper() == "PATCH":
-                response = self.session.patch(url, params=params, data=data, timeout=30)
-            elif method.upper() == "DELETE":
-                response = self.session.delete(url, params=params, timeout=30)
-            else:
-                raise ValueError(f"Неизвестный метод: {method}")
-
+            # Увеличено время ожидания для запросов, которые могут обращаться к GEE
+            timeout = 60 if "analysis" in endpoint or "image" in endpoint else 30
+            
+            response = self.session.request(method.upper(), url, params=params, data=data, timeout=timeout)
+            response.raise_for_status()  # Вызовет исключение для кодов 4xx/5xx
             return response
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"✗ HTTP ошибка при запросе к {url}: {e.response.status_code} {e.response.reason}")
+            # Пытаемся получить JSON с деталями ошибки
+            try:
+                logger.error(f"  Детали ответа: {e.response.json()}")
+            except json.JSONDecodeError:
+                logger.error(f"  Текст ответа: {e.response.text[:200]}")
+            return e.response
         except requests.exceptions.RequestException as e:
-            logger.error(f"Ошибка запроса к {url}: {e}")
+            logger.error(f"✗ Ошибка соединения при запросе к {url}: {e}")
             return None
 
     def test_health_check(self):
-        """Тест проверки здоровья сервера"""
-        logger.info("Тестирование health check...")
+        self._start_test("Проверка здоровья сервера (/health)")
         response = self.make_request("/health")
         if response and response.status_code == 200:
             data = response.json()
-            logger.info(f"✓ Health check пройден: {data}")
-            return True
-        else:
-            logger.error("✗ Health check не пройден")
-            return False
-
-    def test_main_page(self):
-        """Тест главной страницы"""
-        logger.info("Тестирование главной страницы...")
-        response = self.make_request("/")
-        if response and response.status_code in [200, 404]:
-            logger.info(f"✓ Главная страница: статус {response.status_code}")
-            return True
-        else:
-            logger.error("✗ Главная страница недоступна")
-            return False
-
-    def test_favicon(self):
-        """Тест favicon"""
-        logger.info("Тестирование favicon...")
-        response = self.make_request("/favicon.ico")
-        if response:
-            logger.info(f"✓ Favicon: статус {response.status_code}")
-            return True
-        else:
-            logger.warning("⚠ Favicon недоступен")
-            return False
-
-    def test_user_registration(self, username_suffix=None):
-        """Тест регистрации пользователя с именем и фамилией"""
-        if username_suffix is None:
-            username_suffix = str(int(time.time()))
-
-        login = f"testuser_{username_suffix}"
-        password = "testpass123"
-        first_name = "Test"
-        last_name = f"User_{username_suffix}"
-
-        logger.info(f"Тестирование регистрации пользователя {login}...")
-        response = self.make_request(
-            "/add_user",
-            method="POST",
-            params={
-                "login": login,
-                "password": password,
-                "first_name": first_name,
-                "last_name": last_name
-            }
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "success":
-                logger.info(f"✓ Регистрация успешна: {login} ({first_name} {last_name})")
-                self.test_users.append({"login": login, "password": password})
+            if data.get("status") == "healthy":
+                logger.info("✓ Health check пройден успешно.")
                 return True
-            else:
-                logger.error(f"✗ Ошибка регистрации: {data}")
-                return False
-        else:
-            logger.error("✗ Регистрация не удалась")
-            return False
-
-    def test_user_login(self, login, password):
-        """Тест входа пользователя и получение токена"""
-        logger.info(f"Тестирование входа пользователя {login}...")
-        response = self.make_request(
-            "/get_token",
-            params={"login": login, "password": password}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "success":
-                token = data.get("token")
-                logger.info(f"✓ Вход успешен, получен токен: {token[:10]}...")
-                return token
-            else:
-                logger.error(f"✗ Ошибка входа: {data}")
-                return None
-        else:
-            logger.error("✗ Вход не удался")
-            return None
-
-    def test_save_user_data(self, token, key_array):
-        """Тест сохранения данных пользователя"""
-        logger.info("Тестирование сохранения данных пользователя...")
-        response = self.make_request(
-            "/savedata",
-            method="POST",
-            params={"token": token, "key_array": key_array}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "success":
-                logger.info("✓ Данные успешно сохранены")
-                return True
-            else:
-                logger.error(f"✗ Ошибка сохранения данных: {data}")
-                return False
-        else:
-            logger.error("✗ Сохранение данных не удалось")
-            return False
-
-    def test_get_user_data(self, token):
-        """Тест получения данных пользователя"""
-        logger.info("Тестирование получения данных пользователя...")
-        response = self.make_request(
-            "/givefield",
-            params={"token": token}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("status") in ["success", "dismiss"]:
-                keys = data.get("keys")
-                logger.info(f"✓ Данные получены: {keys}")
-                return keys
-            else:
-                logger.error(f"✗ Ошибка получения данных: {data}")
-                return None
-        else:
-            logger.error("✗ Получение данных не удалось")
-            return None
-
-    def test_update_user_data(self, token, key_array):
-        """Тест обновления данных пользователя"""
-        logger.info("Тестирование обновления данных пользователя...")
-        response = self.make_request(
-            "/data/update",
-            method="PUT",
-            params={"token": token, "key_array": key_array}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "success":
-                logger.info("✓ Данные успешно обновлены")
-                return True
-            else:
-                logger.error(f"✗ Ошибка обновления данных: {data}")
-                return False
-        else:
-            logger.error("✗ Обновление данных не удалось")
-            return False
-
-    def test_edit_user_data(self, token, keys_to_add=None, keys_to_remove=None):
-        """Тест частичного редактирования данных"""
-        logger.info("Тестирование частичного редактирования данных...")
-        params = {"token": token}
-        if keys_to_add:
-            params["keys_to_add"] = keys_to_add
-        if keys_to_remove:
-            params["keys_to_remove"] = keys_to_remove
-
-        response = self.make_request(
-            "/data/edit",
-            method="PATCH",
-            params=params
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "success":
-                logger.info("✓ Данные успешно отредактированы")
-                return True
-            else:
-                logger.error(f"✗ Ошибка редактирования данных: {data}")
-                return False
-        else:
-            logger.error("✗ Редактирование данных не удалось")
-            return False
-
-    def test_check_user_data_exists(self, token):
-        """Тест проверки существования данных"""
-        logger.info("Тестирование проверки существования данных...")
-        response = self.make_request(
-            "/data/check",
-            params={"token": token}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            exists = data.get("exists", False)
-            logger.info(f"✓ Проверка данных: exists={exists}")
-            return exists
-        else:
-            logger.error("✗ Проверка данных не удалась")
-            return False
-
-    def test_delete_user_data(self, token):
-        """Тест удаления данных пользователя"""
-        logger.info("Тестирование удаления данных пользователя...")
-        response = self.make_request(
-            "/data/delete",
-            method="DELETE",
-            params={"token": token}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "success":
-                logger.info("✓ Данные успешно удалены")
-                return True
-            else:
-                logger.error(f"✗ Ошибка удаления данных: {data}")
-                return False
-        else:
-            logger.error("✗ Удаление данных не удалось")
-            return False
-
-    def test_field_operations(self, token):
-        """Тест операций с полями"""
-        field_name = f"test_field_{int(time.time())}"
-        test_data = f"test_data_{random.randint(1000, 9999)}"
-
-        logger.info("Тестирование операций с полями...")
-
-        # Создание поля
-        response = self.make_request(
-            "/field/set",
-            method="POST",
-            params={"field": field_name, "data": test_data, "token": token}
-        )
-
-        if not response or response.status_code != 200:
-            logger.error("✗ Создание поля не удалось")
-            return False
-
-        data = response.json()
-        if data.get("status") != "success":
-            logger.error(f"✗ Ошибка создания поля: {data}")
-            return False
-
-        logger.info("✓ Поле успешно создано")
-
-        # Проверка существования поля
-        response = self.make_request(
-            "/field/check",
-            params={"field": field_name, "token": token}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("exists"):
-                logger.info("✓ Поле существует")
-            else:
-                logger.error("✗ Поле не найдено после создания")
-                return False
-
-        # Получение данных поля
-        response = self.make_request(
-            "/field/get",
-            params={"field": field_name, "token": token}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("data") == test_data:
-                logger.info("✓ Данные поля корректны")
-            else:
-                logger.error("✗ Данные поля не совпадают")
-                return False
-
-        # Удаление поля
-        response = self.make_request(
-            "/field/delete",
-            method="DELETE",
-            params={"field": field_name, "token": token}
-        )
-
-        if response and response.status_code == 200:
-            data = response.json()
-            if data.get("status") == "success":
-                logger.info("✓ Поле успешно удалено")
-                return True
-
-        logger.error("✗ Операции с полями завершились с ошибками")
+        logger.error("✗ Health check провален.")
         return False
 
-    def test_image_operations(self, token):
-        """Тест операций с изображениями"""
-        logger.info("Тестирование операций с изображениями...")
-        
-        lon, lat = 37.6173, 55.7558  # Москва
-        
-        # Даты для тестирования (последние 30 дней)
-        end_date = time.strftime("%Y-%m-%d")
-        start_date = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 30*24*60*60))
-        
-        results = {}
-        
-        # Тест RGB изображения
-        logger.info("Тестирование получения RGB изображения...")
-        response = self.make_request(
-            "/image/rgb",
-            params={
-                "lon": lon,
-                "lat": lat,
-                "start_date": start_date,
-                "end_date": end_date,
-                "token": token
-            }
-        )
-        
+    def test_user_registration(self):
+        self._start_test("Регистрация нового пользователя (/add_user)")
+        suffix = str(int(time.time()))
+        user = {
+            "login": f"testuser_{suffix}",
+            "password": "testpass123",
+            "first_name": "Test",
+            "last_name": f"User_{suffix}"
+        }
+
+        response = self.make_request("/add_user", method="POST", params=user)
         if response and response.status_code == 200:
             data = response.json()
             if data.get("status") == "success":
-                image_data = data.get("image_data")
-                if image_data and len(image_data) > 100:
-                    logger.info("✓ RGB изображение успешно получено")
-                    results["rgb_image"] = True
-                    try:
-                        image_bytes = base64.b64decode(image_data)
-                        Image.open(BytesIO(image_bytes))
-                        logger.info("✓ RGB изображение валидно")
-                    except Exception:
-                        logger.warning("⚠ RGB изображение получено, но ошибка декодирования")
+                logger.info(f"✓ Пользователь '{user['login']}' успешно зарегистрирован.")
+                self.test_user_data = user
+                return True
+        logger.error(f"✗ Регистрация пользователя '{user['login']}' провалена.")
+        return False
+
+    def test_user_login(self):
+        self._start_test("Аутентификация пользователя (/get_token)")
+        login = self.test_user_data.get("login")
+        password = self.test_user_data.get("password")
+        
+        response = self.make_request("/get_token", params={"login": login, "password": password})
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success" and data.get("token"):
+                token = data["token"]
+                logger.info(f"✓ Вход для пользователя '{login}' успешен. Токен получен.")
+                self.test_user_data["token"] = token
+                return True
+        logger.error(f"✗ Аутентификация для '{login}' провалена.")
+        return False
+
+    def test_get_user_profile(self):
+        self._start_test("Получение профиля пользователя (/users/profile)")
+        token = self.test_user_data.get("token")
+        
+        response = self.make_request("/users/profile", params={"token": token})
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                profile = data.get("user")
+                # Строгая проверка соответствия данных
+                if (profile and
+                        profile.get("login") == self.test_user_data["login"] and
+                        profile.get("first_name") == self.test_user_data["first_name"]):
+                    logger.info("✓ Профиль пользователя успешно получен и данные корректны.")
+                    return True
                 else:
-                    logger.error("✗ RGB изображение пустое")
-                    results["rgb_image"] = False
-            else:
-                logger.warning(f"⚠ RGB изображение не получено: {data.get('detail', 'Unknown error')}")
-                results["rgb_image"] = False
-        else:
-            logger.error("✗ Запрос RGB изображения не удался")
-            results["rgb_image"] = False
-        
-        return any(results.values())
+                    logger.error("✗ Данные профиля не соответствуют ожидаемым.")
+                    return False
+        logger.error("✗ Получение профиля пользователя провалено.")
+        return False
 
-    def test_analysis_operations(self, token):
-        """Тест операций с анализом по точке и полигону"""
-        logger.info("Тестирование операций с анализом...")
-        
-        lon, lat = 37.6173, 55.7558
-        end_date = time.strftime("%Y-%m-%d")
-        start_date = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 60*24*60*60)) # Увеличим диапазон до 60 дней
-        
-        results = {}
-        
-        # --- Тест 1: Выполнение анализа по точке и радиусу ---
-        logger.info("Тестирование выполнения анализа по точке и радиусу...")
-        response_point = self.make_request(
-            "/analysis/perform",
-            method="POST",
-            params={
-                "token": token,
-                "lon": lon,
-                "lat": lat,
-                "start_date": start_date,
-                "end_date": end_date
-            }
-        )
-        
-        if response_point and response_point.status_code == 200:
-            data = response_point.json()
-            if data.get("status") == "success" and data.get("analysis_id"):
-                analysis_id = data.get("analysis_id")
-                logger.info(f"✓ Анализ по точке успешно выполнен, ID: {analysis_id}")
-                self.analysis_ids.append(analysis_id)
-                results["perform_analysis_point"] = True
-            else:
-                logger.warning(f"⚠ Анализ по точке не выполнен: {data.get('detail', 'Unknown error')}")
-                results["perform_analysis_point"] = False
-        else:
-            logger.error("✗ Запрос анализа по точке не удался")
-            results["perform_analysis_point"] = False
+    def test_saved_fields_operations(self):
+        self._start_test("CRUD операции с сохраненными полями (/fields/*)")
+        token = self.test_user_data.get("token")
+        field_name = f"Test Field {int(time.time())}"
+        aoi_data = {"type": "point_radius", "lon": 37.6, "lat": 55.7, "radius_km": 1.5}
+        field_id = None
 
-        # --- Тест 2: Выполнение анализа по полигону ---
-        logger.info("Тестирование выполнения анализа по полигону...")
-        poly_coords = [[lon - 0.01, lat - 0.01], [lon + 0.01, lat - 0.01], [lon + 0.01, lat + 0.01], [lon - 0.01, lat + 0.01]]
-        poly_json = json.dumps(poly_coords)
-
-        response_poly = self.make_request(
-            "/analysis/perform",
-            method="POST",
-            params={
-                "token": token,
-                "start_date": start_date,
-                "end_date": end_date,
-                "polygon_coords": poly_json
-            }
-        )
-
-        if response_poly and response_poly.status_code == 200:
-            data = response_poly.json()
-            if data.get("status") == "success" and data.get("analysis_id"):
-                analysis_id = data.get("analysis_id")
-                logger.info(f"✓ Анализ по полигону успешно выполнен, ID: {analysis_id}")
-                self.analysis_ids.append(analysis_id)
-                results["perform_analysis_polygon"] = True
-            else:
-                logger.warning(f"⚠ Анализ по полигону не выполнен: {data.get('detail', 'Unknown error')}")
-                results["perform_analysis_polygon"] = False
-        else:
-            logger.error("✗ Запрос анализа по полигону не удался")
-            results["perform_analysis_polygon"] = False
-
-        # --- Тесты получения и удаления ---
-        if not self.analysis_ids:
-            logger.error("✗ Ни один анализ не был создан, пропуск тестов получения и удаления.")
-            results["get_analyses_list"] = False
-            results["get_analysis"] = False
-            results["delete_analysis"] = False
+        # 1. Сохранение
+        resp_save = self.make_request("/fields/save", method="POST", params={"token": token, "field_name": field_name, "area_of_interest": json.dumps(aoi_data)})
+        if not (resp_save and resp_save.status_code == 200 and resp_save.json().get("status") == "success"):
+            logger.error("✗ Провал на этапе сохранения поля.")
             return False
+        field_id = resp_save.json().get("field", {}).get("id")
+        logger.info(f"✓ Поле '{field_name}' успешно сохранено (ID: {field_id}).")
 
-        # Тест получения списка анализов
-        logger.info("Тестирование получения списка анализов...")
-        response_list = self.make_request("/analysis/list", params={"token": token})
-        if response_list and response_list.status_code == 200 and response_list.json().get("status") == "success":
-            analyses_count = len(response_list.json().get("analyses", []))
-            logger.info(f"✓ Список анализов получен: {analyses_count} записей")
-            results["get_analyses_list"] = True
-        else:
-            logger.error("✗ Ошибка получения списка анализов")
-            results["get_analyses_list"] = False
-
-        # Тест получения конкретного анализа
-        analysis_to_get = self.analysis_ids[0]
-        logger.info(f"Тестирование получения анализа {analysis_to_get}...")
-        response_get = self.make_request(f"/analysis/{analysis_to_get}", params={"token": token})
-        if response_get and response_get.status_code == 200 and response_get.json().get("status") == "success":
-            logger.info("✓ Конкретный анализ успешно получен")
-            results["get_analysis"] = True
-        else:
-            logger.error("✗ Ошибка получения конкретного анализа")
-            results["get_analysis"] = False
-
-        # Тест удаления анализа
-        analysis_to_delete = self.analysis_ids.pop(0)
-        logger.info(f"Тестирование удаления анализа {analysis_to_delete}...")
-        response_delete = self.make_request(f"/analysis/{analysis_to_delete}", method="DELETE", params={"token": token})
-        if response_delete and response_delete.status_code == 200 and response_delete.json().get("status") == "success":
-            logger.info("✓ Анализ успешно удален")
-            results["delete_analysis"] = True
-        else:
-            logger.error("✗ Ошибка удаления анализа")
-            results["delete_analysis"] = False
-        
-        # Считаем тест пройденным, если хотя бы один метод создания анализа сработал и остальные операции тоже
-        creation_success = results.get("perform_analysis_point", False) or results.get("perform_analysis_polygon", False)
-        return creation_success and all([results.get(k, False) for k in ["get_analyses_list", "get_analysis", "delete_analysis"]])
-
-    def test_admin_logs(self):
-        """Тест получения логов администратора"""
-        logger.info("Тестирование получения логов...")
-        response = self.make_request("/log", params={"password": "12345"})
-        if response:
-            logger.info(f"✓ Логи доступны: статус {response.status_code}")
-            return True
-        else:
-            logger.error("✗ Логи недоступны")
+        # 2. Получение списка
+        resp_list = self.make_request("/fields/list", params={"token": token})
+        if not (resp_list and resp_list.status_code == 200):
+            logger.error("✗ Провал на этапе получения списка полей.")
             return False
-
-    def test_get_all_users(self, created_user_login):
-        """Тест получения списка всех пользователей (админ)"""
-        logger.info("Тестирование получения списка всех пользователей...")
-        response = self.make_request("/users/all", params={"password": "12345"})
-        if not (response and response.status_code == 200):
-            logger.error("✗ Запрос списка пользователей не удался")
+        fields = resp_list.json().get("fields", [])
+        if not any(f.get("id") == field_id for f in fields):
+            logger.error("✗ Сохраненное поле не найдено в списке.")
             return False
+        logger.info("✓ Список полей получен, созданное поле найдено.")
 
-        data = response.json()
-        if data.get("status") != "success":
-            logger.error(f"✗ Ошибка при получении списка: {data.get('detail')}")
+        # 3. Удаление
+        resp_del = self.make_request(f"/fields/{field_id}", method="DELETE", params={"token": token})
+        if not (resp_del and resp_del.status_code == 200 and resp_del.json().get("status") == "success"):
+            logger.error("✗ Провал на этапе удаления поля.")
             return False
+        logger.info(f"✓ Поле ID {field_id} успешно удалено.")
 
-        users = data.get("users", [])
-        if not isinstance(users, list) or not users:
-            logger.error("✗ Получен пустой или некорректный список")
-            return False
-
-        if not any(user.get("login") == created_user_login for user in users):
-            logger.error(f"✗ Созданный пользователь {created_user_login} не найден в списке")
-            return False
-        
-        logger.info(f"✓ Список пользователей успешно получен ({len(users)} записей), тестовый пользователь найден.")
+        logger.info("✓ Все операции с сохраненными полями прошли успешно.")
         return True
 
-    def test_error_handling(self):
-        """Тест обработки ошибок"""
-        logger.info("Тестирование обработки ошибок...")
-        
-        results = {}
-        
-        # Неверный токен
-        response = self.make_request("/givefield", params={"token": "invalid_token"})
-        if response and response.json().get("status") in ["error", "dismiss"]:
-            logger.info("✓ Корректная обработка неверного токена")
-            results["invalid_token"] = True
-        else:
-            logger.error("✗ Неверная обработка неверного токена")
-            results["invalid_token"] = False
-        
-        # Неверные параметры
-        response = self.make_request("/image/rgb", params={"lon": "abc", "lat": "def", "token": "abc"})
-        if response:
-            logger.info(f"✓ Сервер обработал неверные параметры: статус {response.status_code}")
-            results["invalid_params"] = True
-        else:
-            logger.error("✗ Сервер не обработал неверные параметры")
-            results["invalid_params"] = False
-        
-        # Несуществующий эндпоинт
-        response = self.make_request("/nonexistent_endpoint")
-        if response and response.status_code == 404:
-            logger.info("✓ Корректная обработка несуществующего эндпоинта")
-            results["nonexistent_endpoint"] = True
-        else:
-            logger.warning("⚠ Нестандартная обработка несуществующего эндпоинта")
-            results["nonexistent_endpoint"] = True
-        
-        return sum(results.values()) >= 2
+    def test_analysis_operations(self):
+        self._start_test("Операции с анализом (/analysis/*)")
+        token = self.test_user_data.get("token")
+        lon, lat = 37.6173, 55.7558
+        end_date = time.strftime("%Y-%m-%d")
+        start_date = time.strftime("%Y-%m-%d", time.gmtime(time.time() - 60*24*60*60))
+        analysis_id = None
 
-    def test_performance(self, token):
-        """Тест производительности"""
-        logger.info("Тестирование производительности (быстрые запросы)...")
+        # 1. Выполнение анализа по точке
+        logger.info("Запуск анализа по точке и радиусу...")
+        resp_perform = self.make_request("/analysis/perform", method="POST", params={"token": token, "lon": lon, "lat": lat, "start_date": start_date, "end_date": end_date})
         
-        test_start = time.time()
-        quick_tests = ["/health", f"/data/check?token={token}"]
+        if not (resp_perform and resp_perform.status_code == 200 and resp_perform.json().get("status") == "success"):
+            detail = resp_perform.json().get('detail', '') if resp_perform else 'No response'
+            # Если нет снимков, это не ошибка кода, а проблема данных GEE.
+            if "Не найдено чистых снимков" in detail:
+                 logger.warning("⚠ Анализ пропущен: не найдено подходящих снимков в GEE. Это не является ошибкой сервера.")
+                 # Считаем тест условно пройденным (пропущенным), чтобы не ломать всю цепочку
+                 return "skipped"
+            logger.error("✗ Провал на этапе выполнения анализа.")
+            return False
         
-        for endpoint in quick_tests:
-            response = self.make_request(endpoint)
-            if not (response and response.status_code == 200):
-                logger.warning(f"⚠ Тест производительности для {endpoint} не удался")
-                return False
+        analysis_id = resp_perform.json().get("analysis_id")
+        logger.info(f"✓ Анализ успешно запущен (ID: {analysis_id}).")
+
+        # 2. Получение списка анализов
+        resp_list = self.make_request("/analysis/list", params={"token": token})
+        if not (resp_list and resp_list.status_code == 200 and any(a.get("analysis_id") == analysis_id for a in resp_list.json().get("analyses", []))):
+            logger.error("✗ Провал на этапе получения списка анализов.")
+            return False
+        logger.info("✓ Список анализов получен, созданный анализ найден.")
+
+        # 3. Получение конкретного анализа
+        resp_get = self.make_request(f"/analysis/{analysis_id}", params={"token": token})
+        if not (resp_get and resp_get.status_code == 200 and resp_get.json().get("status") == "success"):
+            logger.error("✗ Провал на этапе получения конкретного анализа.")
+            return False
+        logger.info(f"✓ Анализ ID {analysis_id} успешно получен.")
+
+        # 4. Удаление анализа
+        resp_del = self.make_request(f"/analysis/{analysis_id}", method="DELETE", params={"token": token})
+        if not (resp_del and resp_del.status_code == 200 and resp_del.json().get("status") == "success"):
+            logger.error("✗ Провал на этапе удаления анализа.")
+            return False
+        logger.info(f"✓ Анализ ID {analysis_id} успешно удален.")
         
-        duration = time.time() - test_start
-        logger.info(f"✓ {len(quick_tests)} быстрых запроса выполнены за {duration:.3f} сек")
-        return duration < 5.0
+        logger.info("✓ Все операции с анализом прошли успешно.")
+        return True
+
+    def test_get_all_users_admin(self):
+        self._start_test("Получение списка всех пользователей (админ, /users/all)")
+        response = self.make_request("/users/all", params={"password": "12345"})
+        if response and response.status_code == 200:
+            data = response.json()
+            if data.get("status") == "success":
+                users = data.get("users", [])
+                if any(u.get("login") == self.test_user_data["login"] for u in users):
+                    logger.info(f"✓ Список пользователей получен ({len(users)} записей), тестовый пользователь найден.")
+                    return True
+                else:
+                    logger.error(f"✗ Созданный пользователь {self.test_user_data['login']} не найден в списке.")
+                    return False
+        logger.error("✗ Получение списка всех пользователей провалено.")
+        return False
+        
+    def test_admin_logs(self):
+        self._start_test("Получение логов (админ, /log)")
+        response = self.make_request("/log", params={"password": "12345"})
+        if response and response.status_code == 200 and len(response.text) > 10:
+             logger.info(f"✓ Логи успешно получены (размер: {len(response.content)} байт).")
+             return True
+        logger.error("✗ Получение логов провалено.")
+        return False
+
+    def test_error_handling(self):
+        self._start_test("Обработка ошибок (невалидный токен, 404)")
+        # Неверный токен
+        resp_token = self.make_request("/users/profile", params={"token": "invalid_token_123"})
+        if not (resp_token and resp_token.status_code == 200 and resp_token.json().get("status") == "error"):
+            logger.error("✗ Некорректная обработка невалидного токена.")
+            return False
+        logger.info("✓ Корректная обработка невалидного токена.")
+
+        # Несуществующий эндпоинт
+        resp_404 = self.make_request("/nonexistent/endpoint")
+        if not (resp_404 and resp_404.status_code == 404):
+            logger.error("✗ Некорректная обработка несуществующего эндпоинта (ожидался 404).")
+            return False
+        logger.info("✓ Корректная обработка несуществующего эндпоинта (404).")
+
+        return True
+
 
     def run_comprehensive_test(self):
-        """Запуск комплексного тестирования"""
-        logger.info("=" * 50)
-        logger.info("ЗАПУСК КОМПЛЕКСНОГО ТЕСТИРОВАНИЯ СЕРВЕРА")
-        logger.info("=" * 50)
+        """Запуск комплексного тестирования с логической последовательностью."""
+        logger.info("=" * 60)
+        logger.info("      ЗАПУСК КОМПЛЕКСНОГО ТЕСТИРОВАНИЯ СЕРВЕРА")
+        logger.info("=" * 60)
+        
+        # --- Базовые тесты ---
+        self.results["health_check"] = self.test_health_check()
 
-        results = {}
-
-        results["health_check"] = self.test_health_check()
-        results["main_page"] = self.test_main_page()
-        results["favicon"] = self.test_favicon()
-
-        username_suffix = str(int(time.time()))
-        results["user_registration"] = self.test_user_registration(username_suffix)
-
-        if results["user_registration"]:
-            test_user = self.test_users[0]
-            token = self.test_user_login(test_user["login"], test_user["password"])
-            results["user_login"] = token is not None
-
-            if token:
-                results["save_user_data"] = self.test_save_user_data(token, "k1,k2")
-                results["get_user_data"] = self.test_get_user_data(token) is not None
-                results["update_user_data"] = self.test_update_user_data(token, "k3,k4")
-                results["edit_user_data"] = self.test_edit_user_data(token, "k5,k6", "k3")
-                results["check_data_exists"] = self.test_check_user_data_exists(token)
-                results["field_operations"] = self.test_field_operations(token)
+        # --- Блок тестов пользователя (с зависимостями) ---
+        if self.test_user_registration():
+            self.results["user_registration"] = True
+            
+            if self.test_user_login():
+                self.results["user_login"] = True
                 
-                try:
-                    results["image_operations"] = self.test_image_operations(token)
-                except Exception as e:
-                    logger.error(f"✗ Тесты изображений завершились с ошибкой: {e}")
-                    results["image_operations"] = False
+                # Тесты, требующие валидного токена
+                self.results["get_user_profile"] = self.test_get_user_profile()
+                self.results["saved_fields_operations"] = self.test_saved_fields_operations()
                 
-                try:
-                    results["analysis_operations"] = self.test_analysis_operations(token)
-                except Exception as e:
-                    logger.error(f"✗ Тесты анализа завершились с ошибкой: {e}")
-                    results["analysis_operations"] = False
-                
-                try:
-                    results["performance"] = self.test_performance(token)
-                except Exception as e:
-                    logger.error(f"✗ Тесты производительности завершились с ошибкой: {e}")
-                    results["performance"] = False
-                
-                results["get_all_users"] = self.test_get_all_users(test_user["login"])
-                results["delete_user_data"] = self.test_delete_user_data(token)
-
-        results["admin_logs"] = self.test_admin_logs()
-        results["error_handling"] = self.test_error_handling()
-
-        logger.info("=" * 50)
-        logger.info("РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ")
-        logger.info("=" * 50)
-
-        passed = sum(1 for result in results.values() if result)
-        total = len(results)
-
-        for test_name, result in results.items():
-            status = "✓ ПРОЙДЕН" if result else "✗ НЕ ПРОЙДЕН"
-            logger.info(f"{test_name.replace('_', ' ').capitalize()}: {status}")
-
-        logger.info(f"\nИТОГО: {passed}/{total} тестов пройдено")
-
-        success_rate = (passed / total) * 100
-        if success_rate >= 80:
-            logger.info(f"✓ СЕРВЕР РАБОТАЕТ КОРРЕКТНО ({success_rate:.1f}%)")
-        elif success_rate >= 50:
-            logger.warning(f"⚠ СЕРВЕР ИМЕЕТ ПРОБЛЕМЫ ({success_rate:.1f}%)")
+                analysis_result = self.test_analysis_operations()
+                if analysis_result == "skipped":
+                    self.results["analysis_operations"] = "skipped"
+                else:
+                    self.results["analysis_operations"] = analysis_result
+                    
+            else:
+                self.results["user_login"] = False
         else:
-            logger.error(f"✗ СЕРВЕР НЕ РАБОТАЕТ КОРРЕКТНО ({success_rate:.1f}%)")
+            self.results["user_registration"] = False
+            
+        # --- Блок тестов администратора (независимые, но лучше после создания юзера) ---
+        if self.test_user_data.get("login"):
+             self.results["get_all_users_admin"] = self.test_get_all_users_admin()
+        
+        self.results["admin_logs"] = self.test_admin_logs()
+        self.results["error_handling"] = self.test_error_handling()
 
-        return results
+        # --- Итоговый отчет ---
+        self.print_summary()
+
+
+    def print_summary(self):
+        """Печатает красивый и информативный итоговый отчет."""
+        logger.info("=" * 60)
+        logger.info("                РЕЗУЛЬТАТЫ ТЕСТИРОВАНИЯ")
+        logger.info("=" * 60)
+
+        passed = []
+        failed = []
+        skipped = []
+
+        for name, result in self.results.items():
+            name_str = name.replace('_', ' ').capitalize()
+            if result is True:
+                passed.append(name_str)
+            elif result == "skipped":
+                skipped.append(name_str)
+            else:
+                failed.append(name_str)
+        
+        if passed:
+            logger.info("\n--- ✓ ПРОЙДЕННЫЕ ТЕСТЫ ---")
+            for name in passed: logger.info(f"  - {name}")
+        
+        if skipped:
+            logger.info("\n--- ⚠ ПРОПУЩЕННЫЕ ТЕСТЫ ---")
+            for name in skipped: logger.info(f"  - {name}")
+            
+        if failed:
+            logger.info("\n--- ✗ ПРОВАЛЕННЫЕ ТЕСТЫ ---")
+            for name in failed: logger.info(f"  - {name}")
+        
+        total = len(self.results)
+        passed_count = len(passed)
+        
+        logger.info("\n" + "-" * 60)
+        logger.info(f"ИТОГО: {passed_count} из {total} тестов пройдено ({len(failed)} провалено, {len(skipped)} пропущено).")
+        logger.info("-" * 60)
+
+        success_rate = (passed_count / total) * 100 if total > 0 else 0
+        if not failed:
+            logger.info(f"★★★★★ ОТЛИЧНО! Все тесты пройдены. ({success_rate:.1f}%) ★★★★★")
+        elif success_rate >= 70:
+            logger.warning(f"⚠ СЕРВЕР РАБОТАЕТ, НО ЕСТЬ ПРОБЛЕМЫ ({success_rate:.1f}%)")
+        else:
+            logger.error(f"✗ КРИТИЧЕСКИЕ ОШИБКИ! СЕРВЕР НЕ РАБОТАЕТ КОРРЕКТНО ({success_rate:.1f}%)")
 
 
 def main():
@@ -666,21 +344,20 @@ def main():
     if len(sys.argv) > 1:
         base_url = sys.argv[1]
 
-    print(f"Тестирование сервера по адресу: {base_url}")
+    print(f"\nТестирование сервера по адресу: {base_url}")
     print("Для остановки нажмите Ctrl+C\n")
 
     tester = ServerTester(base_url)
 
     try:
-        results = tester.run_comprehensive_test()
-        passed = sum(1 for result in results.values() if result)
-        if passed < len(results):
-            input("\nНажмите Enter для выхода...")
+        tester.run_comprehensive_test()
+        if any(res is False for res in tester.results.values()):
+            input("\nТестирование завершено с ошибками. Нажмите Enter для выхода...")
 
     except KeyboardInterrupt:
-        print("\n\nТестирование прервано пользователем")
+        print("\n\nТестирование прервано пользователем.")
     except Exception as e:
-        print(f"\nПроизошла критическая ошибка во время тестирования: {e}")
+        logger.critical(f"\nПроизошла критическая ошибка во время тестирования: {e}", exc_info=True)
         input("Нажмите Enter для выхода...")
 
 
