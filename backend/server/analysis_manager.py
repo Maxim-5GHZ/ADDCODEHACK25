@@ -15,7 +15,33 @@ class AnalysisManager:
     def __init__(self, user_data_db, field_data_db):
         self.user_data = user_data_db
         self.field_data = field_data_db
-    
+
+    def _get_user_data_object(self, token: str) -> dict:
+        """Вспомогательная функция для получения и парсинга данных пользователя."""
+        data_str = self.user_data.get_user_data(token)
+        if data_str:
+            try:
+                data_obj = json.loads(data_str)
+                # Убедимся, что все ключи существуют
+                if 'analyses' not in data_obj:
+                    data_obj['analyses'] = []
+                if 'saved_fields' not in data_obj:
+                    data_obj['saved_fields'] = []
+                return data_obj
+            except json.JSONDecodeError:
+                logger.warning(f"Не удалось распарсить JSON для токена {token}. Возвращаем пустую структуру.")
+                return {'analyses': [], 'saved_fields': []}
+        return {'analyses': [], 'saved_fields': []}
+
+    def _save_user_data_object(self, token: str, data_obj: dict) -> bool:
+        """Вспомогательная функция для сохранения объекта данных пользователя."""
+        try:
+            data_str = json.dumps(data_obj)
+            return self.user_data.save_user_data(token, data_str)
+        except Exception as e:
+            logger.error(f"Ошибка при сериализации и сохранении данных для токена {token}: {e}")
+            return False
+
     def _calculate_all_indices(self, provider: ImageProvider) -> Dict:
         """Вычисляет все вегетационные индексы"""
         calculator = VegetationIndexCalculator(
@@ -189,8 +215,8 @@ class AnalysisManager:
     def _update_user_analyses_list(self, token: str, analysis_id: str, analysis_data: Dict):
         """Обновляет список анализов пользователя"""
         try:
-            # Получаем текущий список анализов
-            analyses_list = self.get_user_analyses_list(token)
+            # Получаем текущий объект данных пользователя
+            user_data_obj = self._get_user_data_object(token)
             
             # Добавляем новый анализ
             new_analysis = {
@@ -205,25 +231,22 @@ class AnalysisManager:
             }
             
             # Добавляем в начало и ограничиваем количество (например, последние 50 анализов)
-            analyses_list['analyses'].insert(0, new_analysis)
-            analyses_list['analyses'] = analyses_list['analyses'][:50]
+            user_data_obj['analyses'].insert(0, new_analysis)
+            user_data_obj['analyses'] = user_data_obj['analyses'][:50]
             
-            # Сохраняем обновленный список
-            analyses_list_serialized = json.dumps(analyses_list)
-            self.user_data.save_user_data(token, analyses_list_serialized)
+            # Сохраняем обновленный объект
+            self._save_user_data_object(token, user_data_obj)
             
         except Exception as e:
             logger.error(f"Ошибка обновления списка анализов: {e}")
     
     def get_user_analyses_list(self, token: str) -> Dict:
         """Получает список всех анализов пользователя"""
+        # Этот метод больше не нужен, так как логика перенесена в controller_func,
+        # но оставим его для возможной внутренней логики
         try:
-            data = self.user_data.get_user_data(token)
-            if data:
-                return json.loads(data)
-            else:
-                # Возвращаем пустой список, если данных нет
-                return {'analyses': []}
+            user_data_obj = self._get_user_data_object(token)
+            return {'analyses': user_data_obj.get('analyses', [])}
         except Exception as e:
             logger.error(f"Ошибка получения списка анализов: {e}")
             return {'analyses': []}
@@ -251,35 +274,43 @@ class AnalysisManager:
             }
     
     def delete_analysis(self, token: str, analysis_id: str) -> Dict:
-        """Удаляет анализ"""
+        """Удаляет анализ (исправленная, более надежная версия)"""
         try:
+            # Шаг 1: Попытка удалить детальные данные. Не прерываемся, если не получилось.
             field_name = f"analysis_{token}_{analysis_id}"
-            success = self.field_data.delete_field_data(field_name)
+            self.field_data.delete_field_data(field_name)
             
-            if success:
-                # Обновляем список анализов
-                analyses_list = self.get_user_analyses_list(token)
-                analyses_list['analyses'] = [
-                    analysis for analysis in analyses_list['analyses'] 
-                    if analysis['analysis_id'] != analysis_id
-                ]
-                
-                # Сохраняем обновленный список
-                analyses_list_serialized = json.dumps(analyses_list)
-                self.user_data.save_user_data(token, analyses_list_serialized)
-                
+            # Шаг 2: Основная логика - удаление сводки из списка пользователя.
+            user_data_obj = self._get_user_data_object(token)
+            
+            initial_count = len(user_data_obj.get('analyses', []))
+            
+            # Фильтруем список, оставляя все, кроме удаляемого анализа
+            user_data_obj['analyses'] = [
+                analysis for analysis in user_data_obj.get('analyses', []) 
+                if analysis.get('analysis_id') != analysis_id
+            ]
+            
+            final_count = len(user_data_obj['analyses'])
+
+            # Если что-то было удалено из списка, сохраняем изменения и сообщаем об успехе
+            if final_count < initial_count:
+                self._save_user_data_object(token, user_data_obj)
+                logger.info(f"Анализ {analysis_id} удален из списка пользователя {token}")
                 return {
                     'status': 'success',
-                    'message': 'Анализ удален'
+                    'message': 'Анализ успешно удален'
                 }
+            # Если в списке не было найдено анализа с таким ID
             else:
+                logger.warning(f"Анализ {analysis_id} не был найден в списке пользователя {token} для удаления.")
                 return {
                     'status': 'error',
-                    'detail': 'Не удалось удалить анализ'
+                    'detail': 'Анализ не найден в списке для удаления'
                 }
                 
         except Exception as e:
-            logger.error(f"Ошибка удаления анализа: {e}")
+            logger.error(f"Критическая ошибка при удалении анализа {analysis_id}: {e}")
             return {
                 'status': 'error',
                 'detail': str(e)

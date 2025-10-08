@@ -1,5 +1,3 @@
-
-
 import sqlite3
 import os
 import logging
@@ -144,6 +142,21 @@ class requequest_to_user_login():
                 return None
         except Exception as e:
             logger.error(f"Ошибка при получении информации о пользователе {login}: {e}")
+            return None
+
+    def get_user_info_by_token(self, token):
+        """Получает информацию о пользователе (логин, имя, фамилия) по токену."""
+        try:
+            logger.debug(f"Запрос информации о пользователе по токену: {token}")
+            with sqlite3.connect(self.user_log) as conn:
+                cursor = conn.cursor()
+                cursor.execute('SELECT login, first_name, last_name FROM users WHERE token = ?', (token,))
+                result = cursor.fetchone()
+                if result:
+                    return {"login": result[0], "first_name": result[1], "last_name": result[2]}
+                return None
+        except Exception as e:
+            logger.error(f"Ошибка при получении информации о пользователе по токену {token}: {e}")
             return None
 
 

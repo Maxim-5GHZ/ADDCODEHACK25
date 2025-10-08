@@ -16,6 +16,33 @@ class controller_func():
         self.field_data = field_data
         self.analysis_manager = AnalysisManager(user_data, field_data)
 
+    def _get_user_data_object(self, token: str) -> dict:
+        """Вспомогательная функция для получения и парсинга данных пользователя."""
+        data_str = self.user_data.get_user_data(token)
+        if data_str:
+            try:
+                data_obj = json.loads(data_str)
+                # Убедимся, что все ключи существуют
+                if 'analyses' not in data_obj:
+                    data_obj['analyses'] = []
+                if 'saved_fields' not in data_obj:
+                    data_obj['saved_fields'] = []
+                return data_obj
+            except json.JSONDecodeError:
+                logger.warning(f"Не удалось распарсить JSON для токена {token}. Возвращаем пустую структуру.")
+                return {'analyses': [], 'saved_fields': []}
+        return {'analyses': [], 'saved_fields': []}
+
+    def _save_user_data_object(self, token: str, data_obj: dict) -> bool:
+        """Вспомогательная функция для сохранения объекта данных пользователя."""
+        try:
+            data_str = json.dumps(data_obj)
+            return self.user_data.save_user_data(token, data_str)
+        except Exception as e:
+            logger.error(f"Ошибка при сериализации и сохранении данных для токена {token}: {e}")
+            return False
+
+
     async def reed__root(self):
         logger.info("Запрос главной страницы")
         try:
@@ -61,6 +88,8 @@ class controller_func():
                     "detail": "Токен не найден"
                 }
 
+            # Этот метод теперь может быть устаревшим, так как мы используем save_user_data_object
+            # Но для обратной совместимости оставим его, предполагая, что key_array - это JSON
             success = self.user_data.save_user_data(token, key_array)
 
             if not success:
@@ -203,6 +232,27 @@ class controller_func():
 
         except Exception as e:
             logger.error(f"Ошибка при получении списка пользователей: {e}")
+            return {"status": "error", "detail": "Внутренняя ошибка сервера"}
+
+    async def get_user_profile(self, token: str):
+        """Получение данных профиля пользователя по токену."""
+        logger.info(f"Запрос профиля пользователя по токену: {token}")
+        try:
+            user_info = self.user_bd.get_user_info_by_token(token)
+
+            if user_info:
+                return {
+                    "status": "success",
+                    "user": user_info
+                }
+            else:
+                logger.warning(f"Профиль не найден для токена: {token}")
+                return {
+                    "status": "error",
+                    "detail": "Токен недействителен или пользователь не найден"
+                }
+        except Exception as e:
+            logger.error(f"Ошибка при получении профиля пользователя: {e}")
             return {"status": "error", "detail": "Внутренняя ошибка сервера"}
 
 
@@ -618,7 +668,9 @@ class controller_func():
                         "status": "error",
                         "detail": f"Неверный формат polygon_coords: {e}"
                     }
-
+            
+            # Используем analysis_manager для выполнения анализа
+            # AnalysisManager теперь сам будет получать данные пользователя, обновлять и сохранять их
             result = self.analysis_manager.perform_complete_analysis(
                 token=token,
                 start_date=start_date,
@@ -648,12 +700,12 @@ class controller_func():
                     "status": "error",
                     "detail": "Невалидный токен"
                 }
-
-            analyses_list = self.analysis_manager.get_user_analyses_list(token)
-
+            
+            user_data_obj = self._get_user_data_object(token)
+            
             return {
                 "status": "success",
-                "analyses": analyses_list['analyses']
+                "analyses": user_data_obj.get('analyses', [])
             }
 
         except Exception as e:
@@ -704,3 +756,75 @@ class controller_func():
                 "status": "error",
                 "detail": str(e)
             }
+
+    # --- НОВЫЕ МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ПОЛЯМИ ---
+    async def save_user_field(self, token: str, field_name: str, area_of_interest: str):
+        """Сохраняет новое поле для пользователя."""
+        logger.info(f"Запрос сохранения поля '{field_name}' для токена {token}")
+        try:
+            if not self.user_bd.if_token_exist(token):
+                return {"status": "error", "detail": "Невалидный токен"}
+
+            try:
+                aoi_data = json.loads(area_of_interest)
+            except json.JSONDecodeError:
+                return {"status": "error", "detail": "Неверный формат area_of_interest"}
+
+            user_data_obj = self._get_user_data_object(token)
+            
+            new_field = {
+                "id": str(int(time.time())),
+                "name": field_name,
+                "area_of_interest": aoi_data
+            }
+            
+            user_data_obj['saved_fields'].insert(0, new_field)
+
+            if self._save_user_data_object(token, user_data_obj):
+                return {"status": "success", "message": "Поле успешно сохранено", "field": new_field}
+            else:
+                return {"status": "error", "detail": "Не удалось сохранить данные"}
+
+        except Exception as e:
+            logger.error(f"Ошибка при сохранении поля: {e}")
+            return {"status": "error", "detail": f"Внутренняя ошибка сервера: {e}"}
+
+    async def get_user_fields(self, token: str):
+        """Получает список сохраненных полей пользователя."""
+        logger.info(f"Запрос списка полей для токена {token}")
+        try:
+            if not self.user_bd.if_token_exist(token):
+                return {"status": "error", "detail": "Невалидный токен"}
+
+            user_data_obj = self._get_user_data_object(token)
+            return {"status": "success", "fields": user_data_obj.get('saved_fields', [])}
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении списка полей: {e}")
+            return {"status": "error", "detail": f"Внутренняя ошибка сервера: {e}"}
+
+    async def delete_user_field(self, token: str, field_id: str):
+        """Удаляет сохраненное поле пользователя по ID."""
+        logger.info(f"Запрос удаления поля ID {field_id} для токена {token}")
+        try:
+            if not self.user_bd.if_token_exist(token):
+                return {"status": "error", "detail": "Невалидный токен"}
+
+            user_data_obj = self._get_user_data_object(token)
+            
+            initial_count = len(user_data_obj['saved_fields'])
+            user_data_obj['saved_fields'] = [
+                field for field in user_data_obj['saved_fields'] if field.get('id') != field_id
+            ]
+            
+            if len(user_data_obj['saved_fields']) == initial_count:
+                return {"status": "error", "detail": "Поле с таким ID не найдено"}
+
+            if self._save_user_data_object(token, user_data_obj):
+                return {"status": "success", "message": "Поле успешно удалено"}
+            else:
+                return {"status": "error", "detail": "Не удалось сохранить изменения"}
+
+        except Exception as e:
+            logger.error(f"Ошибка при удалении поля: {e}")
+            return {"status": "error", "detail": f"Внутренняя ошибка сервера: {e}"}
