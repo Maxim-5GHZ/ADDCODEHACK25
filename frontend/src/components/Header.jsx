@@ -1,12 +1,13 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import logoSVG from "../assets/logo.svg"
-// import { getCookie } from "../utils/cookies";
+import { getCookie } from "../utils/cookies";
 
 function Header({ isTransparent }) {
     const [user, setUser] = useState(null);
     let navButtonsStyle = isTransparent ? "text-[var(--neutral-color)] hover:text-[var(--accent-light-color)]" : "text-[var(--neutral-dark-color)] hover:text-[var(--accent-dark-color)]"
-
+    let svgStyle = isTransparent ? "stroke-[var(--neutral-color)] group-hover:stroke-[var(--accent-color)]" : "stroke-[var(--neutral-dark-color)] group-hover:stroke-[var(--accent-dark-color)]";
+    
     useEffect(() => {
         const checkAuth = () => {
             // const token = getCookie('token');
@@ -54,9 +55,24 @@ function Header({ isTransparent }) {
 
                 <div className="flex items-center gap-x-16">
                     {user ? (
-                        <Link to="/profile" className={`${navButtonsStyle} text-3xl`}>
-                            {user.name} {user.surname}
-                        </Link>
+                        <>
+                            <Link to="/profile" className={`group ${navButtonsStyle} text-3xl transition-colors duration-100`}>
+                                <div className="flex flex-row items-center">
+                                    <p>
+                                        {user.name} {user.surname}
+                                    </p>
+                                    <div className="w-20 h-20 bg-transparent flex items-center justify-center">
+                                        {/* SVG аватар */}
+                                        <svg width="30" height="30" fill="none" strokeWidth="2" viewBox="0 0 24 24"
+                                        className={`${svgStyle} transition-colors duration-100`}>
+                                            <circle cx="12" cy="8" r="4"/>
+                                            <path d="M4 20c0-4 8-4 8-4s8 0 8 4"/>
+                                        </svg>
+                                    </div>
+                            </div>
+                            </Link>
+                        </>
+                        
                     ) : (
                         <>
                             <Link to="/login" className={`${navButtonsStyle} text-3xl transition-colors duration-100"`}>
