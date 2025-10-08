@@ -78,6 +78,20 @@ async function deleteFieldData(field, token) {
     });
 }
 
+// Устаревшие функции получения изображений
+async function getRgbImage(lon, lat, startDate, endDate, token) {
+    return fetch(`${API_BASE}/image/rgb?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&token=${encodeURIComponent(token)}`);
+}
+
+async function getRedChannelImage(lon, lat, startDate, endDate, token) {
+    return fetch(`${API_BASE}/image/red-channel?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&token=${encodeURIComponent(token)}`);
+}
+
+async function getNdviImage(lon, lat, startDate, endDate, token) {
+    return fetch(`${API_BASE}/image/ndvi?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&token=${encodeURIComponent(token)}`);
+}
+
+// Функции анализа
 async function performAnalysis(token, startDate, endDate, options) {
     let url = `${API_BASE}/analysis/perform?token=${encodeURIComponent(token)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
     
@@ -104,3 +118,28 @@ async function deleteAnalysis(analysisId, token) {
     });
 }
 
+export {
+    healthCheck,
+    getLogs,
+    getMainPage,
+    getToken,
+    registerUser,
+    getAllUsers,
+    saveUserData,
+    getUserData,
+    updateUserData,
+    partialUpdateUserData,
+    checkUserDataExists,
+    deleteUserData,
+    setFieldData,
+    getFieldData,
+    checkFieldExists,
+    deleteFieldData,
+    getRgbImage,
+    getRedChannelImage,
+    getNdviImage,
+    performAnalysis,
+    getAnalysisList,
+    getAnalysisById,
+    deleteAnalysis
+};
