@@ -26,6 +26,56 @@ async function getAllUsers(password) {
     return fetch(`${API_BASE}/users/all?password=${encodeURIComponent(password)}`);
 }
 
+// Новая функция для получения профиля пользователя
+async function getUserProfile(token) {
+    return fetch(`${API_BASE}/users/profile?token=${encodeURIComponent(token)}`);
+}
+
+// Функции для работы с полями (областями анализа)
+async function saveField(token, fieldName, areaOfInterest) {
+    return fetch(`${API_BASE}/fields/save?token=${encodeURIComponent(token)}&field_name=${encodeURIComponent(fieldName)}&area_of_interest=${encodeURIComponent(areaOfInterest)}`, {
+        method: 'POST'
+    });
+}
+
+async function getFieldsList(token) {
+    return fetch(`${API_BASE}/fields/list?token=${encodeURIComponent(token)}`);
+}
+
+async function deleteField(fieldId, token) {
+    return fetch(`${API_BASE}/fields/${encodeURIComponent(fieldId)}?token=${encodeURIComponent(token)}`, {
+        method: 'DELETE'
+    });
+}
+
+// Функции анализа
+async function performAnalysis(token, startDate, endDate, options) {
+    let url = `${API_BASE}/analysis/perform?token=${encodeURIComponent(token)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
+    
+    if (options.lon && options.lat && options.radius_km) {
+        url += `&lon=${encodeURIComponent(options.lon)}&lat=${encodeURIComponent(options.lat)}&radius_km=${encodeURIComponent(options.radius_km)}`;
+    } else if (options.polygonCoords) {
+        url += `&polygon_coords=${encodeURIComponent(JSON.stringify(options.polygonCoords))}`;
+    }
+    
+    return fetch(url, { method: 'POST' });
+}
+
+async function getAnalysisList(token) {
+    return fetch(`${API_BASE}/analysis/list?token=${encodeURIComponent(token)}`);
+}
+
+async function getAnalysisById(analysisId, token) {
+    return fetch(`${API_BASE}/analysis/${encodeURIComponent(analysisId)}?token=${encodeURIComponent(token)}`);
+}
+
+async function deleteAnalysis(analysisId, token) {
+    return fetch(`${API_BASE}/analysis/${encodeURIComponent(analysisId)}?token=${encodeURIComponent(token)}`, {
+        method: 'DELETE'
+    });
+}
+
+// Устаревшие функции пользовательских данных
 async function saveUserData(token, keyArray) {
     return fetch(`${API_BASE}/savedata?token=${encodeURIComponent(token)}&key_array=${encodeURIComponent(JSON.stringify(keyArray))}`, {
         method: 'POST'
@@ -58,6 +108,7 @@ async function deleteUserData(token) {
     });
 }
 
+// Устаревшие функции данных полей
 async function setFieldData(field, data, token) {
     return fetch(`${API_BASE}/field/set?field=${encodeURIComponent(field)}&data=${encodeURIComponent(data)}&token=${encodeURIComponent(token)}`, {
         method: 'POST'
@@ -91,33 +142,6 @@ async function getNdviImage(lon, lat, startDate, endDate, token) {
     return fetch(`${API_BASE}/image/ndvi?lon=${encodeURIComponent(lon)}&lat=${encodeURIComponent(lat)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}&token=${encodeURIComponent(token)}`);
 }
 
-// Функции анализа
-async function performAnalysis(token, startDate, endDate, options) {
-    let url = `${API_BASE}/analysis/perform?token=${encodeURIComponent(token)}&start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`;
-    
-    if (options.lon && options.lat && options.radius_km) {
-        url += `&lon=${encodeURIComponent(options.lon)}&lat=${encodeURIComponent(options.lat)}&radius_km=${encodeURIComponent(options.radius_km)}`;
-    } else if (options.polygonCoords) {
-        url += `&polygon_coords=${encodeURIComponent(JSON.stringify(options.polygonCoords))}`;
-    }
-    
-    return fetch(url, { method: 'POST' });
-}
-
-async function getAnalysisList(token) {
-    return fetch(`${API_BASE}/analysis/list?token=${encodeURIComponent(token)}`);
-}
-
-async function getAnalysisById(analysisId, token) {
-    return fetch(`${API_BASE}/analysis/${encodeURIComponent(analysisId)}?token=${encodeURIComponent(token)}`);
-}
-
-async function deleteAnalysis(analysisId, token) {
-    return fetch(`${API_BASE}/analysis/${encodeURIComponent(analysisId)}?token=${encodeURIComponent(token)}`, {
-        method: 'DELETE'
-    });
-}
-
 export {
     healthCheck,
     getLogs,
@@ -125,6 +149,14 @@ export {
     getToken,
     registerUser,
     getAllUsers,
+    getUserProfile,
+    saveField,
+    getFieldsList,
+    deleteField,
+    performAnalysis,
+    getAnalysisList,
+    getAnalysisById,
+    deleteAnalysis,
     saveUserData,
     getUserData,
     updateUserData,
@@ -137,9 +169,5 @@ export {
     deleteFieldData,
     getRgbImage,
     getRedChannelImage,
-    getNdviImage,
-    performAnalysis,
-    getAnalysisList,
-    getAnalysisById,
-    deleteAnalysis
+    getNdviImage
 };
