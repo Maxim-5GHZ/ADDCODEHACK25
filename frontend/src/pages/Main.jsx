@@ -116,6 +116,24 @@ function AboutUs() {
 }
 
 function Advantages() {
+    const [isInAccount, setIsInAccount] = useState(false);
+
+    useEffect(() => {
+        const checkAuth = () => {
+            //const token = getCookie("token");
+            const token = true; // Временная заглушка
+
+            if (token) {
+                setIsInAccount(true);
+            }
+            else {
+                setIsInAccount(false);
+            }
+        }
+
+        checkAuth();
+    }, [])
+
     const carouselRef = useRef(null);
     
     let card1Description = "Диагностируйте угрозы на самой ранней стадии, когда их ещё не видно глазом. Спасайте урожай, а не констатируйте потери."
