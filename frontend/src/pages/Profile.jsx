@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom"
 import { useState, useEffect } from "react"
-import { getCookie } from "../utils/cookies";
+import { getCookie, deleteCookie } from "../utils/cookies";
 import { getUserProfile } from "../utils/fetch";
 import { Footer } from "./Main";
 
@@ -180,6 +180,17 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  const handleLogout = async () => {
+    try {
+      deleteCookie("token");
+      navigate("/login");
+    }
+    catch (error){
+      console.log(`Error logging out: ${error}`);
+      navigate("/login");
+    }
+  }
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       const token = getCookie('token');
@@ -266,7 +277,7 @@ export default function Profile() {
         </div>
       </div>
     </div>
-    <Footer showNavigation={false} />
+    <Footer showNavigation={false} logoutFunction={handleLogout} />
   </div>
   );
 }

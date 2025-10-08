@@ -220,7 +220,7 @@ function Advantages() {
 }
 
 
-export function Footer({ showNavigation=true }) {
+export function Footer({ showNavigation=true, logoutFunction=() => {} }) {
     return (
         <footer className="bg-[var(--neutral-dark-color)] pt-16 pb-8">
             <div className="max-w-7xl mx-auto px-8">
@@ -250,9 +250,9 @@ export function Footer({ showNavigation=true }) {
                             <Link to="/" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
                                     Главная
                             </Link>
-                            <Link to="/" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <button onClick={() => logoutFunction()} className="cursor-pointer text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
                                     Выйти
-                            </Link>
+                            </button>
                         </nav>
                     )}
                 </div>
