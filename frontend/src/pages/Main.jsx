@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import Header from "../components/Header";
 import { Card, HorizontalCard } from "../components/Card";
+import { getCookie } from "../utils/cookies"
 import logoSVG from "../assets/logo.svg"
 import card1Image from "../assets/card1_image.jpg";
 import card2Image from "../assets/card2_image.jpg";
@@ -13,6 +14,24 @@ import carousel3Image from "../assets/carousel_image3.jpg"
 import carousel4Image from "../assets/carousel_image4.jpg"
 
 function Hero() {
+    const [isInAccount, setIsInAccount] = useState(false);
+
+    useEffect(() => {
+        const checkAuth = () => {
+            //const token = getCookie("token");
+            const token = true; // Временная заглушка
+
+            if (token) {
+                setIsInAccount(true);
+            }
+            else {
+                setIsInAccount(false);
+            }
+        }
+
+        checkAuth();
+    }, [])
+    
     return (
         <div id="main" className="bg-[url(assets/hero_image.jpg)] bg-cover h-240 bg-center relative">
             <div className="bg-[var(--hero-shadow)] h-full w-full pt-48 px-48 flex flex-col">
@@ -28,7 +47,7 @@ function Hero() {
 
                 <div className="flex-grow flex items-end justify-center pb-48">
                     <Link
-                        to="/registration"
+                        to={isInAccount ? "/profile" : "/registration"}
                         className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
                         transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl"
                     >
@@ -173,7 +192,7 @@ function Advantages() {
 
             <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] pt-16 pb-32">
                 <Link
-                    to="/registration"
+                    to={isInAccount ? "/profile" : "/registration"}
                     className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
                     transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl"
                 >
