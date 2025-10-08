@@ -261,8 +261,8 @@ export default function Profile() {
   return (
     <div className="flex flex-col min-h-screen">
     <BackButton />
-    <div className="flex-1 flex justify-center bg-[var(--neutral-light-color)]">
-      <div className="pt-24 pb-12 w-[80vw]">
+    <div className="flex-1 flex justify-center bg-[var(--neutral-light-color)] py-24">
+      <div className="pt-24 pb-12 w-[80vw] bg-white rounded-[4vw]">
         <div className="flex w-full space-x-16 px-8 h-full">
           <ProfileSidebar 
             user={user} 
