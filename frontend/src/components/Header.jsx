@@ -10,8 +10,7 @@ function Header({ isTransparent }) {
     
     useEffect(() => {
         const checkAuth = () => {
-            // const token = getCookie('token');
-            const token = true; // Временная заглушка
+            const token = getCookie('token');
             
             if (token) {
                 // Временная заглушка

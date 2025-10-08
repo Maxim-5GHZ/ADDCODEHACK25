@@ -18,8 +18,7 @@ function Hero() {
 
     useEffect(() => {
         const checkAuth = () => {
-            //const token = getCookie("token");
-            const token = true; // Временная заглушка
+            const token = getCookie("token");
 
             if (token) {
                 setIsInAccount(true);
@@ -120,8 +119,7 @@ function Advantages() {
 
     useEffect(() => {
         const checkAuth = () => {
-            //const token = getCookie("token");
-            const token = true; // Временная заглушка
+            const token = getCookie("token");
 
             if (token) {
                 setIsInAccount(true);

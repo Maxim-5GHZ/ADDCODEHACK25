@@ -25,6 +25,7 @@ function Registration() {
     const [password, setPassword] = useState("");
     const [passwordAgain, setPasswordAgain] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("")
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const passwordRegex = /^[A-Za-z0-9]{5,}$/;

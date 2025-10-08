@@ -1,14 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom"
 import logoImage from "../assets/logo.svg"
-import { getCookie } from "../utils/cookies";
+import { getCookie, setCookie } from "../utils/cookies";
+import { getToken } from "../utils/fetch";
 
 function Login() {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+
     const navigate = useNavigate();
     useEffect(() => {
         const checkAuth = () => {
             const token = getCookie("token");
+            console.log(`Token: ${token}`)
 
             if (token) {
                 navigate("/profile");
@@ -17,6 +22,17 @@ function Login() {
 
         checkAuth();
     }, [])
+
+    const handleLogin = async () => {
+        try{
+            const token = await getToken(email, password);
+            setCookie("token", token, 7);
+            navigate("/profile");
+        }
+        catch {
+            console.log("Error");
+        }
+    }
     return (
         <>
             <div className="absolute h-[100vh] w-[100vw] bg-[var(--neutral-color)] -z-1">
@@ -40,7 +56,7 @@ function Login() {
                             <label htmlFor="email" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Почта
                             </label>
-                            <input id="email" name="email" type="email" placeholder="Ваша@почта.ru" 
+                            <input onChange={(e) => setEmail(e.target.value)} id="email" name="email" type="email" placeholder="Ваша@почта.ru" 
                             className="text-2xl md:text-3xl bg-[var(--neutral-color)] rounded-4xl py-4 px-6 shadow-2xs 
                             focus:ring-[var(--accent-color)] focus:outline-0 focus:ring-2 w-full"/>
                         </div>
@@ -48,12 +64,12 @@ function Login() {
                             <label htmlFor="password" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">
                                 Пароль
                             </label>
-                            <input id="password" name="password" type="password" placeholder="Ваш секретный пароль" 
+                            <input onChange={(e) => setPassword(e.target.value)} id="password" name="password" type="password" placeholder="Ваш секретный пароль" 
                             className="text-2xl md:text-3xl bg-[var(--neutral-color)] rounded-4xl py-4 px-6 shadow-2xs 
                             focus:ring-[var(--accent-color)] focus:outline-0 focus:ring-2 w-full"/>
                         </div>
                         <div className="flex justify-center items-center mt-16">
-                            <input type="button" value="Войти" className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
+                            <input onClick={handleLogin} type="button" value="Войти" className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
                                 transition-[background-color] duration-100 cursor-pointer rounded-full text-2xl md:text-3xl px-5 py-5 text-[var(--neutral-color)] 
                                 shadow-2xs w-3/4"/>
                         </div>
