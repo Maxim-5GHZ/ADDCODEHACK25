@@ -1,4 +1,4 @@
-const API_BASE = '';
+const API_BASE = '/api';
 
 async function healthCheck() {
     return fetch(`${API_BASE}/health`);
@@ -13,7 +13,21 @@ async function getMainPage() {
 }
 
 async function getToken(login, password) {
-    return fetch(`${API_BASE}/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`);
+    const response = await fetch(
+        `${API_BASE}/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`
+    );
+    
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.status === "success") {
+        return data.token;
+    } else {
+        throw new Error(data.message || "Failed to get token");
+    }
 }
 
 async function registerUser(login, password, firstName, lastName) {
@@ -26,12 +40,10 @@ async function getAllUsers(password) {
     return fetch(`${API_BASE}/users/all?password=${encodeURIComponent(password)}`);
 }
 
-// Новая функция для получения профиля пользователя
 async function getUserProfile(token) {
     return fetch(`${API_BASE}/users/profile?token=${encodeURIComponent(token)}`);
 }
 
-// Функции для работы с полями (областями анализа)
 async function saveField(token, fieldName, areaOfInterest) {
     return fetch(`${API_BASE}/fields/save?token=${encodeURIComponent(token)}&field_name=${encodeURIComponent(fieldName)}&area_of_interest=${encodeURIComponent(areaOfInterest)}`, {
         method: 'POST'
