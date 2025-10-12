@@ -1,28 +1,32 @@
-# This Python file uses the following encoding: utf-8
 import sys
 import os
-
-# Получаем абсолютный путь к текущей директории (где находится main.py)
-current_dir = os.path.dirname(os.path.abspath(__file__))
-print(f"Текущая директория: {current_dir}")
-
-# Добавляем текущую директорию в путь Python
-sys.path.insert(0, current_dir)
-
-# Теперь импортируем модули
+import requests
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
+from mainwindow import MainWindow
 
-try:
-    from widgets.main_window import MainWindow
-    print("Модуль widgets успешно импортирован")
-except ImportError as e:
-    print(f"Ошибка импорта: {e}")
-    print("Содержимое текущей директории:")
-    for item in os.listdir(current_dir):
-        print(f"  {item}")
-
-if __name__ == "__main__":
+def main():
+    # Отключаем предупреждения SSL для самоподписанных сертификатов
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    
+    # Создаем приложение
     app = QApplication(sys.argv)
+    
+    # Устанавливаем иконку для всего приложения
+    try:
+        icon_path = os.path.join(os.path.dirname(__file__), "app_icon.ico")
+        if os.path.exists(icon_path):
+            app.setWindowIcon(QIcon(icon_path))
+    except Exception as e:
+        print(f"Не удалось загрузить иконку: {e}")
+    
+    # Создаем и показываем главное окно
     widget = MainWindow()
     widget.showMaximized()
+    
+    # Запускаем главный цикл приложения
     sys.exit(app.exec())
+
+if __name__ == "__main__":
+    main()
