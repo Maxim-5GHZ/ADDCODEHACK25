@@ -1,5 +1,3 @@
-# mainwindow.py
-import sys
 import os
 import json
 import requests
@@ -13,7 +11,6 @@ from PySide6.QtGui import QPixmap, QPainter, QColor, QIcon, QFont
 from ui_form import Ui_MainWindow
 from login import LoginDialog
 from map import MapDialog
-from bridge.map_bridge import MapBridge
 
 # Отключаем предупреждения о SSL для самоподписанных сертификатов
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -636,7 +633,6 @@ class MainWindow(QMainWindow):
 
          # Создаем диалог с картой
          map_dialog = MapDialog(self, field_name_callback=self.handle_add_field)
-         # map_dialog = InteractiveMapDialog(self, field_name_callback=self.handle_add_field)
          map_dialog.exec()
 
     def delete_selected_field(self):
@@ -757,18 +753,3 @@ class MainWindow(QMainWindow):
 
             # Асинхронно загружаем поля пользователя с сервера (будет пусто для нового пользователя)
             self.load_user_fields_from_server()
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-
-    # Устанавливаем иконку для всего приложения
-    try:
-        icon_path = os.path.join(os.path.dirname(__file__), "app_icon.ico")
-        if os.path.exists(icon_path):
-            app.setWindowIcon(QIcon(icon_path))
-    except:
-        pass
-
-    widget = MainWindow()
-    widget.showMaximized()
-    sys.exit(app.exec())
