@@ -150,6 +150,8 @@ html {
 
     --header-blur: hsla(0, 0%, 0%, 0.4);
     --hero-shadow: hsla(0, 0%, 10%, 0.7);
+
+    --overlay-bg: hsla(0, 0%, 0%, 0.7);
 }
 
 body {

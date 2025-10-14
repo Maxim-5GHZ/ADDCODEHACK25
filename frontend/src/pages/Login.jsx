@@ -4,10 +4,12 @@ import { Link } from "react-router-dom"
 import logoImage from "../assets/logo.svg"
 import { getCookie, setCookie } from "../utils/cookies";
 import { getToken } from "../utils/fetch";
+import { BarLoader } from "react-spinners";
 
 function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
     const navigate = useNavigate();
     useEffect(() => {
@@ -16,7 +18,7 @@ function Login() {
             console.log(`Token: ${token}`)
 
             if (token) {
-                navigate("/profile");
+                navigate("/profile");   
             }
         }
 
@@ -25,12 +27,18 @@ function Login() {
 
     const handleLogin = async () => {
         try{
+            setIsLoading(true);
             const token = await getToken(email, password);
+            setTimeout(2000);
             setCookie("token", token, 7);
             navigate("/profile");
         }
         catch {
+            setIsLoading(false);
             console.log("Error");
+        }
+        finally {
+            setIsLoading(false);
         }
     }
     return (
@@ -69,9 +77,21 @@ function Login() {
                             focus:ring-[var(--accent-color)] focus:outline-0 focus:ring-2 w-full"/>
                         </div>
                         <div className="flex justify-center items-center mt-16">
-                            <input onClick={handleLogin} type="button" value="Войти" className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
+                            {isLoading ? (
+                                <div className="flex justify-center items-center w-1/2 rounded-full bg-[var(--neutral-dark-secondary-color)]">
+                                    <BarLoader
+                                        color="var(--accent-color)"
+                                        loading={isLoading}
+                                        width="100%"
+                                        height={5}
+                                        aria-label="Регистрация..."
+                                    />
+                                </div>
+                            ) : (
+                                <input onClick={handleLogin} type="button" value="Войти" className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
                                 transition-[background-color] duration-100 cursor-pointer rounded-full text-2xl md:text-3xl px-5 py-5 text-[var(--neutral-color)] 
                                 shadow-2xs w-3/4"/>
+                            )}
                         </div>
                         <p className="text-end self-end">
                             Забыли пароль? <span className="text-[var(--accent-dark-color)] cursor-pointer">Восстановить пароль</span>
