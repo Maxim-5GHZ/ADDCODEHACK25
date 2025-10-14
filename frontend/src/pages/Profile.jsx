@@ -1,8 +1,28 @@
 import { Link, useNavigate } from "react-router-dom"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { getCookie, deleteCookie } from "../utils/cookies";
 import { getUserProfile } from "../utils/fetch";
 import { Footer } from "./Main";
+
+// Импорты OpenLayers
+import 'ol/ol.css';
+import Map from 'ol/Map';
+import View from 'ol/View';
+import TileLayer from 'ol/layer/Tile';
+import OSM from 'ol/source/OSM';
+import VectorLayer from 'ol/layer/Vector';
+import VectorSource from 'ol/source/Vector';
+import Draw from 'ol/interaction/Draw';
+import Modify from 'ol/interaction/Modify';
+import Select from 'ol/interaction/Select';
+import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style';
+import { getArea, getLength } from 'ol/sphere';
+import { LineString, Polygon, Circle } from 'ol/geom';
+import { unByKey } from 'ol/Observable';
+import Overlay from 'ol/Overlay';
+import { fromCircle } from 'ol/geom/Polygon';
+import { getDistance } from 'ol/sphere';
+import Point from 'ol/geom/Point';
 
 // Новый компонент для выбора типа поля
 function FieldTypeSelector({ fieldType, setFieldType }) {
@@ -38,7 +58,7 @@ function FieldTypeSelector({ fieldType, setFieldType }) {
 }
 
 // Компонент для формы ввода данных поля
-function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius }) {
+function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius, area, perimeter }) {
   return (
     <div className="space-y-6">
       <div>
@@ -55,6 +75,19 @@ function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius }) {
         />
       </div>
 
+      {area && (
+        <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+          <p className="text-lg font-semibold text-green-800">
+            Площадь: {area}
+          </p>
+          {perimeter && (
+            <p className="text-lg font-semibold text-green-800 mt-2">
+              Периметр: {perimeter}
+            </p>
+          )}
+        </div>
+      )}
+
       {fieldType === 'point' && (
         <div>
           <label className="block text-2xl font-semibold mb-2" htmlFor="radius">
@@ -64,7 +97,7 @@ function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius }) {
             id="radius"
             type="number"
             value={radius}
-            onChange={(e) => setRadius(e.target.value)}
+            onChange={(e) => setRadius(parseInt(e.target.value) || 100)}
             className="w-full border rounded-xl px-6 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-[#009e4f]"
             placeholder="Введите радиус"
             min="1"
@@ -75,30 +108,236 @@ function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius }) {
       {fieldType === 'polygon' && (
         <div className="text-lg text-gray-600 bg-yellow-50 p-4 rounded-xl">
           <p>ℹ️ Выберите на карте от 3 до 5 точек для создания полигона</p>
+          <p className="text-sm mt-2">• Кликните на карте, чтобы добавить вершины</p>
+          <p className="text-sm">• Двойной клик или нажмите Enter для завершения</p>
+          <p className="text-sm">• Перетащите точки для изменения формы</p>
         </div>
       )}
     </div>
   );
 }
 
-// Компонент карты (заглушка - нужно заменить на реальную Google Maps)
-function MapComponent({ fieldType }) {
+// Компонент карты с OpenLayers
+function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+  const drawInteraction = useRef(null);
+  const modifyInteraction = useRef(null);
+  const vectorSource = useRef(new VectorSource());
+  const [area, setArea] = useState(null);
+  const [perimeter, setPerimeter] = useState(null);
+
+  // Стили для разных типов фигур
+  const getStyle = (feature) => {
+    const geometry = feature.getGeometry();
+    const type = geometry.getType();
+    
+    if (type === 'Point') {
+      return new Style({
+        image: new CircleStyle({
+          radius: 6,
+          fill: new Fill({
+            color: '#009e4f'
+          }),
+          stroke: new Stroke({
+            color: '#fff',
+            width: 2
+          })
+        })
+      });
+    } else if (type === 'Polygon') {
+      return new Style({
+        fill: new Fill({
+          color: 'rgba(0, 158, 79, 0.2)'
+        }),
+        stroke: new Stroke({
+          color: '#009e4f',
+          width: 2
+        })
+      });
+    } else if (type === 'Circle') {
+      return new Style({
+        fill: new Fill({
+          color: 'rgba(0, 158, 79, 0.1)'
+        }),
+        stroke: new Stroke({
+          color: '#009e4f',
+          width: 2,
+          lineDash: [5, 5]
+        })
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+
+    // Создание карты
+    const map = new Map({
+      target: mapRef.current,
+      layers: [
+        new TileLayer({
+          source: new OSM()
+        }),
+        new VectorLayer({
+          source: vectorSource.current,
+          style: getStyle
+        })
+      ],
+      view: new View({
+        center: [4188099.476, 7505781.418], // Центр России
+        zoom: 4
+      })
+    });
+
+    // Добавляем взаимодействие для модификации
+    const modify = new Modify({
+      source: vectorSource.current
+    });
+    map.addInteraction(modify);
+    modifyInteraction.current = modify;
+
+    // Обработчик изменения геометрии
+    vectorSource.current.on('changefeature', (e) => {
+      const feature = e.feature;
+      if (feature) {
+        updateMeasurements(feature);
+      }
+    });
+
+    mapInstance.current = map;
+
+    return () => {
+      if (mapInstance.current) {
+        mapInstance.current.setTarget(null);
+      }
+    };
+  }, []);
+
+  // Функция для обновления измерений
+  const updateMeasurements = (feature) => {
+    const geometry = feature.getGeometry();
+    
+    if (geometry.getType() === 'Polygon') {
+      const areaValue = getArea(geometry);
+      const areaHectares = (areaValue / 10000).toFixed(2);
+      setArea(`${areaHectares} га`);
+      
+      // Вычисляем периметр
+      const coordinates = geometry.getCoordinates()[0];
+      let perimeterValue = 0;
+      for (let i = 0; i < coordinates.length - 1; i++) {
+        perimeterValue += getDistance(coordinates[i], coordinates[i + 1]);
+      }
+      setPerimeter(`${perimeterValue.toFixed(0)} м`);
+      
+      if (onGeometryChange) {
+        onGeometryChange(geometry);
+      }
+    } else if (geometry.getType() === 'Circle') {
+      const radiusValue = geometry.getRadius();
+      const areaValue = Math.PI * radiusValue * radiusValue;
+      const areaHectares = (areaValue / 10000).toFixed(2);
+      setArea(`${areaHectares} га`);
+      setPerimeter(`${(2 * Math.PI * radiusValue).toFixed(0)} м`);
+      
+      if (onGeometryChange) {
+        onGeometryChange(geometry);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!mapInstance.current) return;
+
+    // Удаляем предыдущее взаимодействие рисования
+    if (drawInteraction.current) {
+      mapInstance.current.removeInteraction(drawInteraction.current);
+      drawInteraction.current = null;
+    }
+
+    if (fieldType === 'polygon') {
+      // Создаем взаимодействие для рисования полигонов
+      drawInteraction.current = new Draw({
+        source: vectorSource.current,
+        type: 'Polygon',
+        maxPoints: 5,
+        style: new Style({
+          fill: new Fill({
+            color: 'rgba(0, 158, 79, 0.2)'
+          }),
+          stroke: new Stroke({
+            color: '#009e4f',
+            width: 2
+          })
+        })
+      });
+
+      drawInteraction.current.on('drawend', (event) => {
+        const feature = event.feature;
+        updateMeasurements(feature);
+      });
+
+      mapInstance.current.addInteraction(drawInteraction.current);
+    } else if (fieldType === 'point') {
+      // Создаем взаимодействие для рисования точек
+      drawInteraction.current = new Draw({
+        source: vectorSource.current,
+        type: 'Point',
+        style: new Style({
+          image: new CircleStyle({
+            radius: 6,
+            fill: new Fill({
+              color: '#009e4f'
+            }),
+            stroke: new Stroke({
+              color: '#fff',
+              width: 2
+            })
+          })
+        })
+      });
+
+      drawInteraction.current.on('drawend', (event) => {
+        const feature = event.feature;
+        const point = feature.getGeometry();
+        
+        // Создаем круг вокруг точки
+        const circle = new Circle(point.getCoordinates(), radius || 100);
+        const circleFeature = new ol.Feature({
+          geometry: circle,
+          name: 'radius_circle'
+        });
+        
+        vectorSource.current.addFeature(circleFeature);
+        updateMeasurements(circleFeature);
+      });
+
+      mapInstance.current.addInteraction(drawInteraction.current);
+    }
+  }, [fieldType, onGeometryChange]);
+
+  // Обновляем радиус круга при изменении
+  useEffect(() => {
+    if (fieldType === 'point' && radius) {
+      // Находим все круги и обновляем их радиус
+      const features = vectorSource.current.getFeatures();
+      features.forEach(feature => {
+        const geometry = feature.getGeometry();
+        if (geometry.getType() === 'Circle') {
+          geometry.setRadius(radius);
+          updateMeasurements(feature);
+        }
+      });
+    }
+  }, [radius, fieldType]);
+
   return (
-    <div className="flex-1 bg-gray-200 rounded-xl flex items-center justify-center">
-      <div className="text-center p-8">
-        <div className="text-3xl mb-4">🗺️</div>
-        <h3 className="text-2xl font-semibold mb-4">Карта для выбора участка</h3>
-        <p className="text-lg text-gray-600 mb-2">
-          {fieldType === 'polygon' 
-            ? 'Режим: выбор полигона (3-5 точек)'
-            : 'Режим: выбор точки и радиуса'
-          }
-        </p>
-        <p className="text-sm text-gray-500">
-          Здесь будет интегрирована Google Maps API
-        </p>
-      </div>
-    </div>
+    <div 
+      ref={mapRef} 
+      className="w-full h-full rounded-xl overflow-hidden"
+      style={{ minHeight: '400px' }}
+    />
   );
 }
 
@@ -107,14 +346,63 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
   const [fieldType, setFieldType] = useState('polygon');
   const [fieldName, setFieldName] = useState('');
   const [radius, setRadius] = useState(100);
+  const [geometry, setGeometry] = useState(null);
+  const [area, setArea] = useState(null);
+  const [perimeter, setPerimeter] = useState(null);
+
+  const handleGeometryChange = (newGeometry) => {
+    setGeometry(newGeometry);
+    
+    if (fieldType === 'polygon' && newGeometry.getType() === 'Polygon') {
+      const areaValue = getArea(newGeometry);
+      const areaHectares = (areaValue / 10000).toFixed(2);
+      setArea(`${areaHectares} га`);
+      
+      // Вычисляем периметр
+      const coordinates = newGeometry.getCoordinates()[0];
+      let perimeterValue = 0;
+      for (let i = 0; i < coordinates.length - 1; i++) {
+        perimeterValue += getDistance(coordinates[i], coordinates[i + 1]);
+      }
+      setPerimeter(`${perimeterValue.toFixed(0)} м`);
+    } else if (fieldType === 'point' && newGeometry.getType() === 'Circle') {
+      const areaValue = Math.PI * newGeometry.getRadius() * newGeometry.getRadius();
+      const areaHectares = (areaValue / 10000).toFixed(2);
+      setArea(`${areaHectares} га`);
+      setPerimeter(`${(2 * Math.PI * newGeometry.getRadius()).toFixed(0)} м`);
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Здесь будет логика отправки данных
+    
+    if (!fieldName.trim()) {
+      alert('Пожалуйста, введите название поля');
+      return;
+    }
+
+    if (!geometry) {
+      alert('Пожалуйста, выберите область на карте');
+      return;
+    }
+
+    if (fieldType === 'polygon') {
+      const coordinates = geometry.getCoordinates();
+      const vertexCount = coordinates[0].length - 1; // -1 потому что полигон замкнутый
+      
+      if (vertexCount < 3 || vertexCount > 5) {
+        alert('Полигон должен содержать от 3 до 5 вершин');
+        return;
+      }
+    }
+
     onSubmit({
       type: fieldType,
       name: fieldName,
-      radius: fieldType === 'point' ? radius : undefined
+      radius: fieldType === 'point' ? radius : undefined,
+      geometry: geometry,
+      area: area,
+      perimeter: perimeter
     });
   };
 
@@ -124,6 +412,15 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
     }
   };
 
+  const handleClose = () => {
+    setFieldName('');
+    setRadius(100);
+    setGeometry(null);
+    setArea(null);
+    setPerimeter(null);
+    onClose();
+  };
+
   if (!isVisible) return null;
 
   return (
@@ -131,20 +428,24 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
       className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4"
       onClick={handleOverlayClick}
     >
-      <div className="bg-white rounded-3xl w-full max-w-6xl h-[80vh] flex overflow-hidden">
+      <div className="bg-white rounded-3xl w-full max-w-6xl h-[80vh] flex flex-col lg:flex-row overflow-hidden">
         {/* Левая часть - карта */}
-        <div className="flex-1 p-6">
-          <MapComponent fieldType={fieldType} />
+        <div className="flex-1 p-6 min-h-[300px] lg:min-h-auto">
+          <OpenLayersMap 
+            fieldType={fieldType}
+            onGeometryChange={handleGeometryChange}
+            radius={radius}
+          />
         </div>
         
         {/* Правая часть - форма */}
-        <div className="w-1/3 p-8 flex flex-col">
-          <div className="flex justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold text-[var(--neutral-dark-color)]">
+        <div className="w-full lg:w-1/3 p-6 lg:p-8 flex flex-col">
+          <div className="flex justify-between items-center mb-6 lg:mb-8">
+            <h2 className="text-2xl lg:text-3xl font-bold text-[var(--neutral-dark-color)]">
               Добавить поле
             </h2>
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="text-3xl text-gray-500 hover:text-gray-700 transition-colors"
             >
               ×
@@ -163,19 +464,21 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
               setFieldName={setFieldName}
               radius={radius}
               setRadius={setRadius}
+              area={area}
+              perimeter={perimeter}
             />
             
-            <div className="mt-auto pt-8 flex gap-4">
+            <div className="mt-auto pt-6 lg:pt-8 flex gap-4">
               <button
                 type="button"
-                onClick={onClose}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-xl py-4 text-xl font-semibold text-gray-700"
+                onClick={handleClose}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-xl py-3 lg:py-4 text-lg lg:text-xl font-semibold text-gray-700"
               >
                 Отмена
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-xl py-4 text-xl font-semibold text-white"
+                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-xl py-3 lg:py-4 text-lg lg:text-xl font-semibold text-white"
               >
                 Сохранить поле
               </button>
