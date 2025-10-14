@@ -4,12 +4,13 @@ import numpy as np
 import requests
 import ee
 import json
-from typing import List
+from typing import List, Dict
 
 
 class ImageProvider:
     def __init__(self, rgb_image_path: str = None, nir_image_path: str = None):
         self.rgb_image, self.red_channel, self.green_channel, self.blue_channel, self.nir_channel = None, None, None, None, None
+        self.cloud_percentage = None # Добавлено для хранения облачности
         if rgb_image_path: self._load_local_images(rgb_image_path, nir_image_path)
 
     def _load_local_images(self, rgb_path, nir_path):
@@ -34,7 +35,7 @@ class ImageProvider:
         return cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
     @classmethod
-    def from_gee(cls, start_date: str, end_date: str, 
+    def from_gee(cls, start_date: str, end_date: str,
                  lon: float = None, lat: float = None, radius_km: float = 0.5,
                  polygon_coords: List[List[float]] = None,
                  service_account_key_path: str = "hack25addcode-3171f61bba2c.json"):
@@ -83,6 +84,7 @@ class ImageProvider:
         print(f"Выбран самый чистый снимок с облачностью: {cloud_percentage:.2f}%")
 
         provider = cls()
+        provider.cloud_percentage = cloud_percentage # ИЗМЕНЕНО: Сохраняем облачность
         print("Загрузка данных из Google Earth Engine...")
 
         try:
@@ -110,6 +112,49 @@ class ImageProvider:
 
         print("Данные успешно загружены.")
         return provider
-    
 
-ImageProvider()
+    # --- НОВЫЙ МЕТОД ---
+    @staticmethod
+    def get_historical_ndvi(area_of_interest: ee.Geometry, start_date: str, end_date: str) -> List[Dict]:
+        """Получает историю среднего NDVI для заданной области."""
+
+        def calculate_monthly_mean(image_collection):
+            years = ee.List.sequence(ee.Date(start_date).get('year'), ee.Date(end_date).get('year'))
+
+            def process_year(year):
+                def process_month(month):
+                    start = ee.Date.fromYMD(year, month, 1)
+                    end = start.advance(1, 'month')
+
+                    monthly_collection = image_collection.filterDate(start, end)
+                    cleanest_in_month = monthly_collection.sort('CLOUDY_PIXEL_PERCENTAGE').first()
+
+                    def compute_mean(img):
+                        ndvi = img.normalizedDifference(['B8', 'B4']).rename('NDVI')
+                        mean_dict = ndvi.reduceRegion(
+                            reducer=ee.Reducer.mean(),
+                            geometry=area_of_interest,
+                            scale=30,
+                            maxPixels=1e9
+                        )
+                        return ee.Feature(None, {
+                            'date': start.format('YYYY-MM-dd'),
+                            'mean_ndvi': mean_dict.get('NDVI')
+                        })
+
+                    return ee.Algorithms.If(cleanest_in_month, compute_mean(ee.Image(cleanest_in_month)), None)
+
+                months = ee.List.sequence(1, 12)
+                return months.map(process_month)
+
+            monthly_data = years.map(process_year).flatten()
+            return monthly_data.removeAll([None]).getInfo()
+
+        try:
+            if not ee.data._credentials: ee.Initialize()
+        except Exception:
+            ee.Initialize()
+
+        collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED').filterBounds(area_of_interest)
+        historical_data = calculate_monthly_mean(collection)
+        return historical_data

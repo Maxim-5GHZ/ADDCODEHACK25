@@ -22,11 +22,8 @@ class AnalysisManager:
         if data_str:
             try:
                 data_obj = json.loads(data_str)
-                # Убедимся, что все ключи существуют
-                if 'analyses' not in data_obj:
-                    data_obj['analyses'] = []
-                if 'saved_fields' not in data_obj:
-                    data_obj['saved_fields'] = []
+                if 'analyses' not in data_obj: data_obj['analyses'] = []
+                if 'saved_fields' not in data_obj: data_obj['saved_fields'] = []
                 return data_obj
             except json.JSONDecodeError:
                 logger.warning(f"Не удалось распарсить JSON для токена {token}. Возвращаем пустую структуру.")
@@ -41,9 +38,25 @@ class AnalysisManager:
         except Exception as e:
             logger.error(f"Ошибка при сериализации и сохранении данных для токена {token}: {e}")
             return False
+            
+    # --- НОВЫЙ МЕТОД ---
+    def _calculate_zones(self, index_map: np.ndarray, thresholds: Dict[str, List[float]]) -> Dict:
+        """Разделяет карту индекса на зоны и вычисляет их процентное соотношение."""
+        total_pixels = index_map.size
+        if total_pixels == 0:
+            return {}
+            
+        zones = {}
+        for zone_name, (lower, upper) in thresholds.items():
+            mask = (index_map >= lower) & (index_map < upper)
+            pixel_count = np.count_nonzero(mask)
+            zones[zone_name] = round((pixel_count / total_pixels) * 100, 2)
+            
+        return zones
 
+    # --- ИЗМЕНЕННЫЙ МЕТОД ---
     def _calculate_all_indices(self, provider: ImageProvider) -> Dict:
-        """Вычисляет все вегетационные индексы"""
+        """Вычисляет все вегетационные индексы и их статистику."""
         calculator = VegetationIndexCalculator(
             rgb_image=provider.rgb_image,
             red_channel=provider.red_channel,
@@ -52,53 +65,41 @@ class AnalysisManager:
             nir_channel=provider.nir_channel
         )
         
-        # Вычисляем индексы
-        vari_map = calculator.calculate_vari()
+        indices_data = {}
+        
+        # NDVI
         ndvi_map = calculator.calculate_ndvi()
+        ndvi_stats = {'min': float(np.nanmin(ndvi_map)), 'max': float(np.nanmax(ndvi_map)), 'mean': float(np.nanmean(ndvi_map)), 'std': float(np.nanstd(ndvi_map))}
+        ndvi_zones = self._calculate_zones(ndvi_map, {'low': [-1, 0.2], 'medium': [0.2, 0.5], 'high': [0.5, 1.01]})
+        indices_data['ndvi'] = {'map': ndvi_map, 'stats': ndvi_stats, 'zones': ndvi_zones}
         
-        # Статистика по индексам
-        vari_stats = {
-            'min': float(vari_map.min()),
-            'max': float(vari_map.max()),
-            'mean': float(vari_map.mean()),
-            'std': float(vari_map.std())
-        }
+        # SAVI
+        savi_map = calculator.calculate_savi()
+        savi_stats = {'min': float(np.nanmin(savi_map)), 'max': float(np.nanmax(savi_map)), 'mean': float(np.nanmean(savi_map)), 'std': float(np.nanstd(savi_map))}
+        indices_data['savi'] = {'map': savi_map, 'stats': savi_stats}
+
+        # VARI
+        vari_map = calculator.calculate_vari()
+        vari_stats = {'min': float(np.nanmin(vari_map)), 'max': float(np.nanmax(vari_map)), 'mean': float(np.nanmean(vari_map)), 'std': float(np.nanstd(vari_map))}
+        indices_data['vari'] = {'map': vari_map, 'stats': vari_stats}
         
-        ndvi_stats = {
-            'min': float(ndvi_map.min()),
-            'max': float(ndvi_map.max()),
-            'mean': float(ndvi_map.mean()),
-            'std': float(ndvi_map.std())
-        }
-        
-        return {
-            'vari': {
-                'map': vari_map,
-                'stats': vari_stats
-            },
-            'ndvi': {
-                'map': ndvi_map,
-                'stats': ndvi_stats
-            }
-        }
+        return indices_data
     
     def _array_to_base64(self, array: np.ndarray) -> str:
         """Конвертирует numpy array в base64 строку"""
         try:
-            # Нормализуем для визуализации
             if array.dtype != np.uint8:
-                array_min = array.min()
-                array_max = array.max()
-                if array_max - array_min > 0:
-                    normalized = ((array - array_min) / (array_max - array_min) * 255).astype(np.uint8)
+                array_min = np.nanmin(array)
+                array_max = np.nanmax(array)
+                if array_max > array_min:
+                    normalized = (255 * (array - array_min) / (array_max - array_min)).astype(np.uint8)
                 else:
                     normalized = np.zeros_like(array, dtype=np.uint8)
             else:
                 normalized = array
                 
-            # Для одноканальных изображений
             if len(array.shape) == 2:
-                image = Image.fromarray(normalized, mode='L')
+                image = Image.fromarray(normalized, mode='L').convert('RGB')
             else:
                 image = Image.fromarray(normalized)
                 
@@ -112,7 +113,6 @@ class AnalysisManager:
     def _save_analysis_data(self, token: str, analysis_id: str, analysis_data: Dict) -> bool:
         """Сохраняет данные анализа в поле"""
         try:
-            # Убираем большие массивы данных перед сохранением
             analysis_data_for_storage = analysis_data.copy()
             if 'images' in analysis_data_for_storage:
                 del analysis_data_for_storage['images']
@@ -129,13 +129,13 @@ class AnalysisManager:
         try:
             field_name = f"analysis_{token}_{analysis_id}"
             data = self.field_data.get_field_data(field_name)
-            if data:
-                return json.loads(data)
+            if data: return json.loads(data)
             return None
         except Exception as e:
             logger.error(f"Ошибка загрузки анализа: {e}")
             return None
     
+    # --- ИЗМЕНЕННЫЙ МЕТОД ---
     def perform_complete_analysis(self, token: str, start_date: str, end_date: str, 
                                 lon: Optional[float] = None, lat: Optional[float] = None, 
                                 radius_km: float = 0.5, 
@@ -152,17 +152,14 @@ class AnalysisManager:
             else:
                 raise ValueError("Не указана область для анализа (ни точка с радиусом, ни полигон).")
 
-            # Получаем данные изображения
             provider = ImageProvider.from_gee(
                 start_date=start_date, end_date=end_date,
                 lon=lon, lat=lat, radius_km=radius_km,
                 polygon_coords=polygon_coords
             )
             
-            # Вычисляем индексы
             indices = self._calculate_all_indices(provider)
             
-            # Создаем анализ
             analysis_id = str(int(time.time()))
             analysis_data = {
                 'analysis_id': analysis_id,
@@ -171,54 +168,41 @@ class AnalysisManager:
                 'date_range': {'start': start_date, 'end': end_date},
                 'images': {
                     'rgb': self._array_to_base64(provider.rgb_image),
-                    'red_channel': self._array_to_base64(provider.red_channel),
                     'ndvi': self._array_to_base64(indices['ndvi']['map']),
+                    'savi': self._array_to_base64(indices['savi']['map']),
                     'vari': self._array_to_base64(indices['vari']['map'])
                 },
                 'statistics': {
-                    'red_channel': {
-                        'min': float(provider.red_channel.min()),
-                        'max': float(provider.red_channel.max()),
-                        'mean': float(provider.red_channel.mean())
-                    },
                     'ndvi': indices['ndvi']['stats'],
+                    'savi': indices['savi']['stats'],
                     'vari': indices['vari']['stats']
                 },
-                'metadata': {
-                    'cloud_coverage': 'unknown',
+                'zoning': { # Добавлено
+                    'ndvi': indices['ndvi']['zones']
+                },
+                'metadata': { # Добавлено
+                    'cloud_coverage': provider.cloud_percentage if hasattr(provider, 'cloud_percentage') else 'unknown',
                     'resolution': '10m',
                     'source': 'Sentinel-2'
                 }
             }
             
-            # Сохраняем анализ
             if self._save_analysis_data(token, analysis_id, analysis_data):
-                # Обновляем список анализов пользователя
                 self._update_user_analyses_list(token, analysis_id, analysis_data)
-                
                 logger.info(f"Анализ {analysis_id} успешно сохранен")
-                return {
-                    'status': 'success',
-                    'analysis_id': analysis_id,
-                    'data': analysis_data
-                }
+                return {'status': 'success', 'analysis_id': analysis_id, 'data': analysis_data}
             else:
                 raise Exception("Не удалось сохранить анализ")
                 
         except Exception as e:
             logger.error(f"Ошибка при выполнении анализа: {e}")
-            return {
-                'status': 'error',
-                'detail': str(e)
-            }
+            return {'status': 'error', 'detail': str(e)}
     
     def _update_user_analyses_list(self, token: str, analysis_id: str, analysis_data: Dict):
         """Обновляет список анализов пользователя"""
         try:
-            # Получаем текущий объект данных пользователя
             user_data_obj = self._get_user_data_object(token)
             
-            # Добавляем новый анализ
             new_analysis = {
                 'analysis_id': analysis_id,
                 'timestamp': analysis_data['timestamp'],
@@ -230,88 +214,48 @@ class AnalysisManager:
                 }
             }
             
-            # Добавляем в начало и ограничиваем количество (например, последние 50 анализов)
             user_data_obj['analyses'].insert(0, new_analysis)
             user_data_obj['analyses'] = user_data_obj['analyses'][:50]
             
-            # Сохраняем обновленный объект
             self._save_user_data_object(token, user_data_obj)
             
         except Exception as e:
             logger.error(f"Ошибка обновления списка анализов: {e}")
-    
-    def get_user_analyses_list(self, token: str) -> Dict:
-        """Получает список всех анализов пользователя"""
-        # Этот метод больше не нужен, так как логика перенесена в controller_func,
-        # но оставим его для возможной внутренней логики
-        try:
-            user_data_obj = self._get_user_data_object(token)
-            return {'analyses': user_data_obj.get('analyses', [])}
-        except Exception as e:
-            logger.error(f"Ошибка получения списка анализов: {e}")
-            return {'analyses': []}
     
     def get_analysis_by_id(self, token: str, analysis_id: str) -> Dict:
         """Получает конкретный анализ по ID"""
         try:
             analysis_data = self._load_analysis_data(token, analysis_id)
             if analysis_data:
-                return {
-                    'status': 'success',
-                    'analysis_id': analysis_id,
-                    'data': analysis_data
-                }
+                return {'status': 'success', 'analysis_id': analysis_id, 'data': analysis_data}
             else:
-                return {
-                    'status': 'error',
-                    'detail': 'Анализ не найден'
-                }
+                return {'status': 'error', 'detail': 'Анализ не найден'}
         except Exception as e:
             logger.error(f"Ошибка получения анализа: {e}")
-            return {
-                'status': 'error',
-                'detail': str(e)
-            }
+            return {'status': 'error', 'detail': str(e)}
     
     def delete_analysis(self, token: str, analysis_id: str) -> Dict:
-        """Удаляет анализ (исправленная, более надежная версия)"""
+        """Удаляет анализ"""
         try:
-            # Шаг 1: Попытка удалить детальные данные. Не прерываемся, если не получилось.
             field_name = f"analysis_{token}_{analysis_id}"
             self.field_data.delete_field_data(field_name)
             
-            # Шаг 2: Основная логика - удаление сводки из списка пользователя.
             user_data_obj = self._get_user_data_object(token)
-            
             initial_count = len(user_data_obj.get('analyses', []))
             
-            # Фильтруем список, оставляя все, кроме удаляемого анализа
             user_data_obj['analyses'] = [
                 analysis for analysis in user_data_obj.get('analyses', []) 
                 if analysis.get('analysis_id') != analysis_id
             ]
             
-            final_count = len(user_data_obj['analyses'])
-
-            # Если что-то было удалено из списка, сохраняем изменения и сообщаем об успехе
-            if final_count < initial_count:
+            if len(user_data_obj['analyses']) < initial_count:
                 self._save_user_data_object(token, user_data_obj)
                 logger.info(f"Анализ {analysis_id} удален из списка пользователя {token}")
-                return {
-                    'status': 'success',
-                    'message': 'Анализ успешно удален'
-                }
-            # Если в списке не было найдено анализа с таким ID
+                return {'status': 'success', 'message': 'Анализ успешно удален'}
             else:
                 logger.warning(f"Анализ {analysis_id} не был найден в списке пользователя {token} для удаления.")
-                return {
-                    'status': 'error',
-                    'detail': 'Анализ не найден в списке для удаления'
-                }
+                return {'status': 'error', 'detail': 'Анализ не найден в списке для удаления'}
                 
         except Exception as e:
             logger.error(f"Критическая ошибка при удалении анализа {analysis_id}: {e}")
-            return {
-                'status': 'error',
-                'detail': str(e)
-            }
+            return {'status': 'error', 'detail': str(e)}

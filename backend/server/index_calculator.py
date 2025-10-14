@@ -1,4 +1,3 @@
-
 import numpy as np
 
 
@@ -8,6 +7,7 @@ class VegetationIndexCalculator:
     расчетов) и выполняет вычисление и визуализацию индексов.
     """
     EPSILON = 1e-8
+    L_SAVI = 0.5 # Коэффициент коррекции почвы для SAVI, стандартное значение
 
     def __init__(self, rgb_image: np.ndarray, red_channel: np.ndarray,
                  green_channel: np.ndarray, blue_channel: np.ndarray,
@@ -23,6 +23,7 @@ class VegetationIndexCalculator:
 
         self.vari_map = None
         self.ndvi_map = None
+        self.savi_map = None # Добавлено
 
     def calculate_vari(self) -> np.ndarray:
         """Вычисляет индекс VARI по научным данным каналов."""
@@ -38,3 +39,14 @@ class VegetationIndexCalculator:
         self.ndvi_map = ((self.nir_channel - self.red_channel) /
                          (self.nir_channel + self.red_channel + self.EPSILON))
         return self.ndvi_map
+
+    # --- НОВЫЙ МЕТОД ---
+    def calculate_savi(self) -> np.ndarray:
+        """Вычисляет индекс SAVI, который корректирует влияние почвы."""
+        if self.nir_channel is None:
+            raise ValueError("Для расчета SAVI необходим NIR канал (nir_channel).")
+
+        numerator = self.nir_channel - self.red_channel
+        denominator = self.nir_channel + self.red_channel + self.L_SAVI
+        self.savi_map = ((numerator / (denominator + self.EPSILON)) * (1 + self.L_SAVI))
+        return self.savi_map

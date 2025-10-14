@@ -6,6 +6,7 @@ from analysis_manager import AnalysisManager
 import os
 import json
 from ImageProvider import ImageProvider
+import ee # Добавлен импорт
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class controller_func():
             logger.error(f"Ошибка при сериализации и сохранении данных для токена {token}: {e}")
             return False
 
-
+    # ... (все старые методы от reed__root до delete_analysis остаются без изменений)
     async def reed__root(self):
         logger.info("Запрос главной страницы")
         try:
@@ -646,13 +647,9 @@ class controller_func():
         logger.info(f"Запрос полного анализа для токена {token}")
 
         try:
-            # Проверяем авторизацию пользователя
             if not self.user_bd.if_token_exist(token):
                 logger.warning(f"Попытка анализа с невалидным токеном: {token}")
-                return {
-                    "status": "error",
-                    "detail": "Невалидный токен"
-                }
+                return {"status": "error", "detail": "Невалидный токен"}
 
             parsed_polygon_coords = None
             if polygon_coords:
@@ -664,98 +661,101 @@ class controller_func():
                         raise ValueError("polygon_coords должен быть списком списков координат [[lon, lat], ...]")
                 except (json.JSONDecodeError, ValueError) as e:
                     logger.error(f"Ошибка парсинга polygon_coords='{polygon_coords}': {e}")
-                    return {
-                        "status": "error",
-                        "detail": f"Неверный формат polygon_coords: {e}"
-                    }
+                    return {"status": "error", "detail": f"Неверный формат polygon_coords: {e}"}
             
-            # Используем analysis_manager для выполнения анализа
-            # AnalysisManager теперь сам будет получать данные пользователя, обновлять и сохранять их
             result = self.analysis_manager.perform_complete_analysis(
-                token=token,
-                start_date=start_date,
-                end_date=end_date,
-                lon=lon,
-                lat=lat,
-                radius_km=radius_km,
-                polygon_coords=parsed_polygon_coords
+                token=token, start_date=start_date, end_date=end_date, lon=lon,
+                lat=lat, radius_km=radius_km, polygon_coords=parsed_polygon_coords
             )
 
             return result
 
         except Exception as e:
             logger.error(f"Ошибка при выполнении анализа: {e}")
-            return {
-                "status": "error",
-                "detail": f"Не удалось выполнить анализ: {str(e)}"
-            }
+            return {"status": "error", "detail": f"Не удалось выполнить анализ: {str(e)}"}
 
     async def get_analyses_list(self, token: str):
         """Получает список всех анализов пользователя"""
         logger.info(f"Запрос списка анализов для токена: {token}")
-
         try:
             if not self.user_bd.if_token_exist(token):
-                return {
-                    "status": "error",
-                    "detail": "Невалидный токен"
-                }
+                return {"status": "error", "detail": "Невалидный токен"}
             
             user_data_obj = self._get_user_data_object(token)
-            
-            return {
-                "status": "success",
-                "analyses": user_data_obj.get('analyses', [])
-            }
+            return {"status": "success", "analyses": user_data_obj.get('analyses', [])}
 
         except Exception as e:
             logger.error(f"Ошибка при получении списка анализов: {e}")
-            return {
-                "status": "error",
-                "detail": str(e)
-            }
+            return {"status": "error", "detail": str(e)}
 
     async def get_analysis(self, token: str, analysis_id: str):
         """Получает конкретный анализ по ID"""
         logger.info(f"Запрос анализа {analysis_id} для токена: {token}")
-
         try:
             if not self.user_bd.if_token_exist(token):
-                return {
-                    "status": "error",
-                    "detail": "Невалидный токен"
-                }
+                return {"status": "error", "detail": "Невалидный токен"}
 
             result = self.analysis_manager.get_analysis_by_id(token, analysis_id)
             return result
-
         except Exception as e:
             logger.error(f"Ошибка при получении анализа: {e}")
-            return {
-                "status": "error",
-                "detail": str(e)
-            }
+            return {"status": "error", "detail": str(e)}
 
     async def delete_analysis(self, token: str, analysis_id: str):
         """Удаляет анализ"""
         logger.info(f"Запрос удаления анализа {analysis_id} для токена: {token}")
-
         try:
             if not self.user_bd.if_token_exist(token):
-                return {
-                    "status": "error",
-                    "detail": "Невалидный токен"
-                }
+                return {"status": "error", "detail": "Невалидный токен"}
 
             result = self.analysis_manager.delete_analysis(token, analysis_id)
             return result
-
         except Exception as e:
             logger.error(f"Ошибка при удалении анализа: {e}")
+            return {"status": "error", "detail": str(e)}
+
+    # --- НОВЫЙ МЕТОД ---
+    async def get_historical_ndvi_data(self, token: str, 
+                                       lon: float = None, lat: float = None,
+                                       radius_km: float = 0.5,
+                                       polygon_coords: str = None):
+        """Возвращает историю среднего NDVI для области."""
+        logger.info(f"Запрос истории NDVI для токена {token}")
+
+        if not self.user_bd.if_token_exist(token):
+            return {"status": "error", "detail": "Невалидный токен"}
+
+        try:
+            # Определяем область интереса для GEE
+            if polygon_coords:
+                parsed_polygon = json.loads(polygon_coords)
+                area_of_interest = ee.Geometry.Polygon(parsed_polygon)
+            elif lon is not None and lat is not None:
+                point = ee.Geometry.Point([lon, lat])
+                area_of_interest = point.buffer(radius_km * 1000).bounds()
+            else:
+                return {"status": "error", "detail": "Необходимо указать область"}
+
+            # Используем новый статический метод
+            # Берем данные за последние 2 года
+            import datetime
+            end_date = datetime.date.today()
+            start_date = end_date - datetime.timedelta(days=365*2)
+            
+            historical_data = ImageProvider.get_historical_ndvi(
+                area_of_interest, 
+                start_date.strftime('%Y-%m-%d'), 
+                end_date.strftime('%Y-%m-%d')
+            )
+
             return {
-                "status": "error",
-                "detail": str(e)
+                "status": "success",
+                "data": historical_data
             }
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении истории NDVI: {e}")
+            return {"status": "error", "detail": f"Не удалось получить историю: {e}"}
 
     # --- НОВЫЕ МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ПОЛЯМИ ---
     async def save_user_field(self, token: str, field_name: str, area_of_interest: str):

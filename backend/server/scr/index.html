@@ -3,593 +3,671 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Анализ спутниковых снимков</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
+    <title>AgroScout - Анализ Здоровья Полей</title>
+
+    <!-- Leaflet (Карта) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Leaflet.draw (Рисование на карте) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
+    <!-- Chart.js (Графики) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        :root {
-            --primary-color: #007bff;
-            --secondary-color: #6c757d;
-            --success-color: #28a745;
-            --danger-color: #dc3545;
-            --light-color: #f8f9fa;
-            --dark-color: #343a40;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            --border-radius: 0.25rem;
-            --box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+        /* --- ОБЩИЕ СТИЛИ --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            overflow: hidden;
         }
 
-        body {
-            font-family: var(--font-family);
-            background-color: #e9ecef;
-            color: var(--dark-color);
-            margin: 0;
-            padding: 1.5rem;
+        .hidden { display: none !important; }
+        
+        /* --- ОСНОВНАЯ СТРУКТУРА --- */
+        #app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #sidebar {
+            width: 350px;
+            background: #fff;
+            padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #map-container {
+            flex-grow: 1;
+            position: relative;
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+
+        #dashboard {
+            width: 400px;
+            background: #fff;
+            padding: 20px;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        
+        /* --- ЭЛЕМЕНТЫ УПРАВЛЕНИЯ В SIDEBAR --- */
+        h2 {
+            margin-top: 0;
+            color: #1a73e8;
+            border-bottom: 2px solid #f0f2f5;
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #5f6368;
+        }
+        
+        .date-inputs {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="date"], input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #dadce0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #185abc;
+        }
+        
+        button.secondary {
+             background-color: #e8f0fe;
+             color: #1967d2;
+        }
+        button.secondary:hover {
+            background-color: #d2e3fc;
+        }
+
+        #user-info {
+            margin-top: auto;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        /* --- ДАШБОРД --- */
+        .stat-card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            color: #5f6368;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #202124;
+        }
+
+        .chart-container {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        
+        /* --- МОДАЛЬНОЕ ОКНО АВТОРИЗАЦИИ --- */
+        #auth-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
             display: flex;
             justify-content: center;
+            align-items: center;
         }
-
-        .container {
-            width: 100%;
-            max-width: 1200px;
+        .auth-form-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            width: 400px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
         }
-
-        h1, h2 {
+        .auth-form-container input {
+            margin-bottom: 15px;
+        }
+        .form-toggle {
             text-align: center;
-            color: var(--dark-color);
+            margin-top: 20px;
         }
-
-        .card {
-            background-color: white;
-            border-radius: var(--border-radius);
-            box-shadow: var(--box-shadow);
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid #dee2e6;
-            margin-bottom: 1.5rem;
-        }
-
-        .tab-button {
-            padding: 0.75rem 1.25rem;
-            border: none;
-            background: none;
+        .form-toggle a {
+            color: #1a73e8;
             cursor: pointer;
-            font-size: 1rem;
-            font-weight: 500;
-            color: var(--primary-color);
-            border-bottom: 3px solid transparent;
+            text-decoration: none;
         }
-
-        .tab-button.active {
-            border-bottom-color: var(--primary-color);
-        }
-
-        .form-group {
-            margin-bottom: 1.25rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-
-        .form-group input, .form-group textarea {
+        
+        /* --- ИНДИКАТОР ЗАГРУЗКИ --- */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            padding: 0.5rem;
-            font-size: 1rem;
-            border: 1px solid #ced4da;
-            border-radius: var(--border-radius);
-            box-sizing: border-box;
-            font-family: inherit;
-        }
-        
-        .form-row {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.8);
+            z-index: 3000;
             display: flex;
-            gap: 1rem;
+            justify-content: center;
+            align-items: center;
         }
-
-        .form-row .form-group {
-            flex: 1;
+        .spinner {
+            border: 8px solid #f3f3f3;
+            border-top: 8px solid #1a73e8;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
         }
-
-        .btn {
-            display: inline-block;
-            padding: 0.6rem 1.2rem;
-            font-size: 1rem;
-            font-weight: 500;
-            text-align: center;
-            cursor: pointer;
-            border: 1px solid transparent;
-            border-radius: var(--border-radius);
-            transition: all 0.2s ease-in-out;
-        }
-
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-
-        .btn-secondary {
-            background-color: var(--secondary-color);
-            color: white;
-        }
-        
-        .btn-danger {
-            background-color: var(--danger-color);
-            color: white;
-            padding: 0.2rem 0.5rem;
-            font-size: 0.8rem;
-        }
-
-        .status-success { background-color: #d4edda; color: #155724; padding: 1rem; margin-top: 1rem; border-radius: var(--border-radius); text-align: center; }
-        .status-error { background-color: #f8d7da; color: #721c24; padding: 1rem; margin-top: 1rem; border-radius: var(--border-radius); text-align: center; }
-
-        .hidden { display: none; }
-
-        #main-app { margin-top: 2rem; }
-        
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-            gap: 1.5rem;
-        }
-
-        #results-container .image-card, #results-container .stats-card {
-            border: 1px solid #dee2e6;
-            border-radius: var(--border-radius);
-            padding: 1rem;
-            background: var(--light-color);
-        }
-        
-        #results-container h3 { margin-top: 0; text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 0.5rem; margin-bottom: 1rem; }
-        #results-container img { max-width: 100%; height: auto; border-radius: var(--border-radius); }
-        
-        .stats-table { width: 100%; border-collapse: collapse; }
-        .stats-table th, .stats-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #dee2e6; }
-        .stats-table th { font-weight: 600; }
-
-        #past-analyses-list { list-style-type: none; padding: 0; }
-        #past-analyses-list li { background: var(--light-color); padding: 1rem; margin-bottom: 0.5rem; border-radius: var(--border-radius); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-        
-        .analysis-info { font-size: 0.9rem; }
-        .analysis-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
-        
-        #analysis-layout { display: flex; gap: 2rem; flex-wrap: wrap; }
-        #analysis-controls { flex: 1; min-width: 300px; }
-        #map-container { flex: 1.5; min-width: 400px; }
-        #map { height: 450px; width: 100%; border-radius: var(--border-radius); border: 1px solid #dee2e6; z-index: 1; }
-
-        @media (max-width: 992px) {
-            #analysis-layout { flex-direction: column; }
-        }
-        @media (max-width: 768px) {
-            .form-row { flex-direction: column; }
-            .grid-container { grid-template-columns: 1fr; }
-            body { padding: 0.5rem; }
-            .card { padding: 1rem; }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>Анализ спутниковых снимков</h1>
-
-    <!-- AUTHENTICATION SECTION -->
-    <div id="auth-section" class="card">
-        <div class="tabs">
-            <button class="tab-button active" onclick="switchTab('login')">Вход</button>
-            <button class="tab-button" onclick="switchTab('register')">Регистрация</button>
+    <!-- Модальное окно авторизации -->
+    <div id="auth-modal">
+        <div class="auth-form-container">
+            <!-- Форма входа -->
+            <form id="login-form">
+                <h2>Вход в AgroScout</h2>
+                <input type="text" id="login-username" placeholder="Логин" required>
+                <input type="password" id="login-password" placeholder="Пароль" required>
+                <button type="submit">Войти</button>
+                <p class="form-toggle">Нет аккаунта? <a id="show-register">Зарегистрироваться</a></p>
+            </form>
+            <!-- Форма регистрации -->
+            <form id="register-form" class="hidden">
+                <h2>Регистрация</h2>
+                <input type="text" id="register-username" placeholder="Логин" required>
+                <input type="password" id="register-password" placeholder="Пароль" required>
+                <input type="text" id="register-firstname" placeholder="Имя" required>
+                <input type="text" id="register-lastname" placeholder="Фамилия" required>
+                <button type="submit">Создать аккаунт</button>
+                <p class="form-toggle">Уже есть аккаунт? <a id="show-login">Войти</a></p>
+            </form>
         </div>
-        <form id="login-form">
-             <div class="form-group"><label for="login-username">Логин</label><input type="text" id="login-username" required></div>
-             <div class="form-group"><label for="login-password">Пароль</label><input type="password" id="login-password" required></div>
-             <button type="submit" class="btn btn-primary">Войти</button>
-        </form>
-        <form id="register-form" class="hidden">
-            <div class="form-row">
-                 <div class="form-group"><label for="register-first-name">Имя</label><input type="text" id="register-first-name" required></div>
-                 <div class="form-group"><label for="register-last-name">Фамилия</label><input type="text" id="register-last-name" required></div>
-            </div>
-             <div class="form-group"><label for="register-username">Логин</label><input type="text" id="register-username" required></div>
-             <div class="form-group"><label for="register-password">Пароль</label><input type="password" id="register-password" required></div>
-             <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
-        </form>
-        <div id="auth-status-message"></div>
     </div>
     
-    <!-- MAIN APPLICATION -->
-    <div id="main-app" class="hidden">
-        <p>Вы вошли в систему. Ваш токен: <b id="user-token" style="word-break: break-all;"></b></p>
-        
-        <!-- NEW ANALYSIS -->
-        <div class="card">
-            <h2>Провести новый анализ</h2>
-            <form id="analysis-form">
-                <div id="analysis-layout">
-                    <!-- Left Side: Controls -->
-                    <div id="analysis-controls">
-                        <div class="form-group">
-                            <label>Тип области анализа</label>
-                            <div>
-                                <input type="radio" id="analysis-type-point" name="analysis-type" value="point" checked>
-                                <label for="analysis-type-point">По точке и радиусу</label>
-                                &nbsp;&nbsp;
-                                <input type="radio" id="analysis-type-polygon" name="analysis-type" value="polygon">
-                                <label for="analysis-type-polygon">По полигону</label>
-                            </div>
-                        </div>
-                        <div id="point-input-section">
-                            <div class="form-row">
-                                <div class="form-group"><label for="lon">Долгота</label><input type="number" step="any" id="lon" value="37.6173"></div>
-                                <div class="form-group"><label for="lat">Широта</label><input type="number" step="any" id="lat" value="55.7558"></div>
-                            </div>
-                            <div class="form-group"><label for="radius">Радиус (км)</label><input type="number" step="0.1" id="radius" value="0.5"></div>
-                        </div>
-                        <div id="polygon-input-section" class="hidden">
-                            <div class="form-group">
-                                <label for="polygon-coords">Координаты полигона (долгота, широта)</label>
-                                <textarea id="polygon-coords" rows="5" placeholder="Кликайте на карту для добавления точек..." readonly></textarea>
-                                <button type="button" id="clear-polygon-btn" class="btn btn-secondary" style="margin-top: 0.5rem;">Очистить полигон</button>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group"><label for="start-date">Начальная дата</label><input type="date" id="start-date" required></div>
-                            <div class="form-group"><label for="end-date">Конечная дата</label><input type="date" id="end-date" required></div>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Выполнить анализ</button>
-                    </div>
-                    <!-- Right Side: Map -->
-                    <div id="map-container">
-                        <div id="map"></div>
-                    </div>
-                </div>
-            </form>
-             <div id="analysis-status-message"></div>
-        </div>
+    <!-- Индикатор загрузки -->
+    <div id="loader" class="hidden">
+        <div class="spinner"></div>
+    </div>
 
-        <!-- RESULTS -->
-        <div id="results-container" class="card hidden">
-            <h2>Результаты анализа <span id="analysis-id-display"></span></h2>
-            <div class="grid-container">
-                 <div class="stats-card"><h3>Общая информация</h3><div id="results-metadata"></div></div>
-                <div class="stats-card"><h3>Статистика</h3><div id="results-stats"></div></div>
-                <div class="image-card"><h3>RGB Изображение</h3><img id="rgb-image" alt="RGB Image"></div>
-                <div class="image-card"><h3>Красный канал</h3><img id="red-channel-image" alt="Red Channel Image"></div>
-                <div class="image-card"><h3>Индекс NDVI</h3><img id="ndvi-image" alt="NDVI Image"></div>
-                <div class="image-card"><h3>Индекс VARI</h3><img id="vari-image" alt="VARI Image"></div>
+    <!-- Основное приложение (скрыто до авторизации) -->
+    <div id="app-container" class="hidden">
+        <!-- Левая панель управления -->
+        <div id="sidebar">
+            <h2>AgroScout</h2>
+            
+            <div class="control-group">
+                <label>1. Выберите область на карте</label>
+                <p style="font-size: 14px; color: #5f6368;">Используйте инструмент "полигон" (
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5-10-5-10 5z"></path></svg>
+                ) на карте для выделения поля.</p>
+            </div>
+
+            <div class="control-group">
+                <label for="date-start">2. Выберите диапазон дат</label>
+                <div class="date-inputs">
+                    <input type="date" id="date-start">
+                    <input type="date" id="date-end">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <button id="analyze-btn" disabled>3. Анализировать</button>
+            </div>
+            
+            <div class="control-group">
+                <label>Мои поля</label>
+                <select id="saved-fields-list">
+                    <option value="">Загрузить сохраненное поле...</option>
+                </select>
+                <div style="display:flex; gap: 10px; margin-top: 10px;">
+                    <button id="save-field-btn" class="secondary">Сохранить</button>
+                    <button id="delete-field-btn" class="secondary">Удалить</button>
+                </div>
+            </div>
+
+            <div id="user-info">
+                <p id="user-greeting"></p>
+                <button id="logout-btn" class="secondary">Выйти</button>
             </div>
         </div>
-        
-        <!-- PAST ANALYSES -->
-        <div class="card">
-            <h2>Прошлые анализы</h2>
-            <button id="fetch-analyses-btn" class="btn btn-secondary">Обновить список</button>
-            <ul id="past-analyses-list"></ul>
+
+        <!-- Контейнер с картой -->
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+
+        <!-- Правая панель с результатами (дашборд) -->
+        <div id="dashboard" class="hidden">
+            <h2>Результаты анализа</h2>
+            <div id="results-content">
+                <div class="stat-card">
+                    <div class="label">Средний NDVI</div>
+                    <div class="value" id="mean-ndvi-val">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Средний SAVI</div>
+                    <div class="value" id="mean-savi-val">-</div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="zoning-chart"></canvas>
+                </div>
+                 <div class="chart-container">
+                    <canvas id="history-chart"></canvas>
+                </div>
+            </div>
         </div>
     </div>
-</div>
-
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
 
 <script>
-    // --- GLOBAL STATE & CONSTANTS ---
-    const API_BASE_URL = window.location.origin;
-    let authToken = null;
-
-    // --- DOM ELEMENTS ---
-    const authSection = document.getElementById('auth-section');
-    const mainApp = document.getElementById('main-app');
-    const loginForm = document.getElementById('login-form');
-    const registerForm = document.getElementById('register-form');
-    const analysisForm = document.getElementById('analysis-form');
-    const userTokenDisplay = document.getElementById('user-token');
-    const pastAnalysesList = document.getElementById('past-analyses-list');
-    const fetchAnalysesBtn = document.getElementById('fetch-analyses-btn');
-    const resultsContainer = document.getElementById('results-container');
-    const pointInputSection = document.getElementById('point-input-section');
-    const polygonInputSection = document.getElementById('polygon-input-section');
-    const analysisTypeRadios = document.querySelectorAll('input[name="analysis-type"]');
-    const lonInput = document.getElementById('lon');
-    const latInput = document.getElementById('lat');
-    const radiusInput = document.getElementById('radius');
-    const polygonCoordsTextarea = document.getElementById('polygon-coords');
-    const clearPolygonBtn = document.getElementById('clear-polygon-btn');
-
-    // --- MAP VARIABLES ---
+document.addEventListener('DOMContentLoaded', () => {
+    // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+    const API_BASE_URL = 'http://127.0.0.1:8000';
+    let userToken = null;
     let map;
-    let marker;
-    let radiusCircle;
-    let polygonLayer;
-    let polygonPoints = [];
+    let drawnItems;
+    let drawControl;
+    let zoningChart = null;
+    let historyChart = null;
+    let currentPolygon = null;
+    let analysisResultLayer = null;
 
-    // --- MAP FUNCTIONS ---
-    function initMap() {
-        if (map) return; 
+    // --- ЭЛЕМЕНТЫ DOM ---
+    const authModal = document.getElementById('auth-modal');
+    const appContainer = document.getElementById('app-container');
+    const loader = document.getElementById('loader');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const dashboard = document.getElementById('dashboard');
 
-        map = L.map('map').setView([latInput.value, lonInput.value], 13);
-        
-        // *** ИСПРАВЛЕНИЕ ЗДЕСЬ ***
-        // Используем надежный и нейтральный источник карт от Esri
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri'
-        }).addTo(map);
-
-        // Initialize layers
-        marker = L.marker([latInput.value, lonInput.value]).addTo(map);
-        radiusCircle = L.circle([latInput.value, lonInput.value], {
-            radius: radiusInput.value * 1000,
-            color: 'blue',
-            fillColor: '#30f',
-            fillOpacity: 0.2
-        }).addTo(map);
-        polygonLayer = L.polygon(polygonPoints, { color: 'red' }).addTo(map);
-
-        updateMapVisibility();
-
-        map.on('click', (e) => {
-            const analysisType = document.querySelector('input[name="analysis-type"]:checked').value;
-            if (analysisType === 'point') {
-                const { lat, lng } = e.latlng;
-                latInput.value = lat.toFixed(6);
-                lonInput.value = lng.toFixed(6);
-                updateMapFromPointInputs();
-            } else if (analysisType === 'polygon') {
-                 const { lat, lng } = e.latlng;
-                 polygonPoints.push([lat, lng]);
-                 updatePolygonOnMapAndTextarea();
-            }
-        });
-    }
-
-    function updateMapFromPointInputs() {
-        const lat = parseFloat(latInput.value);
-        const lon = parseFloat(lonInput.value);
-        const radius = parseFloat(radiusInput.value) * 1000;
-
-        if (!isNaN(lat) && !isNaN(lon)) {
-            const newLatLng = [lat, lon];
-            marker.setLatLng(newLatLng);
-            radiusCircle.setLatLng(newLatLng);
-            map.panTo(newLatLng);
-        }
-        if (!isNaN(radius) && radius > 0) {
-            radiusCircle.setRadius(radius);
-        }
-    }
-    
-    function updatePolygonOnMapAndTextarea() {
-        polygonLayer.setLatLngs(polygonPoints);
-        const coordsString = polygonPoints.map(p => `${p[1].toFixed(6)}, ${p[0].toFixed(6)}`).join('\n');
-        polygonCoordsTextarea.value = coordsString;
-    }
-    
-    function clearPolygon() {
-        polygonPoints = [];
-        updatePolygonOnMapAndTextarea();
-    }
-
-    function updateMapVisibility() {
-        if (!map) return;
-        const analysisType = document.querySelector('input[name="analysis-type"]:checked').value;
-        if (analysisType === 'point') {
-            map.addLayer(marker);
-            map.addLayer(radiusCircle);
-            map.removeLayer(polygonLayer);
+    // --- ИНИЦИАЛИЗАЦИЯ ---
+    function initializeApp() {
+        userToken = localStorage.getItem('agro_token');
+        if (userToken) {
+            authModal.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            fetchUserProfile();
+            initializeMap();
+            fetchUserFields();
         } else {
-            map.removeLayer(marker);
-            map.removeLayer(radiusCircle);
-            map.addLayer(polygonLayer);
+            authModal.classList.remove('hidden');
+            appContainer.classList.add('hidden');
         }
     }
 
-    // --- UI HELPER FUNCTIONS ---
-    function switchTab(tabName) {
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`.tab-button[onclick="switchTab('${tabName}')"]`).classList.add('active');
-        loginForm.classList.toggle('hidden', tabName !== 'login');
-        registerForm.classList.toggle('hidden', tabName !== 'register');
-    }
-
-    function showStatusMessage(elementId, message, isError = false) {
-        const el = document.getElementById(elementId);
-        el.textContent = message;
-        el.className = isError ? 'status-error' : 'status-success';
-        el.style.display = 'block';
-    }
-
-    function hideStatusMessage(elementId) {
-        const el = document.getElementById(elementId);
-        if (el) el.style.display = 'none';
-    }
-    
-    function setDateDefaults() {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 1);
-        document.getElementById('end-date').value = endDate.toISOString().split('T')[0];
-        document.getElementById('start-date').value = startDate.toISOString().split('T')[0];
-    }
-    
-    function renderAreaOfInterest(aoi) {
-        if (aoi.type === 'point_radius') {
-            return `Точка: ${aoi.lat.toFixed(4)}, ${aoi.lon.toFixed(4)} (Радиус: ${aoi.radius_km} км)`;
-        } else if (aoi.type === 'polygon') {
-            return `Полигон (${aoi.coordinates.length} точек)`;
-        }
-        return 'Неизвестная область';
-    }
-    
-    function renderAnalysisData(data) {
-        resultsContainer.classList.remove('hidden');
-        document.getElementById('analysis-id-display').textContent = `(ID: ${data.analysis_id})`;
-        document.getElementById('results-metadata').innerHTML = `<table class="stats-table"><tr><th>ID Анализа</th><td>${data.analysis_id}</td></tr><tr><th>Время</th><td>${new Date(data.timestamp * 1000).toLocaleString()}</td></tr><tr><th>Область</th><td>${renderAreaOfInterest(data.area_of_interest)}</td></tr><tr><th>Диапазон дат</th><td>${data.date_range.start} - ${data.date_range.end}</td></tr><tr><th>Источник</th><td>${data.metadata.source} (${data.metadata.resolution})</td></tr></table>`;
-        const stats = data.statistics;
-        document.getElementById('results-stats').innerHTML = `<table class="stats-table"><tr><th>Индекс</th><th>Min</th><th>Max</th><th>Mean</th></tr><tr><td><b>NDVI</b></td><td>${stats.ndvi.min.toFixed(3)}</td><td>${stats.ndvi.max.toFixed(3)}</td><td>${stats.ndvi.mean.toFixed(3)}</td></tr><tr><td><b>VARI</b></td><td>${stats.vari.min.toFixed(3)}</td><td>${stats.vari.max.toFixed(3)}</td><td>${stats.vari.mean.toFixed(3)}</td></tr><tr><td><b>Red Ch.</b></td><td>${stats.red_channel.min.toFixed(0)}</td><td>${stats.red_channel.max.toFixed(0)}</td><td>${stats.red_channel.mean.toFixed(0)}</td></tr></table>`;
-        document.getElementById('rgb-image').src = `data:image/jpeg;base64,${data.images.rgb}`;
-        document.getElementById('red-channel-image').src = `data:image/jpeg;base64,${data.images.red_channel}`;
-        document.getElementById('ndvi-image').src = `data:image/jpeg;base64,${data.images.ndvi}`;
-        document.getElementById('vari-image').src = `data:image/jpeg;base64,${data.images.vari}`;
-        resultsContainer.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    // --- API CALLS ---
-    async function apiRequest(endpoint, method = 'GET', body = null) {
-        const url = `${API_BASE_URL}${endpoint}`;
-        const options = { method };
-        if (body) options.body = body;
-        try {
-            const response = await fetch(url, options);
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'HTTP error!' }));
-                throw new Error(errorData.detail || `Request failed with status ${response.status}`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('API Request Error:', error);
-            throw error;
-        }
-    }
-
-    // --- EVENT HANDLERS ---
-    loginForm.addEventListener('submit', async (e) => {
+    // --- ЛОГИКА АВТОРИЗАЦИИ ---
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();
-        hideStatusMessage('auth-status-message');
+        loader.classList.remove('hidden');
         const login = document.getElementById('login-username').value;
         const password = document.getElementById('login-password').value;
-        const url = `/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
         try {
-            const data = await apiRequest(url);
+            const response = await fetch(`${API_BASE_URL}/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`);
+            const data = await response.json();
             if (data.status === 'success') {
-                authToken = data.token;
-                userTokenDisplay.textContent = authToken;
-                authSection.classList.add('hidden');
-                mainApp.classList.remove('hidden');
-                setTimeout(() => initMap(), 100); 
-                fetchPastAnalyses();
-            } else { throw new Error(data.detail); }
-        } catch (error) { showStatusMessage('auth-status-message', `Ошибка входа: ${error.message}`, true); }
-    });
-
-    registerForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        hideStatusMessage('auth-status-message');
-        const params = new URLSearchParams({ login: document.getElementById('register-username').value, password: document.getElementById('register-password').value, first_name: document.getElementById('register-first-name').value, last_name: document.getElementById('register-last-name').value });
-        try {
-            const data = await apiRequest(`/add_user?${params.toString()}`, 'POST');
-            if (data.status === 'success') {
-                showStatusMessage('auth-status-message', 'Регистрация успешна! Теперь вы можете войти.');
-                switchTab('login');
-                registerForm.reset();
-            } else { throw new Error(data.detail); }
-        } catch (error) { showStatusMessage('auth-status-message', `Ошибка регистрации: ${error.message}`, true); }
-    });
-    
-    analysisForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        hideStatusMessage('analysis-status-message');
-        showStatusMessage('analysis-status-message', 'Выполняется анализ... Это может занять до минуты.');
-        const params = new URLSearchParams({ token: authToken, start_date: document.getElementById('start-date').value, end_date: document.getElementById('end-date').value });
-        const analysisType = document.querySelector('input[name="analysis-type"]:checked').value;
-        if (analysisType === 'point') {
-            params.append('lon', lonInput.value);
-            params.append('lat', latInput.value);
-            params.append('radius_km', radiusInput.value);
-        } else {
-            try {
-                const apiCoords = polygonPoints.map(p => [p[1], p[0]]); 
-                if (apiCoords.length < 3) { throw new Error('Для полигона необходимо минимум 3 точки.'); }
-                params.append('polygon_coords', JSON.stringify(apiCoords));
-            } catch (error) {
-                showStatusMessage('analysis-status-message', `Ошибка координат полигона: ${error.message}`, true);
-                return;
+                localStorage.setItem('agro_token', data.token);
+                initializeApp();
+            } else {
+                alert(`Ошибка входа: ${data.detail}`);
             }
+        } catch (error) {
+            alert('Ошибка сети при входе.');
+        } finally {
+            loader.classList.add('hidden');
         }
-        try {
-            const data = await apiRequest(`/analysis/perform?${params.toString()}`, 'POST');
-            if (data.status === 'success') {
-                hideStatusMessage('analysis-status-message');
-                renderAnalysisData(data.data);
-                fetchPastAnalyses();
-            } else { throw new Error(data.detail); }
-        } catch (error) { showStatusMessage('analysis-status-message', `Ошибка анализа: ${error.message}`, true); }
     });
-    
-    analysisTypeRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-            const isPoint = e.target.value === 'point';
-            pointInputSection.classList.toggle('hidden', !isPoint);
-            polygonInputSection.classList.toggle('hidden', isPoint);
-            updateMapVisibility();
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        loader.classList.remove('hidden');
+        const login = document.getElementById('register-username').value;
+        const password = document.getElementById('register-password').value;
+        const first_name = document.getElementById('register-firstname').value;
+        const last_name = document.getElementById('register-lastname').value;
+        try {
+            const url = `${API_BASE_URL}/add_user?login=${login}&password=${password}&first_name=${first_name}&last_name=${last_name}`;
+            const response = await fetch(url, { method: 'POST' });
+            const data = await response.json();
+            if (data.status === 'success') {
+                alert('Регистрация успешна! Теперь вы можете войти.');
+                toggleAuthForms();
+            } else {
+                alert(`Ошибка регистрации: ${data.detail}`);
+            }
+        } catch (error) {
+            alert('Ошибка сети при регистрации.');
+        } finally {
+            loader.classList.add('hidden');
+        }
+    });
+
+    document.getElementById('logout-btn').addEventListener('click', () => {
+        localStorage.removeItem('agro_token');
+        userToken = null;
+        window.location.reload();
+    });
+
+    function toggleAuthForms() {
+        document.getElementById('login-form').classList.toggle('hidden');
+        document.getElementById('register-form').classList.toggle('hidden');
+    }
+    document.getElementById('show-register').addEventListener('click', toggleAuthForms);
+    document.getElementById('show-login').addEventListener('click', toggleAuthForms);
+
+    async function fetchUserProfile() {
+        try {
+            const response = await apiFetch('/users/profile');
+            if (response.status === 'success') {
+                document.getElementById('user-greeting').textContent = `Привет, ${response.user.first_name}!`;
+            }
+        } catch (e) { console.error("Не удалось загрузить профиль"); }
+    }
+
+    // --- ЛОГИКА КАРТЫ ---
+    function initializeMap() {
+        map = L.map('map').setView([55.751244, 37.618423], 7);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
+        drawControl = new L.Control.Draw({
+            edit: { featureGroup: drawnItems, remove: true },
+            draw: {
+                polygon: { allowIntersection: false, showArea: true },
+                polyline: false, rectangle: false, circle: false, marker: false, circlemarker: false
+            }
         });
+        map.addControl(drawControl);
+
+        map.on(L.Draw.Event.CREATED, (event) => {
+            const layer = event.layer;
+            drawnItems.clearLayers();
+            drawnItems.addLayer(layer);
+            
+            const latlngs = layer.getLatLngs()[0];
+            currentPolygon = latlngs.map(p => [p.lng, p.lat]);
+            currentPolygon.push(currentPolygon[0]); // Замыкаем полигон
+            
+            analyzeBtn.disabled = false;
+        });
+
+        map.on(L.Draw.Event.EDITED, (event) => {
+            const layers = event.layers;
+            layers.eachLayer(layer => {
+                 const latlngs = layer.getLatLngs()[0];
+                 currentPolygon = latlngs.map(p => [p.lng, p.lat]);
+                 currentPolygon.push(currentPolygon[0]);
+            });
+            analyzeBtn.disabled = false;
+        });
+        
+        map.on(L.Draw.Event.DELETED, () => {
+             currentPolygon = null;
+             analyzeBtn.disabled = true;
+        });
+    }
+    
+    // --- ДАТЫ ---
+    const dateEndInput = document.getElementById('date-end');
+    const dateStartInput = document.getElementById('date-start');
+    const today = new Date();
+    dateEndInput.value = today.toISOString().split('T')[0];
+    today.setDate(today.getDate() - 7);
+    dateStartInput.value = today.toISOString().split('T')[0];
+
+    // --- ЛОГИКА АНАЛИЗА ---
+    analyzeBtn.addEventListener('click', performAnalysis);
+
+    async function performAnalysis() {
+        if (!currentPolygon) {
+            alert('Пожалуйста, сначала выделите область на карте.');
+            return;
+        }
+        loader.classList.remove('hidden');
+        dashboard.classList.add('hidden');
+        
+        const startDate = dateStartInput.value;
+        const endDate = dateEndInput.value;
+        const polygonJson = JSON.stringify(currentPolygon);
+
+        try {
+            // ИЗМЕНЕНО: URL стал чище, токен добавится в apiFetch
+            const endpoint = `/analysis/perform?start_date=${startDate}&end_date=${endDate}&polygon_coords=${encodeURIComponent(polygonJson)}`;
+            const result = await apiFetch(endpoint, { method: 'POST' });
+
+            if (result.status === 'success') {
+                displayAnalysisResults(result.data);
+                fetchAndDisplayHistory(polygonJson);
+            } else {
+                throw new Error(result.detail);
+            }
+        } catch (error) {
+            alert(`Ошибка анализа: ${error.message}`);
+        } finally {
+            loader.classList.add('hidden');
+        }
+    }
+
+    function displayAnalysisResults(data) {
+        dashboard.classList.remove('hidden');
+        
+        document.getElementById('mean-ndvi-val').textContent = data.statistics.ndvi.mean.toFixed(3);
+        document.getElementById('mean-savi-val').textContent = data.statistics.savi.mean.toFixed(3);
+
+        if (analysisResultLayer) map.removeLayer(analysisResultLayer);
+        
+        const imageUrl = `data:image/jpeg;base64,${data.images.ndvi}`;
+        const polygonForBounds = currentPolygon.map(p => [p[1], p[0]]); // Leaflet ожидает [lat, lng]
+        const bounds = L.latLngBounds(polygonForBounds);
+        analysisResultLayer = L.imageOverlay(imageUrl, bounds, { opacity: 0.7 }).addTo(map);
+        map.fitBounds(bounds);
+
+        const zoningData = data.zoning.ndvi;
+        const ctxZoning = document.getElementById('zoning-chart').getContext('2d');
+        if(zoningChart) zoningChart.destroy();
+        zoningChart = new Chart(ctxZoning, {
+            type: 'doughnut',
+            data: {
+                labels: [`Низкая растительность (${zoningData.low}%)`, `Средняя (${zoningData.medium}%)`, `Высокая (${zoningData.high}%)`],
+                datasets: [{
+                    data: [zoningData.low, zoningData.medium, zoningData.high],
+                    backgroundColor: ['#d9534f', '#f0ad4e', '#5cb85c']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { position: 'top' }, title: { display: true, text: 'Зонирование по NDVI' } }
+            }
+        });
+    }
+
+    async function fetchAndDisplayHistory(polygonJson) {
+         try {
+            const endpoint = `/analysis/timeseries?polygon_coords=${encodeURIComponent(polygonJson)}`;
+            const result = await apiFetch(endpoint);
+            if (result.status !== 'success') return;
+            
+            const historyData = result.data.filter(d => d.mean_ndvi !== null).sort((a,b) => new Date(a.date) - new Date(b.date));
+            const labels = historyData.map(d => d.date);
+            const values = historyData.map(d => d.mean_ndvi);
+
+            const ctxHistory = document.getElementById('history-chart').getContext('2d');
+            if(historyChart) historyChart.destroy();
+            historyChart = new Chart(ctxHistory, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Средний NDVI',
+                        data: values,
+                        borderColor: '#1a73e8',
+                        backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                        fill: true,
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false }, title: { display: true, text: 'Динамика здоровья поля (2 года)' } },
+                    scales: { y: { beginAtZero: false } }
+                }
+            });
+
+         } catch (e) { console.error("Не удалось загрузить историю NDVI:", e); }
+    }
+    
+    // --- УПРАВЛЕНИЕ ПОЛЯМИ ---
+    const savedFieldsSelect = document.getElementById('saved-fields-list');
+
+    async function fetchUserFields() {
+        savedFieldsSelect.innerHTML = '<option value="">Загрузить сохраненное поле...</option>';
+        const data = await apiFetch('/fields/list');
+        if (data.status === 'success') {
+            data.fields.forEach(field => {
+                const option = document.createElement('option');
+                option.value = field.id;
+                option.textContent = field.name;
+                option.dataset.aoi = JSON.stringify(field.area_of_interest);
+                savedFieldsSelect.appendChild(option);
+            });
+        }
+    }
+
+    document.getElementById('save-field-btn').addEventListener('click', async () => {
+        if (!currentPolygon) { alert('Сначала выделите область'); return; }
+        const fieldName = prompt('Введите название поля:');
+        if (fieldName) {
+            const aoi = {type: 'polygon', coordinates: currentPolygon };
+            const endpoint = `/fields/save?field_name=${encodeURIComponent(fieldName)}&area_of_interest=${encodeURIComponent(JSON.stringify(aoi))}`;
+            const result = await apiFetch(endpoint, { method: 'POST' });
+            if(result.status === 'success') { alert('Поле сохранено!'); fetchUserFields(); } 
+            else { alert('Ошибка сохранения поля.'); }
+        }
+    });
+
+    savedFieldsSelect.addEventListener('change', (e) => {
+        const selectedOption = e.target.options[e.target.selectedIndex];
+        if (!selectedOption.value) return;
+
+        const aoi = JSON.parse(selectedOption.dataset.aoi);
+        if (aoi.type === 'polygon') {
+            drawnItems.clearLayers();
+            const latlngs = aoi.coordinates.map(p => [p[1], p[0]]);
+            const polygon = L.polygon(latlngs);
+            drawnItems.addLayer(polygon);
+            map.fitBounds(polygon.getBounds());
+            currentPolygon = aoi.coordinates;
+            analyzeBtn.disabled = false;
+        }
     });
     
-    [latInput, lonInput, radiusInput].forEach(input => input.addEventListener('input', updateMapFromPointInputs));
-    clearPolygonBtn.addEventListener('click', clearPolygon);
-    fetchAnalysesBtn.addEventListener('click', fetchPastAnalyses);
+    document.getElementById('delete-field-btn').addEventListener('click', async () => {
+        const fieldId = savedFieldsSelect.value;
+        if (!fieldId) { alert("Сначала выберите поле для удаления из списка."); return; }
+        if (confirm("Вы уверены, что хотите удалить это поле?")) {
+            const result = await apiFetch(`/fields/${fieldId}`, {method: 'DELETE'});
+            if (result.status === 'success') { alert("Поле удалено."); fetchUserFields(); } 
+            else { alert(`Ошибка удаления: ${result.detail}`); }
+        }
+    });
 
-    async function fetchPastAnalyses() {
-        pastAnalysesList.innerHTML = '<li>Загрузка...</li>';
-        try {
-            const data = await apiRequest(`/analysis/list?token=${authToken}`);
-            if (data.status === 'success') {
-                pastAnalysesList.innerHTML = '';
-                if (data.analyses.length === 0) {
-                     pastAnalysesList.innerHTML = '<li>Вы еще не проводили анализы.</li>';
-                     return;
-                }
-                data.analyses.slice().reverse().forEach(analysis => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<div class="analysis-info"><b>ID:</b> ${analysis.analysis_id} | <b>Дата:</b> ${new Date(analysis.timestamp * 1000).toLocaleDateString()} | <b>Область:</b> ${renderAreaOfInterest(analysis.area_of_interest)}</div><div class="analysis-actions"><button class="btn btn-primary" onclick="viewAnalysis('${analysis.analysis_id}')">Просмотр</button><button class="btn btn-danger" onclick="deleteAnalysis('${analysis.analysis_id}')">Удалить</button></div>`;
-                    pastAnalysesList.appendChild(li);
-                });
-            } else { throw new Error(data.detail); }
-        } catch (error) { pastAnalysesList.innerHTML = `<li>Ошибка загрузки: ${error.message}</li>`; }
-    }
-    
-    async function viewAnalysis(analysisId) {
-        resultsContainer.classList.add('hidden');
-        showStatusMessage('analysis-status-message', `Загрузка данных для анализа ID: ${analysisId}...`);
-        try {
-            const data = await apiRequest(`/analysis/${analysisId}?token=${authToken}`);
-             if (data.status === 'success') {
-                hideStatusMessage('analysis-status-message');
-                renderAnalysisData(data.data);
-            } else { throw new Error(data.detail); }
-        } catch(error) { showStatusMessage('analysis-status-message', `Ошибка при загрузке анализа: ${error.message}`, true); }
-    }
-    
-    async function deleteAnalysis(analysisId) {
-        if (!confirm(`Вы уверены, что хотите удалить анализ с ID: ${analysisId}?`)) return;
-        try {
-            const data = await apiRequest(`/analysis/${analysisId}?token=${authToken}`, 'DELETE');
-            if (data.status === 'success') {
-                alert(data.message);
-                fetchPastAnalyses();
-                if (document.getElementById('analysis-id-display').textContent.includes(analysisId)) {
-                    resultsContainer.classList.add('hidden');
-                }
-            } else { throw new Error(data.detail); }
-        } catch (error) { alert(`Ошибка удаления: ${error.message}`); }
+
+    // --- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ API ---
+    async function apiFetch(endpoint, options = {}) {
+        const defaultHeaders = { 'Accept': 'application/json' };
+
+        // ИСПОЛЬЗУЕМ URLSearchParams для удобной работы с query-параметрами
+        const url = new URL(API_BASE_URL + endpoint.split('?')[0]);
+        const params = new URLSearchParams(endpoint.split('?')[1] || '');
+
+        // Добавляем токен ко всем запросам, кроме get_token и add_user
+        if (!endpoint.startsWith('/get_token') && !endpoint.startsWith('/add_user')) {
+             params.append('token', userToken);
+        }
+        
+        url.search = params.toString();
+
+        const config = {
+            ...options,
+            headers: { ...defaultHeaders, ...options.headers, },
+        };
+        
+        // ИСПОЛЬЗУЕМ ИЗМЕНЕННЫЙ URL С ТОКЕНОМ
+        const response = await fetch(url, config);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: 'Server error' }));
+            throw new Error(errorData.detail || 'Request failed');
+        }
+        return response.json();
     }
 
-    // --- INITIALIZATION ---
-    window.onload = () => {
-        setDateDefaults();
-    };
+
+    // --- ЗАПУСК ПРИЛОЖЕНИЯ ---
+    initializeApp();
+});
 </script>
+
 </body>
 </html>
