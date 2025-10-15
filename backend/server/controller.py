@@ -1,5 +1,7 @@
 # --- START OF FILE controller.py ---
 
+# --- START OF FILE controller.py ---
+
 import uvicorn
 from dbrequest import DatabaseManager # ИЗМЕНЕНО: импортируем новый класс
 import subprocess
@@ -235,6 +237,12 @@ class controller():
         @self.app.delete("/analysis/{analysis_id}")
         async def delete_analysis(analysis_id: str, token: str = Query(...)):
             return await self.func.delete_analysis(token, analysis_id)
+        
+        # <<< --- НАЧАЛО НОВОГО МАРШРУТА --- >>>
+        @self.app.get("/analysis/{analysis_id}/recommendations")
+        async def get_ai_recommendations(analysis_id: str, token: str = Query(...)):
+            return await self.func.get_ai_recommendations(token, analysis_id)
+        # <<< --- КОНЕЦ НОВОГО МАРШРУТА --- >>>
         
         # --- НОВЫЙ МАРШРУТ ---
         @self.app.get("/analysis/timeseries")

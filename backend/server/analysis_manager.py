@@ -1,5 +1,3 @@
-# --- START OF FILE analysis_manager.py ---
-
 import json
 import time
 import logging
@@ -75,6 +73,11 @@ class AnalysisManager:
         vari_map = calculator.calculate_vari()
         vari_stats = {'min': float(np.nanmin(vari_map)), 'max': float(np.nanmax(vari_map)), 'mean': float(np.nanmean(vari_map)), 'std': float(np.nanstd(vari_map))}
         indices_data['vari'] = {'map': vari_map, 'stats': vari_stats}
+        
+        # EVI
+        evi_map = calculator.calculate_evi()
+        evi_stats = {'min': float(np.nanmin(evi_map)), 'max': float(np.nanmax(evi_map)), 'mean': float(np.nanmean(evi_map)), 'std': float(np.nanstd(evi_map))}
+        indices_data['evi'] = {'map': evi_map, 'stats': evi_stats}
         
         return indices_data
     
@@ -176,12 +179,14 @@ class AnalysisManager:
                         'rgb': self._array_to_base64(image_data['rgb_image']),
                         'ndvi': self._array_to_base64(indices['ndvi']['map']),
                         'savi': self._array_to_base64(indices['savi']['map']),
-                        'vari': self._array_to_base64(indices['vari']['map'])
+                        'vari': self._array_to_base64(indices['vari']['map']),
+                        'evi': self._array_to_base64(indices['evi']['map'])
                     },
                     'statistics': {
                         'ndvi': indices['ndvi']['stats'],
                         'savi': indices['savi']['stats'],
-                        'vari': indices['vari']['stats']
+                        'vari': indices['vari']['stats'],
+                        'evi': indices['evi']['stats']
                     },
                     'zoning': {
                         'ndvi': indices['ndvi']['zones']
@@ -226,11 +231,14 @@ class AnalysisManager:
             
             avg_ndvi = 0
             avg_vari = 0
+            avg_evi = 0
             if analysis_data.get('image_count', 0) > 0:
                 ndvis = [r['statistics']['ndvi']['mean'] for r in analysis_data['results_per_image']]
                 varis = [r['statistics']['vari']['mean'] for r in analysis_data['results_per_image']]
+                evis = [r['statistics']['evi']['mean'] for r in analysis_data['results_per_image']]
                 avg_ndvi = sum(ndvis) / len(ndvis) if ndvis else 0
                 avg_vari = sum(varis) / len(varis) if varis else 0
+                avg_evi = sum(evis) / len(evis) if evis else 0
 
             new_analysis = {
                 'analysis_id': analysis_id,
@@ -240,7 +248,8 @@ class AnalysisManager:
                 'image_count': analysis_data.get('image_count', 0),
                 'statistics_summary': {
                     'ndvi_mean': avg_ndvi,
-                    'vari_mean': avg_vari
+                    'vari_mean': avg_vari,
+                    'evi_mean': avg_evi
                 }
             }
             
