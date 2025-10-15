@@ -518,7 +518,7 @@
                 imageResultsContainer: document.getElementById('image-results-container'),
                 historicalNdviChartCanvas: document.getElementById('historical-ndvi-chart'),
                 indicesDynamicsChartCanvas: document.getElementById('indices-dynamics-chart'),
-                // <<< --- ИЗМЕНЕНИЕ: Ссылка на кнопку удалена --- >>>
+                // <<< --- ИЗМЕНЕНИЕ: Ссылка на кнопку удалена, ссылка на контент осталась --- >>>
                 aiRecommendationContent: document.getElementById('ai-recommendation-content'),
             };
 
@@ -715,7 +715,7 @@
                 }
             }
 
-            // <<< --- НАЧАЛО НОВОЙ ФУНКЦИИ --- >>>
+            // <<< --- НАЧАЛО НОВОЙ ФУНКЦИИ ДЛЯ АВТОМАТИЧЕСКОЙ ЗАГРУЗКИ AI-РЕКОМЕНДАЦИЙ --- >>>
             async function fetchAndRenderAIRecommendation(analysisId) {
                 const contentDiv = dom.aiRecommendationContent;
                 contentDiv.innerHTML = '<i>Пожалуйста, подождите, нейросеть анализирует данные...</i>';
@@ -1119,7 +1119,7 @@
                 }
             }
             
-            // <<< --- ИЗМЕНЕНИЕ: Обработчик клика по кнопке удален --- >>>
+            // <<< --- ИЗМЕНЕНИЕ: Обработчик клика по старой кнопке AI удален, т.к. кнопки больше нет --- >>>
 
             // Модальное окно
             dom.modalCloseButton.addEventListener('click', () => {
