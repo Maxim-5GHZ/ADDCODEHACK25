@@ -79,6 +79,3 @@ class GigaChatService:
         except Exception as e:
             logger.error(f"Ошибка при взаимодействии с API GigaChat: {e}")
             return f"Не удалось получить AI-рекомендации. Ошибка: {e}"
-    # <<< --- КОНЕЦ ИЗМЕНЕНИЙ --- >>>
-
-# --- END OF NEW FILE gigachat_service.py ---
