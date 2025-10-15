@@ -64,6 +64,15 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
     }
   };
 
+  // Функция для проверки количества вершин в полигоне
+  const getVertexCount = (geometry) => {
+    if (geometry.getType() === 'Polygon') {
+      const coordinates = geometry.getCoordinates()[0];
+      return coordinates.length - 1; // -1 потому что первая и последняя точка одинаковы
+    }
+    return 0;
+  };
+
   // Функция для очистки выделения
   const clearSelection = () => {
     vectorSource.current.clear();
@@ -105,6 +114,14 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
     }
   };
 
+  // Функция для завершения рисования по Enter
+  const handleKeyPress = (event) => {
+    if (event.key === 'Enter' && drawInteraction.current) {
+      // Завершаем рисование
+      drawInteraction.current.finishDrawing();
+    }
+  };
+
   const setupDrawInteraction = () => {
     if (!mapInstance.current || hasGeometry) return;
 
@@ -141,6 +158,9 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
         }
       });
 
+      // Добавляем обработчик нажатия клавиш
+      mapInstance.current.getTargetElement().addEventListener('keydown', handleKeyPress);
+      
       mapInstance.current.addInteraction(drawInteraction.current);
     } else if (fieldType === 'point') {
       drawInteraction.current = new Draw({
@@ -209,8 +229,24 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
       })
     });
 
+    // Создаем модификацию с ограничением на добавление вершин
     const modify = new Modify({
-      source: vectorSource.current
+      source: vectorSource.current,
+      insertVertexCondition: (event) => {
+        // Проверяем, можно ли добавлять вершины
+        const features = event.features;
+        if (features.getLength() > 0) {
+          const feature = features.item(0);
+          const geometry = feature.getGeometry();
+          
+          // Для полигонов ограничиваем количество вершин до 5
+          if (geometry.getType() === 'Polygon') {
+            const vertexCount = getVertexCount(geometry);
+            return vertexCount < 5; // Разрешаем добавление только если вершин меньше 5
+          }
+        }
+        return true; // Для других типов геометрии разрешаем добавление
+      }
     });
     
     modify.on('modifyend', (event) => {
@@ -226,6 +262,8 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
 
     return () => {
       if (mapInstance.current) {
+        // Удаляем обработчик клавиш
+        mapInstance.current.getTargetElement().removeEventListener('keydown', handleKeyPress);
         mapInstance.current.setTarget(null);
       }
     };
@@ -255,6 +293,7 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
       <div 
         ref={mapRef} 
         className="w-full h-full cursor-pointer"
+        tabIndex={0} // Добавляем tabIndex для возможности фокуса и обработки клавиш
       />
       {hasGeometry && (
         <button
