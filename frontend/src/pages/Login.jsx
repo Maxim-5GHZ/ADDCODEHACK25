@@ -2,45 +2,67 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom"
 import logoImage from "../assets/logo.svg"
-import { getCookie, setCookie } from "../utils/cookies";
-import { getToken } from "../utils/fetch";
+import { getCookie, setCookie, isValidToken } from "../utils/cookies";
+import { getToken, validateToken } from "../utils/fetch";
 import { BarLoader } from "react-spinners";
 
 function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
 
     const navigate = useNavigate();
+    
     useEffect(() => {
-        const checkAuth = () => {
+        const checkAuth = async () => {
             const token = getCookie("token");
             console.log(`Token: ${token}`)
 
-            if (token) {
-                navigate("/profile");   
+            if (token && isValidToken(token)) {
+                try {
+                    // Дополнительная проверка токена на сервере
+                    const isValid = await validateToken(token);
+                    if (isValid) {
+                        navigate("/profile");   
+                    } else {
+                        // Токен невалиден, удаляем его
+                        deleteCookie("token");
+                    }
+                } catch (error) {
+                    console.error("Token validation failed:", error);
+                    deleteCookie("token");
+                }
             }
         }
 
         checkAuth();
-    }, [])
+    }, [navigate])
 
     const handleLogin = async () => {
         try{
             setIsLoading(true);
+            setError("");
             const token = await getToken(email, password);
-            setTimeout(2000);
-            setCookie("token", token, 7);
-            navigate("/profile");
+            
+            // Проверяем, что токен валиден перед сохранением
+            if (token && isValidToken(token)) {
+                setCookie("token", token, 7);
+                navigate("/profile");
+            } else {
+                throw new Error("Получен невалидный токен от сервера");
+            }
         }
-        catch {
+        catch (error) {
             setIsLoading(false);
-            console.log("Error");
+            setError(error.message || "Ошибка входа. Проверьте email и пароль.");
+            console.log("Login error:", error);
         }
         finally {
             setIsLoading(false);
         }
     }
+    
     return (
         <>
             <div className="absolute h-[100vh] w-[100vw] bg-[var(--neutral-color)] -z-1">
@@ -59,6 +81,14 @@ function Login() {
                             Вход
                         </h1>
                     </div>
+                    
+                    {/* Показываем ошибку, если есть */}
+                    {error && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                            {error}
+                        </div>
+                    )}
+                    
                     <form method="post" className="flex flex-col justify-center space-y-8">
                         <div className="flex flex-col w-full">
                             <label htmlFor="email" className="text-2xl md:text-3xl ml-4 mb-2 text-[var(--neutral-dark-color)]">

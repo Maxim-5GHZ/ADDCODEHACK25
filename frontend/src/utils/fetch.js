@@ -12,23 +12,51 @@ async function getMainPage() {
     return fetch(`${API_BASE}/`);
 }
 
-async function getToken(login, password) {
-    const response = await fetch(
-        `${API_BASE}/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`
-    );
-    
-    if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    
-    if (data.status === "success") {
-        return data.token;
-    } else {
-        throw new Error(data.message || "Failed to get token");
+async function validateToken(token) {
+    try {
+        const response = await fetch(`${API_BASE}/users/profile?token=${encodeURIComponent(token)}`);
+        
+        if (!response.ok) {
+            return false;
+        }
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            return data.status === 'success';
+        }
+        
+        return false;
+    } catch (error) {
+        console.error('Token validation error:', error);
+        return false;
     }
 }
+
+async function getToken(login, password) {
+    try {
+        const response = await fetch(
+            `${API_BASE}/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`
+        );
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || `HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.status === "success") {
+            return data.token;
+        } else {
+            throw new Error(data.message || "Failed to get token");
+        }
+    } catch (error) {
+        console.error('Error getting token:', error);
+        throw error;
+    }
+}
+
 
 async function registerUser(login, password, firstName, lastName) {
     return fetch(`${API_BASE}/add_user?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}&first_name=${encodeURIComponent(firstName)}&last_name=${encodeURIComponent(lastName)}`, {
@@ -158,6 +186,7 @@ export {
     healthCheck,
     getLogs,
     getMainPage,
+    validateToken,
     getToken,
     registerUser,
     getAllUsers,

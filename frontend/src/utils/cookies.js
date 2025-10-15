@@ -13,3 +13,18 @@ export const getCookie = (name) => {
 export const deleteCookie = (name) => {
   document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
 };
+
+export const isValidToken = (token) => {
+  if (!token) return false;
+  
+  try {
+    // Если токен в формате JWT
+    if (token.split('.').length === 3) {
+      return true;
+    }
+    // Другие проверки
+    return token.length > 10;
+  } catch {
+    return false;
+  }
+};

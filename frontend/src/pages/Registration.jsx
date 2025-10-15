@@ -6,6 +6,26 @@ import { getCookie, setCookie } from "../utils/cookies"
 import { registerUser, getToken } from "../utils/fetch"
 
 function Registration() {
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = getCookie("token");
+            if (token && isValidToken(token)) {
+                try {
+                    const isValid = await validateToken(token);
+                    if (isValid) {
+                        navigate("/profile");
+                    } else {
+                        deleteCookie("token");
+                    }
+                } catch (error) {
+                    console.error("Token validation failed:", error);
+                    deleteCookie("token");
+                }
+            }
+        }
+        checkAuth();
+    }, [navigate])
+
     const navigate = useNavigate();
     useEffect(() => {
         const checkAuth = () => {
