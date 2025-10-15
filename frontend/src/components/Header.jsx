@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import logoSVG from "../assets/logo.svg"
 import { getCookie } from "../utils/cookies";
+import { getUserProfile } from "../utils/fetch";
 
 function Header({ isTransparent }) {
     const [user, setUser] = useState(null);
@@ -9,15 +10,29 @@ function Header({ isTransparent }) {
     let svgStyle = isTransparent ? "stroke-[var(--neutral-color)] group-hover:stroke-[var(--accent-color)]" : "stroke-[var(--neutral-dark-color)] group-hover:stroke-[var(--accent-dark-color)]";
     
     useEffect(() => {
-        const checkAuth = () => {
+        const checkAuth = async () => {
             const token = getCookie('token');
             
             if (token) {
-                // Временная заглушка
-                setUser({
-                    name: "Иван",
-                    surname: "Иванов"
-                });
+                try {
+                    const response = await getUserProfile(token);
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.status === "success") {
+                            setUser(data.user);
+                        } else {
+                            // Если токен невалидный, очищаем пользователя
+                            setUser(null);
+                        }
+                    } else {
+                        // Если ошибка сервера, очищаем пользователя
+                        setUser(null);
+                    }
+                } catch (error) {
+                    console.error("Ошибка при получении профиля:", error);
+                    setUser(null);
+                }
             } else {
                 setUser(null);
             }
@@ -58,7 +73,7 @@ function Header({ isTransparent }) {
                             <Link to="/profile" className={`group ${navButtonsStyle} text-3xl transition-colors duration-100`}>
                                 <div className="flex flex-row items-center">
                                     <p>
-                                        {user.name} {user.surname}
+                                        {user.first_name} {user.last_name}
                                     </p>
                                     <div className="w-20 h-20 bg-transparent flex items-center justify-center">
                                         {/* SVG аватар */}
