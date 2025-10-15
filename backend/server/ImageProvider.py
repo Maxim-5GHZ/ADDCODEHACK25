@@ -1,4 +1,3 @@
-# --- START OF FILE ImageProvider.py ---
 
 import os
 import cv2
@@ -11,6 +10,9 @@ from gee_initializer import GEEInitializer  # Добавляем импорт
 
 
 class ImageProvider:
+    # --- НОВОЕ: Добавляем константу для фильтрации облачности ---
+    CLOUD_FILTER_PERCENTAGE = 30
+
     def __init__(self, rgb_image_path: str = None, nir_image_path: str = None):
         self.rgb_image, self.red_channel, self.green_channel, self.blue_channel, self.nir_channel = None, None, None, None, None
         self.cloud_percentage = None
@@ -67,12 +69,15 @@ class ImageProvider:
 
         collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
                       .filterBounds(area_of_interest)
-                      .filterDate(start_date, end_date))
+                      .filterDate(start_date, end_date)
+                      # --- ИЗМЕНЕНИЕ: Добавляем фильтр по проценту облачности ---
+                      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cls.CLOUD_FILTER_PERCENTAGE)))
 
         image_count = collection.size().getInfo()
-        print(f"Найдено изображений в коллекции: {image_count}")
+        print(f"Найдено изображений в коллекции (с облачностью < {cls.CLOUD_FILTER_PERCENTAGE}%): {image_count}")
         if image_count == 0:
-            raise FileNotFoundError("Не найдено снимков за указанный период. Попробуйте расширить диапазон дат.")
+            # --- ИЗМЕНЕНИЕ: Улучшаем сообщение об ошибке ---
+            raise FileNotFoundError(f"Не найдено снимков за указанный период с облачностью менее {cls.CLOUD_FILTER_PERCENTAGE}%. Попробуйте расширить диапазон дат.")
 
         # Шаг 1: Получаем только базовые метаданные в одном безопасном запросе.
         def get_metadata(image):
@@ -160,7 +165,9 @@ class ImageProvider:
 
         collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
                       .filterBounds(area_of_interest)
-                      .filterDate(start_date, end_date))
+                      .filterDate(start_date, end_date)
+                      # --- ИЗМЕНЕНИЕ: Добавляем фильтр по проценту облачности ---
+                      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cls.CLOUD_FILTER_PERCENTAGE)))
 
         # Сортировка и выбор первого элемента ВЫПОЛНЯЮТСЯ НА СЕРВЕРЕ GEE
         cleanest_image = ee.Image(collection.sort('CLOUDY_PIXEL_PERCENTAGE').first()).clip(area_of_interest)
@@ -170,7 +177,8 @@ class ImageProvider:
             cloud_percentage = cleanest_image.get('CLOUDY_PIXEL_PERCENTAGE').getInfo()
         except ee.EEException as e:
             if 'dictionary is empty' in str(e).lower():
-                 raise FileNotFoundError("Не найдено снимков за указанный период. Попробуйте расширить диапазон дат.")
+                 # --- ИЗМЕНЕНИЕ: Улучшаем сообщение об ошибке ---
+                 raise FileNotFoundError(f"Не найдено снимков за указанный период с облачностью менее {cls.CLOUD_FILTER_PERCENTAGE}%. Попробуйте расширить диапазон дат.")
             raise e
 
         print(f"Выбран самый чистый снимок с облачностью: {cloud_percentage:.2f}%")
@@ -234,6 +242,9 @@ class ImageProvider:
             monthly_data = years.map(process_year).flatten()
             return monthly_data.removeAll([None]).getInfo()
 
-        collection = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED').filterBounds(area_of_interest)
+        # --- ИЗМЕНЕНИЕ: Добавляем фильтр по облачности и сюда ---
+        collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+                      .filterBounds(area_of_interest)
+                      .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cls.CLOUD_FILTER_PERCENTAGE)))
         historical_data = calculate_monthly_mean(collection)
         return historical_data
