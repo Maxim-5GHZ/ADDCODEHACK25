@@ -441,15 +441,18 @@
             <button class="modal-close-button">&times;</button>
             <h2 id="modal-title">Результаты анализа</h2>
             <div class="modal-body">
-                <!-- <<< --- НАЧАЛО НОВЫХ ЭЛЕМЕНТОВ --- >>> -->
                 <div class="card">
                     <h4>Анализ и рекомендации от AI</h4>
-                    <button id="get-ai-recommendation-btn">Получить AI-рекомендации</button>
-                    <div id="ai-recommendation-content" style="margin-top: 1rem; white-space: pre-wrap;">
+                    <!-- <<< --- ИЗМЕНЕНИЕ: Кнопка удалена, остался только контейнер для контента --- >>> -->
+                    <div id="ai-recommendation-content" style="white-space: pre-wrap;">
                         <!-- Сюда будет загружен ответ от GigaChat -->
                     </div>
                 </div>
-                <!-- <<< --- КОНЕЦ НОВЫХ ЭЛЕМЕНТОВ --- >>> -->
+                
+                <div class="card">
+                    <h4>Динамика вегетационных индексов (за выбранный период)</h4>
+                    <canvas id="indices-dynamics-chart"></canvas>
+                </div>
 
                 <div class="card">
                     <h4>Динамика среднего NDVI (за 2 года)</h4>
@@ -482,8 +485,9 @@
                 drawnItems: null,
                 currentGeometry: null,
                 historicalChart: null,
+                dynamicsChart: null,
                 zoningCharts: {},
-                currentAnalysisId: null, // <<< --- НОВОЕ СВОЙСТВО
+                currentAnalysisId: null,
             };
 
             // -------------------
@@ -513,10 +517,9 @@
                 modalTitle: document.getElementById('modal-title'),
                 imageResultsContainer: document.getElementById('image-results-container'),
                 historicalNdviChartCanvas: document.getElementById('historical-ndvi-chart'),
-                // <<< --- НАЧАЛО НОВЫХ DOM-ЭЛЕМЕНТОВ --- >>>
-                getAiRecommendationBtn: document.getElementById('get-ai-recommendation-btn'),
+                indicesDynamicsChartCanvas: document.getElementById('indices-dynamics-chart'),
+                // <<< --- ИЗМЕНЕНИЕ: Ссылка на кнопку удалена --- >>>
                 aiRecommendationContent: document.getElementById('ai-recommendation-content'),
-                // <<< --- КОНЕЦ НОВЫХ DOM-ЭЛЕМЕНТОВ --- >>>
             };
 
             // -------------------
@@ -712,17 +715,43 @@
                 }
             }
 
+            // <<< --- НАЧАЛО НОВОЙ ФУНКЦИИ --- >>>
+            async function fetchAndRenderAIRecommendation(analysisId) {
+                const contentDiv = dom.aiRecommendationContent;
+                contentDiv.innerHTML = '<i>Пожалуйста, подождите, нейросеть анализирует данные...</i>';
+                
+                // Используем try-catch, чтобы не показывать глобальный loader при ошибке, 
+                // а вывести ее в модальном окне
+                try {
+                    // Создаем новый запрос без глобального loader'а
+                    const url = `${API_BASE_URL}/analysis/${analysisId}/recommendations?token=${state.token}`;
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.detail || 'Не удалось получить рекомендации');
+                    }
+                    
+                    if (data.status === 'success') {
+                        contentDiv.textContent = data.recommendation;
+                    } else {
+                        throw new Error(data.detail || 'Не удалось получить рекомендации');
+                    }
+                } catch (error) {
+                    contentDiv.innerHTML = `<span style="color: var(--error-color);">Ошибка при получении AI-рекомендаций: ${error.message}</span>`;
+                }
+            }
+            // <<< --- КОНЕЦ НОВОЙ ФУНКЦИИ --- >>>
+
+
             function renderAnalysisResults(data) {
-                // <<< --- ИЗМЕНЕНИЕ: СОХРАНЯЕМ ID ТЕКУЩЕГО АНАЛИЗА --- >>>
                 state.currentAnalysisId = data.analysis_id;
 
                 dom.modalTitle.textContent = `Результаты анализа от ${new Date(data.timestamp * 1000).toLocaleString()}`;
                 dom.imageResultsContainer.innerHTML = '';
 
-                // <<< --- ИЗМЕНЕНИЕ: ОЧИЩАЕМ СТАРЫЕ РЕКОМЕНДАЦИИ --- >>>
-                dom.aiRecommendationContent.innerHTML = '';
-                dom.getAiRecommendationBtn.disabled = false;
-                dom.getAiRecommendationBtn.textContent = 'Получить AI-рекомендации';
+                // <<< --- ИЗМЕНЕНИЕ: Автоматически запускаем получение AI-рекомендаций --- >>>
+                fetchAndRenderAIRecommendation(data.analysis_id);
 
                 if(data.results_per_image && data.results_per_image.length > 0) {
                     data.results_per_image.forEach((result, index) => {
@@ -791,9 +820,79 @@
                      dom.imageResultsContainer.innerHTML = '<p>Не найдено снимков для анализа за указанный период.</p>';
                 }
                 
-                // Запрос и отрисовка исторического графика
+                renderIndicesDynamicsChart(data.results_per_image);
                 fetchAndRenderHistoricalNdvi(data.area_of_interest);
                 dom.resultsModal.classList.remove('hidden');
+            }
+
+            function renderIndicesDynamicsChart(results) {
+                if (!results || results.length === 0) {
+                    dom.indicesDynamicsChartCanvas.style.display = 'none';
+                    return;
+                }
+                dom.indicesDynamicsChartCanvas.style.display = 'block';
+
+                const labels = results.map(r => r.date);
+                const ndviData = results.map(r => r.statistics.ndvi.mean);
+                const saviData = results.map(r => r.statistics.savi.mean);
+                const eviData = results.map(r => r.statistics.evi.mean);
+                const variData = results.map(r => r.statistics.vari.mean);
+
+                if (state.dynamicsChart) {
+                    state.dynamicsChart.destroy();
+                }
+
+                const ctx = dom.indicesDynamicsChartCanvas.getContext('2d');
+                state.dynamicsChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'NDVI',
+                                data: ndviData,
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1,
+                                fill: false
+                            },
+                            {
+                                label: 'SAVI',
+                                data: saviData,
+                                borderColor: 'rgb(255, 159, 64)',
+                                tension: 0.1,
+                                fill: false
+                            },
+                            {
+                                label: 'EVI',
+                                data: eviData,
+                                borderColor: 'rgb(153, 102, 255)',
+                                tension: 0.1,
+                                fill: false
+                            },
+                             {
+                                label: 'VARI',
+                                data: variData,
+                                borderColor: 'rgb(255, 99, 132)',
+                                tension: 0.1,
+                                fill: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                title: { display: true, text: 'Значение индекса' }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                        }
+                    }
+                });
             }
 
             async function fetchAndRenderHistoricalNdvi(area_of_interest) {
@@ -1019,37 +1118,8 @@
                     console.error('Failed to delete analysis');
                 }
             }
-
-            // <<< --- НАЧАЛО НОВОГО ОБРАБОТЧИКА --- >>>
-            dom.getAiRecommendationBtn.addEventListener('click', async () => {
-                if (!state.currentAnalysisId) {
-                    showToast('Не выбран анализ для получения рекомендаций.', 'error');
-                    return;
-                }
-                
-                const btn = dom.getAiRecommendationBtn;
-                const contentDiv = dom.aiRecommendationContent;
-                
-                btn.disabled = true;
-                btn.textContent = 'Идет генерация...';
-                contentDiv.innerHTML = '<i>Пожалуйста, подождите, нейросеть анализирует данные...</i>';
-
-                try {
-                    const response = await apiRequest(`/analysis/${state.currentAnalysisId}/recommendations?token=${state.token}`);
-                    if(response.status === 'success') {
-                        // Используем pre-wrap в CSS, чтобы сохранить форматирование (переносы строк, списки)
-                        contentDiv.textContent = response.recommendation;
-                    } else {
-                        throw new Error(response.detail || 'Не удалось получить рекомендации');
-                    }
-                } catch (error) {
-                    contentDiv.innerHTML = `<span style="color: var(--error-color);">Ошибка: ${error.message}</span>`;
-                } finally {
-                    btn.disabled = false;
-                    btn.textContent = 'Получить AI-рекомендации';
-                }
-            });
-            // <<< --- КОНЕЦ НОВОГО ОБРАБОТЧИКА --- >>>
+            
+            // <<< --- ИЗМЕНЕНИЕ: Обработчик клика по кнопке удален --- >>>
 
             // Модальное окно
             dom.modalCloseButton.addEventListener('click', () => {
@@ -1082,3 +1152,4 @@
     </script>
 </body>
 </html>
+--- END OF FILE index.html ---
