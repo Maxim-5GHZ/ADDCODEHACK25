@@ -6,22 +6,21 @@ import logging
 from typing import Dict, List, Optional
 from ImageProvider import ImageProvider
 from index_calculator import VegetationIndexCalculator
+from gee_initializer import GEEInitializer  # Добавляем импорт
 import numpy as np
 import base64
 from io import BytesIO
 from PIL import Image
+import ee
 
 logger = logging.getLogger(__name__)
 
 class AnalysisManager:
-    # --- ИЗМЕНЕНО: Принимаем один db_manager ---
     def __init__(self, db_manager):
         self.db = db_manager
-    # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     def _get_user_data_object(self, token: str) -> dict:
         """Вспомогательная функция для получения и парсинга данных пользователя."""
-        # ИЗМЕНЕНО
         data_str = self.db.get_user_data(token)
         if data_str:
             try:
@@ -38,13 +37,11 @@ class AnalysisManager:
         """Вспомогательная функция для сохранения объекта данных пользователя."""
         try:
             data_str = json.dumps(data_obj)
-            # ИЗМЕНЕНО
             return self.db.save_user_data(token, data_str)
         except Exception as e:
             logger.error(f"Ошибка при сериализации и сохранении данных для токена {token}: {e}")
             return False
             
-    # --- НОВЫЙ МЕТОД ---
     def _calculate_zones(self, index_map: np.ndarray, thresholds: Dict[str, List[float]]) -> Dict:
         """Разделяет карту индекса на зоны и вычисляет их процентное соотношение."""
         total_pixels = index_map.size
@@ -59,17 +56,8 @@ class AnalysisManager:
             
         return zones
 
-    # --- ИЗМЕНЕННЫЙ МЕТОД ---
-    def _calculate_all_indices(self, provider: ImageProvider) -> Dict:
-        """Вычисляет все вегетационные индексы и их статистику."""
-        calculator = VegetationIndexCalculator(
-            rgb_image=provider.rgb_image,
-            red_channel=provider.red_channel,
-            green_channel=provider.green_channel,
-            blue_channel=provider.blue_channel,
-            nir_channel=provider.nir_channel
-        )
-        
+    def _calculate_all_indices(self, calculator: VegetationIndexCalculator) -> Dict:
+        """Вычисляет все вегетационные индексы и их статистику на основе калькулятора."""
         indices_data = {}
         
         # NDVI
@@ -116,14 +104,11 @@ class AnalysisManager:
             return ""
     
     def _save_analysis_data(self, token: str, analysis_id: str, analysis_data: Dict) -> bool:
-        """Сохраняет данные анализа в базу данных."""
+        """
+        Сохраняет ПОЛНЫЕ данные анализа (включая изображения) в базу данных.
+        """
         try:
-            analysis_data_for_storage = analysis_data.copy()
-            if 'images' in analysis_data_for_storage:
-                del analysis_data_for_storage['images'] # Не храним base64 в данных анализа
-            
-            analysis_data_serialized = json.dumps(analysis_data_for_storage, default=str)
-            # ИЗМЕНЕНО
+            analysis_data_serialized = json.dumps(analysis_data, default=str)
             return self.db.save_analysis_data(token, analysis_id, analysis_data_serialized)
         except Exception as e:
             logger.error(f"Ошибка сохранения анализа: {e}")
@@ -132,7 +117,6 @@ class AnalysisManager:
     def _load_analysis_data(self, token: str, analysis_id: str) -> Optional[Dict]:
         """Загружает данные анализа из базы данных."""
         try:
-            # ИЗМЕНЕНО
             data = self.db.get_analysis_data(token, analysis_id)
             if data: return json.loads(data)
             return None
@@ -140,70 +124,99 @@ class AnalysisManager:
             logger.error(f"Ошибка загрузки анализа: {e}")
             return None
     
-    # --- ИЗМЕНЕННЫЙ МЕТОД ---
     def perform_complete_analysis(self, token: str, start_date: str, end_date: str, 
                                 lon: Optional[float] = None, lat: Optional[float] = None, 
                                 radius_km: float = 0.5, 
                                 polygon_coords: Optional[List[List[float]]] = None) -> Dict:
-        """Выполняет полный анализ и сохраняет результаты"""
+        """
+        Выполняет анализ ВСЕХ снимков за период и сохраняет агрегированный результат.
+        """
         try:
+            # Гарантируем инициализацию GEE перед использованием
+            GEEInitializer.initialize_gee()
+            
             area_info = {}
+            area_of_interest = None
             if polygon_coords:
                 area_info = {'type': 'polygon', 'coordinates': polygon_coords}
-                logger.info(f"Запуск полного анализа для полигона...")
+                area_of_interest = ee.Geometry.Polygon(polygon_coords)
+                logger.info(f"Запуск анализа коллекции для полигона...")
             elif lon is not None and lat is not None:
                 area_info = {'type': 'point_radius', 'lon': lon, 'lat': lat, 'radius_km': radius_km}
-                logger.info(f"Запуск полного анализа для координат: {lon}, {lat} с радиусом {radius_km} км")
+                point = ee.Geometry.Point([lon, lat])
+                area_of_interest = point.buffer(radius_km * 1000).bounds()
+                logger.info(f"Запуск анализа коллекции для: {lon}, {lat} с радиусом {radius_km} км")
             else:
                 raise ValueError("Не указана область для анализа (ни точка с радиусом, ни полигон).")
 
-            provider = ImageProvider.from_gee(
+            # Шаг 1: Получаем все данные по всем снимкам
+            image_data_list = ImageProvider.get_images_from_gee_collection(
                 start_date=start_date, end_date=end_date,
-                lon=lon, lat=lat, radius_km=radius_km,
-                polygon_coords=polygon_coords
+                area_of_interest=area_of_interest
             )
             
-            indices = self._calculate_all_indices(provider)
+            all_results = []
             
+            # Шаг 2: Обрабатываем каждый снимок
+            for image_data in image_data_list:
+                calculator = VegetationIndexCalculator(
+                    rgb_image=image_data['rgb_image'],
+                    red_channel=image_data['red_channel'],
+                    green_channel=image_data['green_channel'],
+                    blue_channel=image_data['blue_channel'],
+                    nir_channel=image_data['nir_channel']
+                )
+                
+                indices = self._calculate_all_indices(calculator)
+                
+                single_image_result = {
+                    'date': image_data['date'],
+                    'cloud_coverage': image_data['cloud_percentage'],
+                    'images': {
+                        'rgb': self._array_to_base64(image_data['rgb_image']),
+                        'ndvi': self._array_to_base64(indices['ndvi']['map']),
+                        'savi': self._array_to_base64(indices['savi']['map']),
+                        'vari': self._array_to_base64(indices['vari']['map'])
+                    },
+                    'statistics': {
+                        'ndvi': indices['ndvi']['stats'],
+                        'savi': indices['savi']['stats'],
+                        'vari': indices['vari']['stats']
+                    },
+                    'zoning': {
+                        'ndvi': indices['ndvi']['zones']
+                    }
+                }
+                all_results.append(single_image_result)
+
+            # Шаг 3: Собираем финальный ответ
             analysis_id = str(int(time.time()))
             
-            # Данные для ответа клиенту, включая изображения
+            all_results.sort(key=lambda x: x['date'])
+            
             analysis_data_response = {
                 'analysis_id': analysis_id,
                 'timestamp': time.time(),
                 'area_of_interest': area_info,
                 'date_range': {'start': start_date, 'end': end_date},
-                'images': {
-                    'rgb': self._array_to_base64(provider.rgb_image),
-                    'ndvi': self._array_to_base64(indices['ndvi']['map']),
-                    'savi': self._array_to_base64(indices['savi']['map']),
-                    'vari': self._array_to_base64(indices['vari']['map'])
-                },
-                'statistics': {
-                    'ndvi': indices['ndvi']['stats'],
-                    'savi': indices['savi']['stats'],
-                    'vari': indices['vari']['stats']
-                },
-                'zoning': { # Добавлено
-                    'ndvi': indices['ndvi']['zones']
-                },
-                'metadata': { # Добавлено
-                    'cloud_coverage': provider.cloud_percentage if hasattr(provider, 'cloud_percentage') else 'unknown',
+                'image_count': len(all_results),
+                'results_per_image': all_results,
+                'metadata': {
                     'resolution': '10m',
                     'source': 'Sentinel-2'
                 }
             }
             
-            # Сохраняем данные в БД (без тяжелых base64 изображений)
+            # Шаг 4: Сохраняем результат
             if self._save_analysis_data(token, analysis_id, analysis_data_response):
                 self._update_user_analyses_list(token, analysis_id, analysis_data_response)
-                logger.info(f"Анализ {analysis_id} успешно сохранен")
+                logger.info(f"Анализ коллекции {analysis_id} успешно сохранен")
                 return {'status': 'success', 'analysis_id': analysis_id, 'data': analysis_data_response}
             else:
                 raise Exception("Не удалось сохранить анализ")
                 
         except Exception as e:
-            logger.error(f"Ошибка при выполнении анализа: {e}")
+            logger.error(f"Ошибка при выполнении анализа коллекции: {e}")
             return {'status': 'error', 'detail': str(e)}
     
     def _update_user_analyses_list(self, token: str, analysis_id: str, analysis_data: Dict):
@@ -211,14 +224,23 @@ class AnalysisManager:
         try:
             user_data_obj = self._get_user_data_object(token)
             
+            avg_ndvi = 0
+            avg_vari = 0
+            if analysis_data.get('image_count', 0) > 0:
+                ndvis = [r['statistics']['ndvi']['mean'] for r in analysis_data['results_per_image']]
+                varis = [r['statistics']['vari']['mean'] for r in analysis_data['results_per_image']]
+                avg_ndvi = sum(ndvis) / len(ndvis) if ndvis else 0
+                avg_vari = sum(varis) / len(varis) if varis else 0
+
             new_analysis = {
                 'analysis_id': analysis_id,
                 'timestamp': analysis_data['timestamp'],
                 'area_of_interest': analysis_data['area_of_interest'],
                 'date_range': analysis_data['date_range'],
+                'image_count': analysis_data.get('image_count', 0),
                 'statistics_summary': {
-                    'ndvi_mean': analysis_data['statistics']['ndvi']['mean'],
-                    'vari_mean': analysis_data['statistics']['vari']['mean']
+                    'ndvi_mean': avg_ndvi,
+                    'vari_mean': avg_vari
                 }
             }
             
@@ -233,9 +255,6 @@ class AnalysisManager:
     def get_analysis_by_id(self, token: str, analysis_id: str) -> Dict:
         """Получает конкретный анализ по ID"""
         try:
-            # ПРИМЕЧАНИЕ: Этот метод будет возвращать данные БЕЗ изображений, т.к. они не хранятся в БД.
-            # Для получения изображений нужно либо сохранять их отдельно, либо выполнять анализ заново.
-            # Текущая реализация возвращает только метаданные и статистику.
             analysis_data = self._load_analysis_data(token, analysis_id)
             if analysis_data:
                 return {'status': 'success', 'analysis_id': analysis_id, 'data': analysis_data}
@@ -248,7 +267,6 @@ class AnalysisManager:
     def delete_analysis(self, token: str, analysis_id: str) -> Dict:
         """Удаляет анализ"""
         try:
-            # ИЗМЕНЕНО
             self.db.delete_analysis_data(token, analysis_id)
             
             user_data_obj = self._get_user_data_object(token)
@@ -265,7 +283,6 @@ class AnalysisManager:
                 return {'status': 'success', 'message': 'Анализ успешно удален'}
             else:
                 logger.warning(f"Анализ {analysis_id} не был найден в списке пользователя {token} для удаления.")
-                # Все равно возвращаем успех, т.к. из основной таблицы он удален
                 return {'status': 'success', 'message': 'Анализ успешно удален'}
                 
         except Exception as e:

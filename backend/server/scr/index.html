@@ -3,671 +3,1021 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgroScout - Анализ Здоровья Полей</title>
-
-    <!-- Leaflet (Карта) -->
+    <title>Agro-Scout GEE</title>
+    <!-- Leaflet (для карт) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- Leaflet.draw (Рисование на карте) -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
-    <!-- Chart.js (Графики) -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
     <style>
-        /* --- ОБЩИЕ СТИЛИ --- */
-        body, html {
+        /* style.css */
+        :root {
+            --primary-color: #4CAF50;
+            --primary-dark: #388E3C;
+            --background-color: #f4f6f8;
+            --surface-color: #ffffff;
+            --text-color: #333;
+            --border-color: #e0e0e0;
+            --error-color: #f44336;
+            --success-color: #4CAF50;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             margin: 0;
-            padding: 0;
-            height: 100%;
-            width: 100%;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #f0f2f5;
-            overflow: hidden;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
         }
 
         .hidden { display: none !important; }
-        
-        /* --- ОСНОВНАЯ СТРУКТУРА --- */
-        #app-container {
+
+        /* --- Аутентификация --- */
+        #auth-section {
             display: flex;
-            height: 100vh;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
         }
-
-        #sidebar {
-            width: 350px;
-            background: #fff;
-            padding: 20px;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-        }
-
-        #map-container {
-            flex-grow: 1;
-            position: relative;
-        }
-
-        #map {
-            height: 100%;
-            width: 100%;
-        }
-
-        #dashboard {
-            width: 400px;
-            background: #fff;
-            padding: 20px;
-            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-        }
-        
-        /* --- ЭЛЕМЕНТЫ УПРАВЛЕНИЯ В SIDEBAR --- */
-        h2 {
-            margin-top: 0;
-            color: #1a73e8;
-            border-bottom: 2px solid #f0f2f5;
-            padding-bottom: 10px;
-        }
-
-        .control-group {
-            margin-bottom: 25px;
-        }
-
-        .control-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: #5f6368;
-        }
-        
-        .date-inputs {
-            display: flex;
-            gap: 10px;
-        }
-
-        input[type="date"], input[type="text"], select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #dadce0;
+        .auth-container {
+            background: var(--surface-color);
+            padding: 2rem 3rem;
             border-radius: 8px;
-            font-size: 14px;
-        }
-
-        button {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
             width: 100%;
-            padding: 12px;
-            background-color: #1a73e8;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #185abc;
-        }
-        
-        button.secondary {
-             background-color: #e8f0fe;
-             color: #1967d2;
-        }
-        button.secondary:hover {
-            background-color: #d2e3fc;
-        }
-
-        #user-info {
-            margin-top: auto;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-        }
-
-        /* --- ДАШБОРД --- */
-        .stat-card {
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
+            max-width: 400px;
             text-align: center;
         }
-
-        .stat-card .label {
-            font-size: 14px;
-            color: #5f6368;
-            margin-bottom: 5px;
+        .auth-container h2 {
+            margin-bottom: 1.5rem;
+            color: var(--primary-dark);
+        }
+        .auth-container input {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .auth-container button {
+            width: 100%;
+            padding: 0.8rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        .auth-container button:hover {
+            background-color: var(--primary-dark);
+        }
+        .auth-container p {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .auth-container a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: bold;
         }
 
-        .stat-card .value {
-            font-size: 24px;
-            font-weight: 700;
-            color: #202124;
+        /* --- Основное приложение --- */
+        header {
+            background-color: var(--surface-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        header h1 {
+            margin: 0;
+            color: var(--primary-dark);
+        }
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        #logout-button {
+            background: var(--error-color);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
         }
 
-        .chart-container {
-            margin-top: 20px;
-            margin-bottom: 20px;
+        .dashboard {
+            display: flex;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            flex-wrap: wrap;
         }
-        
-        /* --- МОДАЛЬНОЕ ОКНО АВТОРИЗАЦИИ --- */
-        #auth-modal {
+        .dashboard-column {
+            flex: 1;
+            min-width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .card {
+            background: var(--surface-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        /* --- Карта и Форма --- */
+        #map {
+            height: 350px;
+            width: 100%;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+        #analysis-form .form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .form-group { flex: 1; }
+        #analysis-form label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        #analysis-form input, #analysis-form button, .save-field-container input, .save-field-container button {
+            width: 100%;
+            padding: 0.7rem;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            box-sizing: border-box;
+        }
+        #analysis-form button, .save-field-container button {
+            background-color: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+        }
+        #analysis-form button:hover, .save-field-container button:hover {
+            background-color: var(--primary-dark);
+        }
+        .save-field-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        /* --- Списки --- */
+        .item-list {
+            max-height: 300px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .list-item {
+            background-color: var(--background-color);
+            padding: 0.8rem 1rem;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .list-item-info {
+            font-size: 0.9rem;
+        }
+        .list-item-info strong {
+            display: block;
+            font-size: 1rem;
+        }
+        .list-item-actions button {
+            background: none;
+            border: 1px solid var(--border-color);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 0.5rem;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .list-item-actions .delete-btn { color: var(--error-color); }
+        .list-item-actions .delete-btn:hover { background-color: var(--error-color); color: white; }
+        .list-item-actions .view-btn, .list-item-actions .use-btn { color: var(--primary-color); }
+        .list-item-actions .view-btn:hover, .list-item-actions .use-btn:hover { background-color: var(--primary-color); color: white; }
+
+        /* --- Модальное окно --- */
+        .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.6);
-            z-index: 2000;
             display: flex;
             justify-content: center;
             align-items: center;
+            z-index: 1000;
         }
-        .auth-form-container {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            width: 400px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        .modal-content {
+            background: var(--background-color);
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
         }
-        .auth-form-container input {
-            margin-bottom: 15px;
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
         }
-        .form-toggle {
-            text-align: center;
-            margin-top: 20px;
-        }
-        .form-toggle a {
-            color: #1a73e8;
+        .modal-close-button {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 2.5rem;
             cursor: pointer;
-            text-decoration: none;
+            color: var(--text-color);
         }
-        
-        /* --- ИНДИКАТОР ЗАГРУЗКИ --- */
-        #loader {
+        #modal-title { padding: 1.5rem 1.5rem 0 1.5rem; }
+
+        /* --- Результаты анализа --- */
+        #image-results-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+        .image-result-card {
+            background-color: var(--surface-color);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .image-result-card h4 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .image-container { text-align: center; }
+        .image-container img {
+            max-width: 100%;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        .stats-and-chart {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+        .stats-table { flex: 1; min-width: 250px; }
+        .stats-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .stats-table th, .stats-table td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .zoning-chart-container {
+            flex: 1;
+            min-width: 250px;
+            max-height: 250px;
+        }
+
+        /* --- Уведомления и Загрузчик --- */
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            opacity: 0;
+            transform: translateX(100%);
+            animation: slideIn 0.5s forwards, fadeOut 0.5s 4.5s forwards;
+        }
+        .toast.success { background-color: var(--success-color); }
+        .toast.error { background-color: var(--error-color); }
+        @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeOut { to { opacity: 0; } }
+
+        .loader-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            z-index: 3000;
+            background-color: rgba(255, 255, 255, 0.7);
             display: flex;
             justify-content: center;
             align-items: center;
+            z-index: 9999;
         }
-        .spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #1a73e8;
+        .loader-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
             border-radius: 50%;
-            width: 60px;
-            height: 60px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <!-- Модальное окно авторизации -->
-    <div id="auth-modal">
-        <div class="auth-form-container">
-            <!-- Форма входа -->
-            <form id="login-form">
-                <h2>Вход в AgroScout</h2>
-                <input type="text" id="login-username" placeholder="Логин" required>
-                <input type="password" id="login-password" placeholder="Пароль" required>
-                <button type="submit">Войти</button>
-                <p class="form-toggle">Нет аккаунта? <a id="show-register">Зарегистрироваться</a></p>
-            </form>
-            <!-- Форма регистрации -->
-            <form id="register-form" class="hidden">
+    <!-- Контейнер для уведомлений -->
+    <div id="toast-container"></div>
+
+    <!-- Загрузчик -->
+    <div id="loader" class="loader-overlay hidden">
+        <div class="loader-spinner"></div>
+    </div>
+
+    <!-- Секция Аутентификации (видна по умолчанию) -->
+    <div id="auth-section">
+        <div class="auth-container">
+            <div id="login-form-container">
+                <h2>Вход в Agro-Scout</h2>
+                <form id="login-form">
+                    <input type="text" id="login-username" placeholder="Логин" required>
+                    <input type="password" id="login-password" placeholder="Пароль" required>
+                    <button type="submit">Войти</button>
+                    <p>Нет аккаунта? <a href="#" id="show-register-link">Зарегистрироваться</a></p>
+                </form>
+            </div>
+            <div id="register-form-container" class="hidden">
                 <h2>Регистрация</h2>
-                <input type="text" id="register-username" placeholder="Логин" required>
-                <input type="password" id="register-password" placeholder="Пароль" required>
-                <input type="text" id="register-firstname" placeholder="Имя" required>
-                <input type="text" id="register-lastname" placeholder="Фамилия" required>
-                <button type="submit">Создать аккаунт</button>
-                <p class="form-toggle">Уже есть аккаунт? <a id="show-login">Войти</a></p>
-            </form>
+                <form id="register-form">
+                    <input type="text" id="register-firstname" placeholder="Имя" required>
+                    <input type="text" id="register-lastname" placeholder="Фамилия" required>
+                    <input type="text" id="register-username" placeholder="Логин" required>
+                    <input type="password" id="register-password" placeholder="Пароль" required>
+                    <button type="submit">Зарегистрироваться</button>
+                    <p>Уже есть аккаунт? <a href="#" id="show-login-link">Войти</a></p>
+                </form>
+            </div>
         </div>
     </div>
+
+    <!-- Основное приложение (скрыто по умолчанию) -->
+    <div id="app-section" class="hidden">
+        <header>
+            <h1>Agro-Scout GEE</h1>
+            <div class="user-profile">
+                <span id="user-name"></span>
+                <button id="logout-button">Выйти</button>
+            </div>
+        </header>
+
+        <main class="dashboard">
+            <!-- Левая колонка: Карта и форма анализа -->
+            <div class="dashboard-column" id="analysis-panel">
+                <div class="card">
+                    <h3>Новый анализ</h3>
+                    <div id="map"></div>
+                    <form id="analysis-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="start-date">Начальная дата</label>
+                                <input type="date" id="start-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="end-date">Конечная дата</label>
+                                <input type="date" id="end-date" required>
+                            </div>
+                        </div>
+                        <button type="submit">Выполнить анализ</button>
+                    </form>
+                    <hr>
+                    <div class="save-field-container">
+                         <input type="text" id="field-name-input" placeholder="Название нового поля...">
+                         <button id="save-field-button">Сохранить поле</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка: Сохраненные поля и история -->
+            <div class="dashboard-column" id="history-panel">
+                <div class="card">
+                    <h3>Сохраненные поля</h3>
+                    <div id="saved-fields-list" class="item-list">
+                        <!-- Сюда будут добавляться поля -->
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>История анализов</h3>
+                    <div id="analysis-history-list" class="item-list">
+                        <!-- Сюда будет добавляться история -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Модальное окно для результатов анализа -->
+    <div id="results-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="modal-close-button">&times;</button>
+            <h2 id="modal-title">Результаты анализа</h2>
+            <div class="modal-body">
+                <div class="card">
+                    <h4>Динамика среднего NDVI (за 2 года)</h4>
+                    <canvas id="historical-ndvi-chart"></canvas>
+                </div>
+
+                <div id="image-results-container">
+                    <!-- Сюда будут вставляться результаты для каждого снимка -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Индикатор загрузки -->
-    <div id="loader" class="hidden">
-        <div class="spinner"></div>
-    </div>
+    <script>
+        // script.js
+        document.addEventListener('DOMContentLoaded', () => {
+            // -------------------
+            // --- СОСТОЯНИЕ ПРИЛОЖЕНИЯ ---
+            // -------------------
+            const state = {
+                token: localStorage.getItem('authToken'),
+                user: null,
+                map: null,
+                drawnItems: null,
+                currentGeometry: null,
+                historicalChart: null,
+                zoningCharts: {},
+            };
 
-    <!-- Основное приложение (скрыто до авторизации) -->
-    <div id="app-container" class="hidden">
-        <!-- Левая панель управления -->
-        <div id="sidebar">
-            <h2>AgroScout</h2>
-            
-            <div class="control-group">
-                <label>1. Выберите область на карте</label>
-                <p style="font-size: 14px; color: #5f6368;">Используйте инструмент "полигон" (
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5-10-5-10 5z"></path></svg>
-                ) на карте для выделения поля.</p>
-            </div>
+            // -------------------
+            // --- DOM-элементы ---
+            // -------------------
+            const dom = {
+                loader: document.getElementById('loader'),
+                authSection: document.getElementById('auth-section'),
+                appSection: document.getElementById('app-section'),
+                loginForm: document.getElementById('login-form'),
+                registerForm: document.getElementById('register-form'),
+                showRegisterLink: document.getElementById('show-register-link'),
+                showLoginLink: document.getElementById('show-login-link'),
+                loginFormContainer: document.getElementById('login-form-container'),
+                registerFormContainer: document.getElementById('register-form-container'),
+                userName: document.getElementById('user-name'),
+                logoutButton: document.getElementById('logout-button'),
+                analysisForm: document.getElementById('analysis-form'),
+                startDate: document.getElementById('start-date'),
+                endDate: document.getElementById('end-date'),
+                savedFieldsList: document.getElementById('saved-fields-list'),
+                analysisHistoryList: document.getElementById('analysis-history-list'),
+                saveFieldButton: document.getElementById('save-field-button'),
+                fieldNameInput: document.getElementById('field-name-input'),
+                resultsModal: document.getElementById('results-modal'),
+                modalCloseButton: document.querySelector('.modal-close-button'),
+                modalTitle: document.getElementById('modal-title'),
+                imageResultsContainer: document.getElementById('image-results-container'),
+                historicalNdviChartCanvas: document.getElementById('historical-ndvi-chart'),
+            };
 
-            <div class="control-group">
-                <label for="date-start">2. Выберите диапазон дат</label>
-                <div class="date-inputs">
-                    <input type="date" id="date-start">
-                    <input type="date" id="date-end">
-                </div>
-            </div>
+            // -------------------
+            // --- API-ХЕЛПЕРЫ ---
+            // -------------------
+            const API_BASE_URL = window.location.origin;
 
-            <div class="control-group">
-                <button id="analyze-btn" disabled>3. Анализировать</button>
-            </div>
-            
-            <div class="control-group">
-                <label>Мои поля</label>
-                <select id="saved-fields-list">
-                    <option value="">Загрузить сохраненное поле...</option>
-                </select>
-                <div style="display:flex; gap: 10px; margin-top: 10px;">
-                    <button id="save-field-btn" class="secondary">Сохранить</button>
-                    <button id="delete-field-btn" class="secondary">Удалить</button>
-                </div>
-            </div>
+            async function apiRequest(endpoint, options = {}) {
+                showLoader();
+                const url = new URL(`${API_BASE_URL}${endpoint}`);
+                const defaultOptions = {
+                    method: 'GET',
+                    headers: {},
+                };
 
-            <div id="user-info">
-                <p id="user-greeting"></p>
-                <button id="logout-btn" class="secondary">Выйти</button>
-            </div>
-        </div>
-
-        <!-- Контейнер с картой -->
-        <div id="map-container">
-            <div id="map"></div>
-        </div>
-
-        <!-- Правая панель с результатами (дашборд) -->
-        <div id="dashboard" class="hidden">
-            <h2>Результаты анализа</h2>
-            <div id="results-content">
-                <div class="stat-card">
-                    <div class="label">Средний NDVI</div>
-                    <div class="value" id="mean-ndvi-val">-</div>
-                </div>
-                <div class="stat-card">
-                    <div class="label">Средний SAVI</div>
-                    <div class="value" id="mean-savi-val">-</div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="zoning-chart"></canvas>
-                </div>
-                 <div class="chart-container">
-                    <canvas id="history-chart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
-    const API_BASE_URL = 'http://127.0.0.1:8000';
-    let userToken = null;
-    let map;
-    let drawnItems;
-    let drawControl;
-    let zoningChart = null;
-    let historyChart = null;
-    let currentPolygon = null;
-    let analysisResultLayer = null;
-
-    // --- ЭЛЕМЕНТЫ DOM ---
-    const authModal = document.getElementById('auth-modal');
-    const appContainer = document.getElementById('app-container');
-    const loader = document.getElementById('loader');
-    const analyzeBtn = document.getElementById('analyze-btn');
-    const dashboard = document.getElementById('dashboard');
-
-    // --- ИНИЦИАЛИЗАЦИЯ ---
-    function initializeApp() {
-        userToken = localStorage.getItem('agro_token');
-        if (userToken) {
-            authModal.classList.add('hidden');
-            appContainer.classList.remove('hidden');
-            fetchUserProfile();
-            initializeMap();
-            fetchUserFields();
-        } else {
-            authModal.classList.remove('hidden');
-            appContainer.classList.add('hidden');
-        }
-    }
-
-    // --- ЛОГИКА АВТОРИЗАЦИИ ---
-    document.getElementById('login-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        loader.classList.remove('hidden');
-        const login = document.getElementById('login-username').value;
-        const password = document.getElementById('login-password').value;
-        try {
-            const response = await fetch(`${API_BASE_URL}/get_token?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`);
-            const data = await response.json();
-            if (data.status === 'success') {
-                localStorage.setItem('agro_token', data.token);
-                initializeApp();
-            } else {
-                alert(`Ошибка входа: ${data.detail}`);
+                const config = { ...defaultOptions, ...options };
+                
+                if (config.params) {
+                    Object.keys(config.params).forEach(key => {
+                        if(config.params[key] !== null && config.params[key] !== undefined) {
+                            url.searchParams.append(key, config.params[key])
+                        }
+                    });
+                }
+                
+                try {
+                    const response = await fetch(url, config);
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ detail: 'Unknown server error' }));
+                        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                    }
+                    return await response.json();
+                } catch (error) {
+                    console.error('API Request Error:', error);
+                    showToast(error.message, 'error');
+                    throw error; // Пробрасываем ошибку дальше
+                } finally {
+                    hideLoader();
+                }
             }
-        } catch (error) {
-            alert('Ошибка сети при входе.');
-        } finally {
-            loader.classList.add('hidden');
-        }
-    });
 
-    document.getElementById('register-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        loader.classList.remove('hidden');
-        const login = document.getElementById('register-username').value;
-        const password = document.getElementById('register-password').value;
-        const first_name = document.getElementById('register-firstname').value;
-        const last_name = document.getElementById('register-lastname').value;
-        try {
-            const url = `${API_BASE_URL}/add_user?login=${login}&password=${password}&first_name=${first_name}&last_name=${last_name}`;
-            const response = await fetch(url, { method: 'POST' });
-            const data = await response.json();
-            if (data.status === 'success') {
-                alert('Регистрация успешна! Теперь вы можете войти.');
-                toggleAuthForms();
-            } else {
-                alert(`Ошибка регистрации: ${data.detail}`);
+            // -------------------
+            // --- УТИЛИТЫ И UI ---
+            // -------------------
+            const showLoader = () => dom.loader.classList.remove('hidden');
+            const hideLoader = () => dom.loader.classList.add('hidden');
+
+            function showToast(message, type = 'success') {
+                const toastContainer = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                toastContainer.appendChild(toast);
+                setTimeout(() => toast.remove(), 5000);
             }
-        } catch (error) {
-            alert('Ошибка сети при регистрации.');
-        } finally {
-            loader.classList.add('hidden');
-        }
-    });
 
-    document.getElementById('logout-btn').addEventListener('click', () => {
-        localStorage.removeItem('agro_token');
-        userToken = null;
-        window.location.reload();
-    });
+            function initMap() {
+                if (state.map) return;
+                state.map = L.map('map').setView([55.751244, 37.618423], 10); // Moscow coordinates
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(state.map);
 
-    function toggleAuthForms() {
-        document.getElementById('login-form').classList.toggle('hidden');
-        document.getElementById('register-form').classList.toggle('hidden');
-    }
-    document.getElementById('show-register').addEventListener('click', toggleAuthForms);
-    document.getElementById('show-login').addEventListener('click', toggleAuthForms);
+                state.drawnItems = new L.FeatureGroup();
+                state.map.addLayer(state.drawnItems);
 
-    async function fetchUserProfile() {
-        try {
-            const response = await apiFetch('/users/profile');
-            if (response.status === 'success') {
-                document.getElementById('user-greeting').textContent = `Привет, ${response.user.first_name}!`;
+                const drawControl = new L.Control.Draw({
+                    edit: { featureGroup: state.drawnItems },
+                    draw: {
+                        polygon: true,
+                        marker: true,
+                        polyline: false,
+                        rectangle: true,
+                        circle: false,
+                        circlemarker: false
+                    }
+                });
+                state.map.addControl(drawControl);
+
+                state.map.on(L.Draw.Event.CREATED, (event) => {
+                    const layer = event.layer;
+                    state.drawnItems.clearLayers();
+                    state.drawnItems.addLayer(layer);
+
+                    if (event.layerType === 'marker') {
+                        const { lat, lng } = layer.getLatLng();
+                        state.currentGeometry = { type: 'point', lat, lon: lng, radius_km: 0.5 }; // default radius
+                    } else if (event.layerType === 'polygon' || event.layerType === 'rectangle') {
+                        const geoJSON = layer.toGeoJSON();
+                        // GEE requires [lon, lat] format
+                        const coordinates = geoJSON.geometry.coordinates[0].map(p => [p[0], p[1]]); 
+                        state.currentGeometry = { type: 'polygon', polygon_coords: JSON.stringify(coordinates) };
+                    }
+                });
             }
-        } catch (e) { console.error("Не удалось загрузить профиль"); }
-    }
 
-    // --- ЛОГИКА КАРТЫ ---
-    function initializeMap() {
-        map = L.map('map').setView([55.751244, 37.618423], 7);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
-        drawnItems = new L.FeatureGroup();
-        map.addLayer(drawnItems);
-
-        drawControl = new L.Control.Draw({
-            edit: { featureGroup: drawnItems, remove: true },
-            draw: {
-                polygon: { allowIntersection: false, showArea: true },
-                polyline: false, rectangle: false, circle: false, marker: false, circlemarker: false
+            function setDates() {
+                const today = new Date();
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(today.getDate() - 30);
+                dom.endDate.value = today.toISOString().split('T')[0];
+                dom.startDate.value = thirtyDaysAgo.toISOString().split('T')[0];
             }
-        });
-        map.addControl(drawControl);
-
-        map.on(L.Draw.Event.CREATED, (event) => {
-            const layer = event.layer;
-            drawnItems.clearLayers();
-            drawnItems.addLayer(layer);
             
-            const latlngs = layer.getLatLngs()[0];
-            currentPolygon = latlngs.map(p => [p.lng, p.lat]);
-            currentPolygon.push(currentPolygon[0]); // Замыкаем полигон
-            
-            analyzeBtn.disabled = false;
-        });
+            // -----------------------
+            // --- ФУНКЦИИ ОТРИСОВКИ ---
+            // -----------------------
 
-        map.on(L.Draw.Event.EDITED, (event) => {
-            const layers = event.layers;
-            layers.eachLayer(layer => {
-                 const latlngs = layer.getLatLngs()[0];
-                 currentPolygon = latlngs.map(p => [p.lng, p.lat]);
-                 currentPolygon.push(currentPolygon[0]);
+            function renderLoggedInState() {
+                dom.authSection.classList.add('hidden');
+                dom.appSection.classList.remove('hidden');
+                dom.userName.textContent = `${state.user.first_name} ${state.user.last_name}`;
+                initMap();
+                setDates();
+                fetchAndRenderSavedFields();
+                fetchAndRenderAnalysisHistory();
+            }
+
+            function renderLoggedOutState() {
+                dom.authSection.classList.remove('hidden');
+                dom.appSection.classList.add('hidden');
+                dom.loginForm.reset();
+                dom.registerForm.reset();
+                state.token = null;
+                state.user = null;
+                localStorage.removeItem('authToken');
+            }
+
+            async function fetchAndRenderSavedFields() {
+                try {
+                    const response = await apiRequest(`/fields/list?token=${state.token}`);
+                    dom.savedFieldsList.innerHTML = '';
+                    if (response.fields && response.fields.length > 0) {
+                        response.fields.forEach(field => {
+                            const item = document.createElement('div');
+                            item.className = 'list-item';
+                            item.innerHTML = `
+                                <div class="list-item-info">
+                                    <strong>${field.name}</strong>
+                                    <span>ID: ${field.id}</span>
+                                </div>
+                                <div class="list-item-actions">
+                                    <button class="use-btn" data-field-id="${field.id}">Использовать</button>
+                                    <button class="delete-btn" data-field-id="${field.id}">Удалить</button>
+                                </div>
+                            `;
+                            dom.savedFieldsList.appendChild(item);
+                        });
+                        
+                        // Делегирование событий
+                        dom.savedFieldsList.querySelectorAll('.use-btn').forEach(btn => btn.addEventListener('click', () => useSavedField(response.fields, btn.dataset.fieldId)));
+                        dom.savedFieldsList.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => deleteSavedField(btn.dataset.fieldId)));
+
+                    } else {
+                        dom.savedFieldsList.innerHTML = '<p>У вас пока нет сохраненных полей.</p>';
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch saved fields');
+                }
+            }
+
+            async function fetchAndRenderAnalysisHistory() {
+                try {
+                    const response = await apiRequest(`/analysis/list?token=${state.token}`);
+                    dom.analysisHistoryList.innerHTML = '';
+                    if (response.analyses && response.analyses.length > 0) {
+                        response.analyses.forEach(analysis => {
+                            const item = document.createElement('div');
+                            item.className = 'list-item';
+                            const date = new Date(analysis.timestamp * 1000).toLocaleString();
+                            const ndviMean = analysis.statistics_summary.ndvi_mean.toFixed(3);
+                            item.innerHTML = `
+                                <div class="list-item-info">
+                                    <strong>Анализ от ${date}</strong>
+                                    <span>Средний NDVI: ${ndviMean}, снимков: ${analysis.image_count}</span>
+                                </div>
+                                <div class="list-item-actions">
+                                    <button class="view-btn" data-analysis-id="${analysis.analysis_id}">Смотреть</button>
+                                    <button class="delete-btn" data-analysis-id="${analysis.analysis_id}">Удалить</button>
+                                </div>
+                            `;
+                            dom.analysisHistoryList.appendChild(item);
+                        });
+
+                        dom.analysisHistoryList.querySelectorAll('.view-btn').forEach(btn => btn.addEventListener('click', () => viewAnalysisDetails(btn.dataset.analysisId)));
+                        dom.analysisHistoryList.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => deleteAnalysis(btn.dataset.analysisId)));
+
+                    } else {
+                        dom.analysisHistoryList.innerHTML = '<p>История анализов пуста.</p>';
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch analysis history');
+                }
+            }
+
+            function renderAnalysisResults(data) {
+                dom.modalTitle.textContent = `Результаты анализа от ${new Date(data.timestamp * 1000).toLocaleString()}`;
+                dom.imageResultsContainer.innerHTML = '';
+
+                if(data.results_per_image && data.results_per_image.length > 0) {
+                    data.results_per_image.forEach((result, index) => {
+                        const resultCard = document.createElement('div');
+                        resultCard.className = 'image-result-card';
+                        const chartId = `zoning-chart-${index}`;
+                        resultCard.innerHTML = `
+                            <h4>Снимок от ${result.date} (облачность: ${result.cloud_coverage.toFixed(2)}%)</h4>
+                            <div class="image-gallery">
+                                <div class="image-container">
+                                    <p><strong>RGB</strong></p>
+                                    <img src="data:image/jpeg;base64,${result.images.rgb}" alt="RGB Image">
+                                </div>
+                                <div class="image-container">
+                                    <p><strong>NDVI</strong></p>
+                                    <img src="data:image/jpeg;base64,${result.images.ndvi}" alt="NDVI Image">
+                                </div>
+                                <div class="image-container">
+                                    <p><strong>SAVI</strong></p>
+                                    <img src="data:image/jpeg;base64,${result.images.savi}" alt="SAVI Image">
+                                </div>
+                                 <div class="image-container">
+                                    <p><strong>VARI</strong></p>
+                                    <img src="data:image/jpeg;base64,${result.images.vari}" alt="VARI Image">
+                                </div>
+                            </div>
+                            <div class="stats-and-chart">
+                                <div class="stats-table">
+                                    <table>
+                                        <tr><th>Индекс</th><th>Мин.</th><th>Макс.</th><th>Сред.</th></tr>
+                                        <tr><td>NDVI</td><td>${result.statistics.ndvi.min.toFixed(3)}</td><td>${result.statistics.ndvi.max.toFixed(3)}</td><td>${result.statistics.ndvi.mean.toFixed(3)}</td></tr>
+                                        <tr><td>SAVI</td><td>${result.statistics.savi.min.toFixed(3)}</td><td>${result.statistics.savi.max.toFixed(3)}</td><td>${result.statistics.savi.mean.toFixed(3)}</td></tr>
+                                        <tr><td>VARI</td><td>${result.statistics.vari.min.toFixed(3)}</td><td>${result.statistics.vari.max.toFixed(3)}</td><td>${result.statistics.vari.mean.toFixed(3)}</td></tr>
+                                    </table>
+                                </div>
+                                <div class="zoning-chart-container">
+                                     <canvas id="${chartId}"></canvas>
+                                </div>
+                            </div>
+                        `;
+                        dom.imageResultsContainer.appendChild(resultCard);
+
+                        // Отрисовка диаграммы зонирования
+                        const ctx = document.getElementById(chartId).getContext('2d');
+                        if (state.zoningCharts[chartId]) {
+                            state.zoningCharts[chartId].destroy();
+                        }
+                        state.zoningCharts[chartId] = new Chart(ctx, {
+                            type: 'pie',
+                            data: {
+                                labels: [`Низкая (${result.zoning.ndvi.low}%)`, `Средняя (${result.zoning.ndvi.medium}%)`, `Высокая (${result.zoning.ndvi.high}%)`],
+                                datasets: [{
+                                    data: [result.zoning.ndvi.low, result.zoning.ndvi.medium, result.zoning.ndvi.high],
+                                    backgroundColor: ['#d9534f', '#f0ad4e', '#5cb85c'],
+                                }]
+                            },
+                            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: true, text: 'Зонирование NDVI' } } }
+                        });
+                    });
+                } else {
+                     dom.imageResultsContainer.innerHTML = '<p>Не найдено снимков для анализа за указанный период.</p>';
+                }
+                
+                // Запрос и отрисовка исторического графика
+                fetchAndRenderHistoricalNdvi(data.area_of_interest);
+                dom.resultsModal.classList.remove('hidden');
+            }
+
+            async function fetchAndRenderHistoricalNdvi(area_of_interest) {
+                try {
+                    const params = { token: state.token };
+                    if (area_of_interest.type === 'point_radius') {
+                        params.lon = area_of_interest.lon;
+                        params.lat = area_of_interest.lat;
+                        params.radius_km = area_of_interest.radius_km;
+                    } else {
+                        params.polygon_coords = JSON.stringify(area_of_interest.coordinates);
+                    }
+
+                    const response = await apiRequest('/analysis/timeseries', { params });
+                    const data = response.data.filter(item => item.mean_ndvi !== null);
+                    const labels = data.map(item => item.date);
+                    const values = data.map(item => item.mean_ndvi);
+
+                    if (state.historicalChart) {
+                        state.historicalChart.destroy();
+                    }
+
+                    const ctx = dom.historicalNdviChartCanvas.getContext('2d');
+                    state.historicalChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Средний NDVI',
+                                data: values,
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1,
+                                fill: false
+                            }]
+                        },
+                        options: { scales: { y: { beginAtZero: false, title: { display: true, text: 'NDVI' } } } }
+                    });
+                } catch (error) {
+                    console.error('Failed to fetch historical NDVI', error);
+                }
+            }
+
+
+            // -------------------
+            // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
+            // -------------------
+
+            // Аутентификация
+            dom.showRegisterLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                dom.loginFormContainer.classList.add('hidden');
+                dom.registerFormContainer.classList.remove('hidden');
             });
-            analyzeBtn.disabled = false;
-        });
-        
-        map.on(L.Draw.Event.DELETED, () => {
-             currentPolygon = null;
-             analyzeBtn.disabled = true;
-        });
-    }
-    
-    // --- ДАТЫ ---
-    const dateEndInput = document.getElementById('date-end');
-    const dateStartInput = document.getElementById('date-start');
-    const today = new Date();
-    dateEndInput.value = today.toISOString().split('T')[0];
-    today.setDate(today.getDate() - 7);
-    dateStartInput.value = today.toISOString().split('T')[0];
 
-    // --- ЛОГИКА АНАЛИЗА ---
-    analyzeBtn.addEventListener('click', performAnalysis);
+            dom.showLoginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                dom.registerFormContainer.classList.add('hidden');
+                dom.loginFormContainer.classList.remove('hidden');
+            });
 
-    async function performAnalysis() {
-        if (!currentPolygon) {
-            alert('Пожалуйста, сначала выделите область на карте.');
-            return;
-        }
-        loader.classList.remove('hidden');
-        dashboard.classList.add('hidden');
-        
-        const startDate = dateStartInput.value;
-        const endDate = dateEndInput.value;
-        const polygonJson = JSON.stringify(currentPolygon);
-
-        try {
-            // ИЗМЕНЕНО: URL стал чище, токен добавится в apiFetch
-            const endpoint = `/analysis/perform?start_date=${startDate}&end_date=${endDate}&polygon_coords=${encodeURIComponent(polygonJson)}`;
-            const result = await apiFetch(endpoint, { method: 'POST' });
-
-            if (result.status === 'success') {
-                displayAnalysisResults(result.data);
-                fetchAndDisplayHistory(polygonJson);
-            } else {
-                throw new Error(result.detail);
-            }
-        } catch (error) {
-            alert(`Ошибка анализа: ${error.message}`);
-        } finally {
-            loader.classList.add('hidden');
-        }
-    }
-
-    function displayAnalysisResults(data) {
-        dashboard.classList.remove('hidden');
-        
-        document.getElementById('mean-ndvi-val').textContent = data.statistics.ndvi.mean.toFixed(3);
-        document.getElementById('mean-savi-val').textContent = data.statistics.savi.mean.toFixed(3);
-
-        if (analysisResultLayer) map.removeLayer(analysisResultLayer);
-        
-        const imageUrl = `data:image/jpeg;base64,${data.images.ndvi}`;
-        const polygonForBounds = currentPolygon.map(p => [p[1], p[0]]); // Leaflet ожидает [lat, lng]
-        const bounds = L.latLngBounds(polygonForBounds);
-        analysisResultLayer = L.imageOverlay(imageUrl, bounds, { opacity: 0.7 }).addTo(map);
-        map.fitBounds(bounds);
-
-        const zoningData = data.zoning.ndvi;
-        const ctxZoning = document.getElementById('zoning-chart').getContext('2d');
-        if(zoningChart) zoningChart.destroy();
-        zoningChart = new Chart(ctxZoning, {
-            type: 'doughnut',
-            data: {
-                labels: [`Низкая растительность (${zoningData.low}%)`, `Средняя (${zoningData.medium}%)`, `Высокая (${zoningData.high}%)`],
-                datasets: [{
-                    data: [zoningData.low, zoningData.medium, zoningData.high],
-                    backgroundColor: ['#d9534f', '#f0ad4e', '#5cb85c']
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { position: 'top' }, title: { display: true, text: 'Зонирование по NDVI' } }
-            }
-        });
-    }
-
-    async function fetchAndDisplayHistory(polygonJson) {
-         try {
-            const endpoint = `/analysis/timeseries?polygon_coords=${encodeURIComponent(polygonJson)}`;
-            const result = await apiFetch(endpoint);
-            if (result.status !== 'success') return;
-            
-            const historyData = result.data.filter(d => d.mean_ndvi !== null).sort((a,b) => new Date(a.date) - new Date(b.date));
-            const labels = historyData.map(d => d.date);
-            const values = historyData.map(d => d.mean_ndvi);
-
-            const ctxHistory = document.getElementById('history-chart').getContext('2d');
-            if(historyChart) historyChart.destroy();
-            historyChart = new Chart(ctxHistory, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Средний NDVI',
-                        data: values,
-                        borderColor: '#1a73e8',
-                        backgroundColor: 'rgba(26, 115, 232, 0.1)',
-                        fill: true,
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: { legend: { display: false }, title: { display: true, text: 'Динамика здоровья поля (2 года)' } },
-                    scales: { y: { beginAtZero: false } }
+            dom.loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = dom.loginForm.elements['login-username'].value;
+                const password = dom.loginForm.elements['login-password'].value;
+                try {
+                    const data = await apiRequest(`/get_token`, { params: { login: username, password }});
+                    if (data.status === 'success') {
+                        state.token = data.token;
+                        localStorage.setItem('authToken', data.token);
+                        await fetchUserProfile();
+                    }
+                } catch (error) {
+                    console.error('Login failed');
                 }
             });
 
-         } catch (e) { console.error("Не удалось загрузить историю NDVI:", e); }
-    }
-    
-    // --- УПРАВЛЕНИЕ ПОЛЯМИ ---
-    const savedFieldsSelect = document.getElementById('saved-fields-list');
-
-    async function fetchUserFields() {
-        savedFieldsSelect.innerHTML = '<option value="">Загрузить сохраненное поле...</option>';
-        const data = await apiFetch('/fields/list');
-        if (data.status === 'success') {
-            data.fields.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field.id;
-                option.textContent = field.name;
-                option.dataset.aoi = JSON.stringify(field.area_of_interest);
-                savedFieldsSelect.appendChild(option);
+            dom.registerForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const params = {
+                    first_name: dom.registerForm.elements['register-firstname'].value,
+                    last_name: dom.registerForm.elements['register-lastname'].value,
+                    login: dom.registerForm.elements['register-username'].value,
+                    password: dom.registerForm.elements['register-password'].value,
+                };
+                try {
+                    const data = await apiRequest(`/add_user`, { method: 'POST', params });
+                    if (data.status === 'success') {
+                        showToast('Регистрация прошла успешно! Теперь вы можете войти.');
+                        dom.showLoginLink.click();
+                        dom.registerForm.reset();
+                    }
+                } catch (error) {
+                    console.error('Registration failed');
+                }
             });
-        }
-    }
 
-    document.getElementById('save-field-btn').addEventListener('click', async () => {
-        if (!currentPolygon) { alert('Сначала выделите область'); return; }
-        const fieldName = prompt('Введите название поля:');
-        if (fieldName) {
-            const aoi = {type: 'polygon', coordinates: currentPolygon };
-            const endpoint = `/fields/save?field_name=${encodeURIComponent(fieldName)}&area_of_interest=${encodeURIComponent(JSON.stringify(aoi))}`;
-            const result = await apiFetch(endpoint, { method: 'POST' });
-            if(result.status === 'success') { alert('Поле сохранено!'); fetchUserFields(); } 
-            else { alert('Ошибка сохранения поля.'); }
-        }
-    });
+            dom.logoutButton.addEventListener('click', renderLoggedOutState);
 
-    savedFieldsSelect.addEventListener('change', (e) => {
-        const selectedOption = e.target.options[e.target.selectedIndex];
-        if (!selectedOption.value) return;
+            // Анализ
+            dom.analysisForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!state.currentGeometry) {
+                    showToast('Пожалуйста, выберите область на карте.', 'error');
+                    return;
+                }
 
-        const aoi = JSON.parse(selectedOption.dataset.aoi);
-        if (aoi.type === 'polygon') {
-            drawnItems.clearLayers();
-            const latlngs = aoi.coordinates.map(p => [p[1], p[0]]);
-            const polygon = L.polygon(latlngs);
-            drawnItems.addLayer(polygon);
-            map.fitBounds(polygon.getBounds());
-            currentPolygon = aoi.coordinates;
-            analyzeBtn.disabled = false;
-        }
-    });
-    
-    document.getElementById('delete-field-btn').addEventListener('click', async () => {
-        const fieldId = savedFieldsSelect.value;
-        if (!fieldId) { alert("Сначала выберите поле для удаления из списка."); return; }
-        if (confirm("Вы уверены, что хотите удалить это поле?")) {
-            const result = await apiFetch(`/fields/${fieldId}`, {method: 'DELETE'});
-            if (result.status === 'success') { alert("Поле удалено."); fetchUserFields(); } 
-            else { alert(`Ошибка удаления: ${result.detail}`); }
-        }
-    });
+                const params = {
+                    token: state.token,
+                    start_date: dom.startDate.value,
+                    end_date: dom.endDate.value,
+                };
+                
+                if (state.currentGeometry.type === 'point') {
+                    params.lat = state.currentGeometry.lat;
+                    params.lon = state.currentGeometry.lon;
+                    params.radius_km = state.currentGeometry.radius_km;
+                } else if (state.currentGeometry.type === 'polygon') {
+                    params.polygon_coords = state.currentGeometry.polygon_coords;
+                }
 
+                try {
+                    const response = await apiRequest('/analysis/perform', { method: 'POST', params });
+                    if (response.status === 'success') {
+                        showToast('Анализ успешно выполнен!');
+                        renderAnalysisResults(response.data);
+                        fetchAndRenderAnalysisHistory(); // Обновляем историю
+                    }
+                } catch (error) {
+                    console.error('Analysis failed');
+                }
+            });
 
-    // --- ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ДЛЯ API ---
-    async function apiFetch(endpoint, options = {}) {
-        const defaultHeaders = { 'Accept': 'application/json' };
+            // Управление полями
+            dom.saveFieldButton.addEventListener('click', async () => {
+                const fieldName = dom.fieldNameInput.value;
+                if (!fieldName) {
+                    showToast('Введите название для поля.', 'error');
+                    return;
+                }
+                if (!state.currentGeometry) {
+                    showToast('Выберите область на карте для сохранения.', 'error');
+                    return;
+                }
+                
+                const area_of_interest = state.currentGeometry.type === 'point' 
+                    ? { type: 'point', lat: state.currentGeometry.lat, lon: state.currentGeometry.lon }
+                    // GEE полигон уже в [lon, lat], так что просто передаем его
+                    : { type: 'polygon', coordinates: JSON.parse(state.currentGeometry.polygon_coords) };
 
-        // ИСПОЛЬЗУЕМ URLSearchParams для удобной работы с query-параметрами
-        const url = new URL(API_BASE_URL + endpoint.split('?')[0]);
-        const params = new URLSearchParams(endpoint.split('?')[1] || '');
+                try {
+                    await apiRequest('/fields/save', {
+                        method: 'POST',
+                        params: {
+                            token: state.token,
+                            field_name: fieldName,
+                            area_of_interest: JSON.stringify(area_of_interest)
+                        }
+                    });
+                    showToast('Поле успешно сохранено!');
+                    dom.fieldNameInput.value = '';
+                    fetchAndRenderSavedFields();
+                } catch (error) {
+                    console.error('Failed to save field');
+                }
+            });
 
-        // Добавляем токен ко всем запросам, кроме get_token и add_user
-        if (!endpoint.startsWith('/get_token') && !endpoint.startsWith('/add_user')) {
-             params.append('token', userToken);
-        }
-        
-        url.search = params.toString();
+            function useSavedField(fields, fieldId) {
+                const field = fields.find(f => f.id === fieldId);
+                if (!field) return;
 
-        const config = {
-            ...options,
-            headers: { ...defaultHeaders, ...options.headers, },
-        };
-        
-        // ИСПОЛЬЗУЕМ ИЗМЕНЕННЫЙ URL С ТОКЕНОМ
-        const response = await fetch(url, config);
+                state.drawnItems.clearLayers();
+                const aoi = field.area_of_interest;
 
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ detail: 'Server error' }));
-            throw new Error(errorData.detail || 'Request failed');
-        }
-        return response.json();
-    }
+                if (aoi.type === 'point') {
+                    const marker = L.marker([aoi.lat, aoi.lon]);
+                    state.drawnItems.addLayer(marker);
+                    state.map.setView([aoi.lat, aoi.lon], 13);
+                    state.currentGeometry = { type: 'point', lat: aoi.lat, lon: aoi.lon, radius_km: 0.5 };
+                } else if (aoi.type === 'polygon') {
+                    // Конвертируем [lon, lat] обратно в [lat, lon] для Leaflet
+                    const latLngs = aoi.coordinates.map(p => [p[1], p[0]]);
+                    const polygon = L.polygon(latLngs);
+                    state.drawnItems.addLayer(polygon);
+                    state.map.fitBounds(polygon.getBounds());
+                    state.currentGeometry = { type: 'polygon', polygon_coords: JSON.stringify(aoi.coordinates) };
+                }
+                showToast(`Поле "${field.name}" загружено на карту.`);
+            }
 
+            async function deleteSavedField(fieldId) {
+                if (!confirm('Вы уверены, что хотите удалить это поле?')) return;
+                try {
+                    await apiRequest(`/fields/${fieldId}`, { method: 'DELETE', params: { token: state.token } });
+                    showToast('Поле удалено.');
+                    fetchAndRenderSavedFields();
+                } catch (error) {
+                    console.error('Failed to delete field');
+                }
+            }
 
-    // --- ЗАПУСК ПРИЛОЖЕНИЯ ---
-    initializeApp();
-});
-</script>
+            // История анализов
+            async function viewAnalysisDetails(analysisId) {
+                try {
+                    // Просто запрашиваем ПОЛНЫЕ данные по ID
+                    const response = await apiRequest(`/analysis/${analysisId}?token=${state.token}`);
+                    if (response.status === 'success') {
+                        // И сразу же отрисовываем их, без повторного анализа
+                        renderAnalysisResults(response.data);
+                    }
+                } catch (error) {
+                    console.error('Failed to view analysis details');
+                    showToast('Не удалось загрузить детали анализа.', 'error');
+                }
+            }
+            
+            async function deleteAnalysis(analysisId) {
+                if (!confirm('Вы уверены, что хотите удалить этот анализ?')) return;
+                try {
+                    await apiRequest(`/analysis/${analysisId}`, { method: 'DELETE', params: { token: state.token } });
+                    showToast('Анализ удален.');
+                    fetchAndRenderAnalysisHistory();
+                } catch (error) {
+                    console.error('Failed to delete analysis');
+                }
+            }
 
+            // Модальное окно
+            dom.modalCloseButton.addEventListener('click', () => {
+                dom.resultsModal.classList.add('hidden');
+            });
+
+            // -------------------
+            // --- ИНИЦИАЛИЗАЦИЯ ---
+            // -------------------
+            async function fetchUserProfile() {
+                if (!state.token) {
+                    renderLoggedOutState();
+                    return;
+                }
+                try {
+                    const data = await apiRequest(`/users/profile?token=${state.token}`);
+                    if (data.status === 'success') {
+                        state.user = data.user;
+                        renderLoggedInState();
+                    } else {
+                        throw new Error('Invalid token');
+                    }
+                } catch (error) {
+                    renderLoggedOutState();
+                }
+            }
+
+            fetchUserProfile();
+        });
+    </script>
 </body>
 </html>

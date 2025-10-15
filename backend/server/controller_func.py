@@ -642,49 +642,6 @@ class controller_func():
             logger.error(f"Ошибка при удалении анализа: {e}")
             return {"status": "error", "detail": str(e)}
 
-    # --- НОВЫЙ МЕТОД ---
-    async def get_historical_ndvi_data(self, token: str, 
-                                       lon: float = None, lat: float = None,
-                                       radius_km: float = 0.5,
-                                       polygon_coords: str = None):
-        """Возвращает историю среднего NDVI для области."""
-        logger.info(f"Запрос истории NDVI для токена {token}")
-        
-        # ИЗМЕНЕНО
-        if not self.db.if_token_exist(token):
-            return {"status": "error", "detail": "Невалидный токен"}
-
-        try:
-            # Определяем область интереса для GEE
-            if polygon_coords:
-                parsed_polygon = json.loads(polygon_coords)
-                area_of_interest = ee.Geometry.Polygon(parsed_polygon)
-            elif lon is not None and lat is not None:
-                point = ee.Geometry.Point([lon, lat])
-                area_of_interest = point.buffer(radius_km * 1000).bounds()
-            else:
-                return {"status": "error", "detail": "Необходимо указать область"}
-
-            # Используем новый статический метод
-            # Берем данные за последние 2 года
-            import datetime
-            end_date = datetime.date.today()
-            start_date = end_date - datetime.timedelta(days=365*2)
-            
-            historical_data = ImageProvider.get_historical_ndvi(
-                area_of_interest, 
-                start_date.strftime('%Y-%m-%d'), 
-                end_date.strftime('%Y-%m-%d')
-            )
-
-            return {
-                "status": "success",
-                "data": historical_data
-            }
-
-        except Exception as e:
-            logger.error(f"Ошибка при получении истории NDVI: {e}")
-            return {"status": "error", "detail": f"Не удалось получить историю: {e}"}
 
     # --- НОВЫЕ МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ПОЛЯМИ ---
     async def save_user_field(self, token: str, field_name: str, area_of_interest: str):
@@ -718,7 +675,59 @@ class controller_func():
         except Exception as e:
             logger.error(f"Ошибка при сохранении поля: {e}")
             return {"status": "error", "detail": f"Внутренняя ошибка сервера: {e}"}
+        
+    
+    # В методе get_historical_ndvi_data замените:
 
+# В методе get_historical_ndvi_data замените:
+
+    async def get_historical_ndvi_data(self, token: str, 
+                                    lon: float = None, lat: float = None,
+                                    radius_km: float = 0.5,
+                                    polygon_coords: str = None):
+        """Возвращает историю среднего NDVI для области."""
+        logger.info(f"Запрос истории NDVI для токена {token}")
+        
+        if not self.db.if_token_exist(token):
+            return {"status": "error", "detail": "Невалидный токен"}
+
+        try:
+            # Используем централизованный инициализатор GEE
+            from gee_initializer import GEEInitializer
+            GEEInitializer.initialize_gee()
+            
+            import ee
+            
+            # Определяем область интереса для GEE
+            if polygon_coords:
+                parsed_polygon = json.loads(polygon_coords)
+                area_of_interest = ee.Geometry.Polygon(parsed_polygon)
+            elif lon is not None and lat is not None:
+                point = ee.Geometry.Point([lon, lat])
+                area_of_interest = point.buffer(radius_km * 1000).bounds()
+            else:
+                return {"status": "error", "detail": "Необходимо указать область"}
+
+            # Используем статический метод
+            import datetime
+            end_date = datetime.date.today()
+            start_date = end_date - datetime.timedelta(days=365*2)
+            
+            historical_data = ImageProvider.get_historical_ndvi(
+                area_of_interest, 
+                start_date.strftime('%Y-%m-%d'), 
+                end_date.strftime('%Y-%m-%d')
+            )
+
+            return {
+                "status": "success",
+                "data": historical_data
+            }
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении истории NDVI: {e}")
+            return {"status": "error", "detail": f"Не удалось получить историю: {e}"}
+        
     async def get_user_fields(self, token: str):
         """Получает список сохраненных полей пользователя."""
         logger.info(f"Запрос списка полей для токена {token}")
