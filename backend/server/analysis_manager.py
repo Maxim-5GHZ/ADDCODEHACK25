@@ -1,3 +1,5 @@
+# --- START OF FILE analysis_manager.py ---
+
 import json
 import time
 import logging
@@ -12,13 +14,15 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 class AnalysisManager:
-    def __init__(self, user_data_db, field_data_db):
-        self.user_data = user_data_db
-        self.field_data = field_data_db
+    # --- ИЗМЕНЕНО: Принимаем один db_manager ---
+    def __init__(self, db_manager):
+        self.db = db_manager
+    # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
     def _get_user_data_object(self, token: str) -> dict:
         """Вспомогательная функция для получения и парсинга данных пользователя."""
-        data_str = self.user_data.get_user_data(token)
+        # ИЗМЕНЕНО
+        data_str = self.db.get_user_data(token)
         if data_str:
             try:
                 data_obj = json.loads(data_str)
@@ -34,7 +38,8 @@ class AnalysisManager:
         """Вспомогательная функция для сохранения объекта данных пользователя."""
         try:
             data_str = json.dumps(data_obj)
-            return self.user_data.save_user_data(token, data_str)
+            # ИЗМЕНЕНО
+            return self.db.save_user_data(token, data_str)
         except Exception as e:
             logger.error(f"Ошибка при сериализации и сохранении данных для токена {token}: {e}")
             return False
@@ -111,24 +116,24 @@ class AnalysisManager:
             return ""
     
     def _save_analysis_data(self, token: str, analysis_id: str, analysis_data: Dict) -> bool:
-        """Сохраняет данные анализа в поле"""
+        """Сохраняет данные анализа в базу данных."""
         try:
             analysis_data_for_storage = analysis_data.copy()
             if 'images' in analysis_data_for_storage:
-                del analysis_data_for_storage['images']
+                del analysis_data_for_storage['images'] # Не храним base64 в данных анализа
             
             analysis_data_serialized = json.dumps(analysis_data_for_storage, default=str)
-            field_name = f"analysis_{token}_{analysis_id}"
-            return self.field_data.edit_field_data(field_name, analysis_data_serialized)
+            # ИЗМЕНЕНО
+            return self.db.save_analysis_data(token, analysis_id, analysis_data_serialized)
         except Exception as e:
             logger.error(f"Ошибка сохранения анализа: {e}")
             return False
     
     def _load_analysis_data(self, token: str, analysis_id: str) -> Optional[Dict]:
-        """Загружает данные анализа из поля"""
+        """Загружает данные анализа из базы данных."""
         try:
-            field_name = f"analysis_{token}_{analysis_id}"
-            data = self.field_data.get_field_data(field_name)
+            # ИЗМЕНЕНО
+            data = self.db.get_analysis_data(token, analysis_id)
             if data: return json.loads(data)
             return None
         except Exception as e:
@@ -161,7 +166,9 @@ class AnalysisManager:
             indices = self._calculate_all_indices(provider)
             
             analysis_id = str(int(time.time()))
-            analysis_data = {
+            
+            # Данные для ответа клиенту, включая изображения
+            analysis_data_response = {
                 'analysis_id': analysis_id,
                 'timestamp': time.time(),
                 'area_of_interest': area_info,
@@ -187,10 +194,11 @@ class AnalysisManager:
                 }
             }
             
-            if self._save_analysis_data(token, analysis_id, analysis_data):
-                self._update_user_analyses_list(token, analysis_id, analysis_data)
+            # Сохраняем данные в БД (без тяжелых base64 изображений)
+            if self._save_analysis_data(token, analysis_id, analysis_data_response):
+                self._update_user_analyses_list(token, analysis_id, analysis_data_response)
                 logger.info(f"Анализ {analysis_id} успешно сохранен")
-                return {'status': 'success', 'analysis_id': analysis_id, 'data': analysis_data}
+                return {'status': 'success', 'analysis_id': analysis_id, 'data': analysis_data_response}
             else:
                 raise Exception("Не удалось сохранить анализ")
                 
@@ -225,6 +233,9 @@ class AnalysisManager:
     def get_analysis_by_id(self, token: str, analysis_id: str) -> Dict:
         """Получает конкретный анализ по ID"""
         try:
+            # ПРИМЕЧАНИЕ: Этот метод будет возвращать данные БЕЗ изображений, т.к. они не хранятся в БД.
+            # Для получения изображений нужно либо сохранять их отдельно, либо выполнять анализ заново.
+            # Текущая реализация возвращает только метаданные и статистику.
             analysis_data = self._load_analysis_data(token, analysis_id)
             if analysis_data:
                 return {'status': 'success', 'analysis_id': analysis_id, 'data': analysis_data}
@@ -237,8 +248,8 @@ class AnalysisManager:
     def delete_analysis(self, token: str, analysis_id: str) -> Dict:
         """Удаляет анализ"""
         try:
-            field_name = f"analysis_{token}_{analysis_id}"
-            self.field_data.delete_field_data(field_name)
+            # ИЗМЕНЕНО
+            self.db.delete_analysis_data(token, analysis_id)
             
             user_data_obj = self._get_user_data_object(token)
             initial_count = len(user_data_obj.get('analyses', []))
@@ -254,7 +265,8 @@ class AnalysisManager:
                 return {'status': 'success', 'message': 'Анализ успешно удален'}
             else:
                 logger.warning(f"Анализ {analysis_id} не был найден в списке пользователя {token} для удаления.")
-                return {'status': 'error', 'detail': 'Анализ не найден в списке для удаления'}
+                # Все равно возвращаем успех, т.к. из основной таблицы он удален
+                return {'status': 'success', 'message': 'Анализ успешно удален'}
                 
         except Exception as e:
             logger.error(f"Критическая ошибка при удалении анализа {analysis_id}: {e}")

@@ -1,5 +1,7 @@
+# --- START OF FILE controller.py ---
+
 import uvicorn
-from db import dbrequest
+from dbrequest import DatabaseManager # ИЗМЕНЕНО: импортируем новый класс
 import subprocess
 import controller_func
 import signal
@@ -50,11 +52,10 @@ class controller():
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        self.user_bd = dbrequest.requequest_to_user_login()
-        self.user_data = dbrequest.request_to_user_data()
-        self.field_data = dbrequest.request_to_field_data()
-
-        self.func = controller_func.controller_func(self.user_bd, self.user_data, self.field_data)
+        # --- ИЗМЕНЕНО: Создаем один менеджер БД ---
+        self.db = DatabaseManager() 
+        self.func = controller_func.controller_func(self.db)
+        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
         self.app.mount("/static", StaticFiles(directory="."), name="static")
         logger.info("Контроллер инициализирован")
