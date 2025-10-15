@@ -9,8 +9,9 @@ import VectorSource from 'ol/source/Vector';
 import Draw from 'ol/interaction/Draw';
 import Modify from 'ol/interaction/Modify';
 import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style';
-import { getArea, getDistance } from 'ol/sphere';
+import { getArea } from 'ol/sphere';
 import { Circle } from 'ol/geom';
+import Feature from 'ol/Feature';
 
 function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
   const mapRef = useRef(null);
@@ -19,7 +20,7 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
   const modifyInteraction = useRef(null);
   const vectorSource = useRef(new VectorSource());
   const [area, setArea] = useState(null);
-  const [perimeter, setPerimeter] = useState(null);
+  const [hasGeometry, setHasGeometry] = useState(false);
 
   const getStyle = (feature) => {
     const geometry = feature.getGeometry();
@@ -59,6 +60,129 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
           lineDash: [5, 5]
         })
       });
+    }
+  };
+
+  // Функция для очистки выделения
+  const clearSelection = () => {
+    vectorSource.current.clear();
+    setHasGeometry(false);
+    setArea(null);
+    if (onGeometryChange) {
+      onGeometryChange(null);
+    }
+    
+    // Восстанавливаем возможность рисования
+    if (mapInstance.current && drawInteraction.current) {
+      mapInstance.current.removeInteraction(drawInteraction.current);
+    }
+    setupDrawInteraction();
+  };
+
+  const updateMeasurements = (feature) => {
+    const geometry = feature.getGeometry();
+    
+    if (geometry.getType() === 'Polygon') {
+      const areaValue = getArea(geometry);
+      const areaHectares = (areaValue / 10000).toFixed(2);
+      setArea(`${areaHectares} га`);
+      
+      if (onGeometryChange) {
+        onGeometryChange(geometry);
+      }
+    } else if (geometry.getType() === 'Circle') {
+      const radiusValue = geometry.getRadius();
+      const areaValue = Math.PI * radiusValue * radiusValue;
+      const areaHectares = (areaValue / 10000).toFixed(2);
+      setArea(`${areaHectares} га`);
+      
+      if (onGeometryChange) {
+        onGeometryChange(geometry);
+      }
+    }
+  };
+
+  const setupDrawInteraction = () => {
+    if (!mapInstance.current || hasGeometry) return;
+
+    if (drawInteraction.current) {
+      mapInstance.current.removeInteraction(drawInteraction.current);
+      drawInteraction.current = null;
+    }
+
+    if (fieldType === 'polygon') {
+      drawInteraction.current = new Draw({
+        source: vectorSource.current,
+        type: 'Polygon',
+        maxPoints: 5,
+        style: new Style({
+          fill: new Fill({
+            color: 'rgba(0, 158, 79, 0.2)'
+          }),
+          stroke: new Stroke({
+            color: '#009e4f',
+            width: 2
+          })
+        })
+      });
+
+      drawInteraction.current.on('drawend', (event) => {
+        const feature = event.feature;
+        setHasGeometry(true);
+        updateMeasurements(feature);
+        
+        // Удаляем взаимодействие рисования после создания полигона
+        if (drawInteraction.current) {
+          mapInstance.current.removeInteraction(drawInteraction.current);
+          drawInteraction.current = null;
+        }
+      });
+
+      mapInstance.current.addInteraction(drawInteraction.current);
+    } else if (fieldType === 'point') {
+      drawInteraction.current = new Draw({
+        source: vectorSource.current,
+        type: 'Point',
+        style: new Style({
+          image: new CircleStyle({
+            radius: 6,
+            fill: new Fill({
+              color: '#009e4f'
+            }),
+            stroke: new Stroke({
+              color: '#fff',
+              width: 2
+            })
+          })
+        })
+      });
+
+      drawInteraction.current.on('drawend', (event) => {
+        const feature = event.feature;
+        const point = feature.getGeometry();
+        
+        // Создаем круг с указанным радиусом
+        const circle = new Circle(point.getCoordinates(), radius || 100);
+        const circleFeature = new Feature({
+          geometry: circle,
+          name: 'radius_circle'
+        });
+        
+        // Удаляем точку и добавляем круг
+        vectorSource.current.clear();
+        vectorSource.current.addFeature(circleFeature);
+        
+        setHasGeometry(true);
+        updateMeasurements(circleFeature);
+        
+        // Удаляем взаимодействие рисования после создания круга
+        if (drawInteraction.current) {
+          mapInstance.current.removeInteraction(drawInteraction.current);
+          drawInteraction.current = null;
+        }
+      });
+
+      mapInstance.current.addInteraction(drawInteraction.current);
     }
   };
 
@@ -104,105 +228,12 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
     };
   }, []);
 
-  const updateMeasurements = (feature) => {
-    const geometry = feature.getGeometry();
-    
-    if (geometry.getType() === 'Polygon') {
-      const areaValue = getArea(geometry);
-      const areaHectares = (areaValue / 10000).toFixed(2);
-      setArea(`${areaHectares} га`);
-      
-      const coordinates = geometry.getCoordinates()[0];
-      let perimeterValue = 0;
-      for (let i = 0; i < coordinates.length - 1; i++) {
-        perimeterValue += getDistance(coordinates[i], coordinates[i + 1]);
-      }
-      setPerimeter(`${perimeterValue.toFixed(0)} м`);
-      
-      if (onGeometryChange) {
-        onGeometryChange(geometry);
-      }
-    } else if (geometry.getType() === 'Circle') {
-      const radiusValue = geometry.getRadius();
-      const areaValue = Math.PI * radiusValue * radiusValue;
-      const areaHectares = (areaValue / 10000).toFixed(2);
-      setArea(`${areaHectares} га`);
-      setPerimeter(`${(2 * Math.PI * radiusValue).toFixed(0)} м`);
-      
-      if (onGeometryChange) {
-        onGeometryChange(geometry);
-      }
-    }
-  };
+  useEffect(() => {
+    setupDrawInteraction();
+  }, [fieldType, hasGeometry]);
 
   useEffect(() => {
-    if (!mapInstance.current) return;
-
-    if (drawInteraction.current) {
-      mapInstance.current.removeInteraction(drawInteraction.current);
-      drawInteraction.current = null;
-    }
-
-    if (fieldType === 'polygon') {
-      drawInteraction.current = new Draw({
-        source: vectorSource.current,
-        type: 'Polygon',
-        maxPoints: 5,
-        style: new Style({
-          fill: new Fill({
-            color: 'rgba(0, 158, 79, 0.2)'
-          }),
-          stroke: new Stroke({
-            color: '#009e4f',
-            width: 2
-          })
-        })
-      });
-
-      drawInteraction.current.on('drawend', (event) => {
-        const feature = event.feature;
-        updateMeasurements(feature);
-      });
-
-      mapInstance.current.addInteraction(drawInteraction.current);
-    } else if (fieldType === 'point') {
-      drawInteraction.current = new Draw({
-        source: vectorSource.current,
-        type: 'Point',
-        style: new Style({
-          image: new CircleStyle({
-            radius: 6,
-            fill: new Fill({
-              color: '#009e4f'
-            }),
-            stroke: new Stroke({
-              color: '#fff',
-              width: 2
-            })
-          })
-        })
-      });
-
-      drawInteraction.current.on('drawend', (event) => {
-        const feature = event.feature;
-        const point = feature.getGeometry();
-        
-        const circle = new Circle(point.getCoordinates(), radius || 100);
-        const circleFeature = new ol.Feature({
-          geometry: circle,
-          name: 'radius_circle'
-        });
-        
-        vectorSource.current.addFeature(circleFeature);
-        updateMeasurements(circleFeature);
-      });
-
-      mapInstance.current.addInteraction(drawInteraction.current);
-    }
-  }, [fieldType, onGeometryChange]);
-
-  useEffect(() => {
-    if (fieldType === 'point' && radius) {
+    if (fieldType === 'point' && radius && hasGeometry) {
       const features = vectorSource.current.getFeatures();
       features.forEach(feature => {
         const geometry = feature.getGeometry();
@@ -212,14 +243,23 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
         }
       });
     }
-  }, [radius, fieldType]);
+  }, [radius, fieldType, hasGeometry]);
 
   return (
-    <div 
-      ref={mapRef} 
-      className="w-full h-full rounded-xl overflow-hidden"
-      style={{ minHeight: '400px' }}
-    />
+    <div className="w-full h-full rounded-xl overflow-hidden relative" style={{ minHeight: '400px' }}>
+      <div 
+        ref={mapRef} 
+        className="w-full h-full cursor-pointer"
+      />
+      {hasGeometry && (
+        <button
+          onClick={clearSelection}
+          className="absolute bottom-4 right-4 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] text-white px-6 py-3 rounded-full text-xl shadow-2xs cursor-pointer transition-colors"
+        >
+          Очистить выделение
+        </button>
+      )}
+    </div>
   );
 }
 

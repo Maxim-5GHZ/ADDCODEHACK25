@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getArea, getDistance } from 'ol/sphere';
+import { getArea } from 'ol/sphere';
 import FieldTypeSelector from './FieldTypeSelector';
 import FieldForm from './FieldForm';
 import OpenLayersMap from './OpenLayersMap';
@@ -10,7 +10,6 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
   const [radius, setRadius] = useState(100);
   const [geometry, setGeometry] = useState(null);
   const [area, setArea] = useState(null);
-  const [perimeter, setPerimeter] = useState(null);
 
   const handleGeometryChange = (newGeometry) => {
     setGeometry(newGeometry);
@@ -19,18 +18,10 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
       const areaValue = getArea(newGeometry);
       const areaHectares = (areaValue / 10000).toFixed(2);
       setArea(`${areaHectares} га`);
-      
-      const coordinates = newGeometry.getCoordinates()[0];
-      let perimeterValue = 0;
-      for (let i = 0; i < coordinates.length - 1; i++) {
-        perimeterValue += getDistance(coordinates[i], coordinates[i + 1]);
-      }
-      setPerimeter(`${perimeterValue.toFixed(0)} м`);
     } else if (fieldType === 'point' && newGeometry.getType() === 'Circle') {
       const areaValue = Math.PI * newGeometry.getRadius() * newGeometry.getRadius();
       const areaHectares = (areaValue / 10000).toFixed(2);
       setArea(`${areaHectares} га`);
-      setPerimeter(`${(2 * Math.PI * newGeometry.getRadius()).toFixed(0)} м`);
     }
   };
 
@@ -62,8 +53,7 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
       name: fieldName,
       radius: fieldType === 'point' ? radius : undefined,
       geometry: geometry,
-      area: area,
-      perimeter: perimeter
+      area: area
     });
   };
 
@@ -78,7 +68,6 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
     setRadius(100);
     setGeometry(null);
     setArea(null);
-    setPerimeter(null);
     onClose();
   };
 
@@ -89,7 +78,7 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
       className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4"
       onClick={handleOverlayClick}
     >
-      <div className="bg-white rounded-3xl w-full max-w-6xl h-[80vh] flex flex-col lg:flex-row overflow-hidden">
+      <div className="bg-white rounded-3xl w-[80vw] h-[80vh] flex flex-col lg:flex-row overflow-hidden">
         <div className="flex-1 p-6 min-h-[300px] lg:min-h-auto">
           <OpenLayersMap 
             fieldType={fieldType}
@@ -105,7 +94,7 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
             </h2>
             <button
               onClick={handleClose}
-              className="text-3xl text-gray-500 hover:text-gray-700 transition-colors"
+              className="text-3xl text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
             >
               ×
             </button>
@@ -124,20 +113,19 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
               radius={radius}
               setRadius={setRadius}
               area={area}
-              perimeter={perimeter}
             />
             
             <div className="mt-auto pt-6 lg:pt-8 flex gap-4">
               <button
                 type="button"
                 onClick={handleClose}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-xl py-3 lg:py-4 text-lg lg:text-xl font-semibold text-gray-700"
+                className="flex-1 bg-[var(--neutral-color)] hover:bg-gray-200 transition-colors rounded-full py-4 text-xl font-semibold text-gray-700 cursor-pointer shadow-2xs"
               >
                 Отмена
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-xl py-3 lg:py-4 text-lg lg:text-xl font-semibold text-white"
+                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-full py-4 text-xl font-semibold text-white cursor-pointer shadow-2xs"
               >
                 Сохранить поле
               </button>

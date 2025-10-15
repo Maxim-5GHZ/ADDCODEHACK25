@@ -1,10 +1,10 @@
 import React from 'react';
 
-function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius, area, perimeter }) {
+function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius, area }) {
   return (
     <div className="space-y-6">
       <div>
-        <label className="block text-2xl font-semibold mb-2" htmlFor="fieldName">
+        <label className="block text-2xl font-semibold mb-2 text-[var(--neutral-dark-color)]" htmlFor="fieldName">
           Название поля
         </label>
         <input
@@ -12,7 +12,7 @@ function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius, area
           type="text"
           value={fieldName}
           onChange={(e) => setFieldName(e.target.value)}
-          className="w-full border rounded-xl px-6 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-[#009e4f]"
+          className="w-full border rounded-4xl px-6 py-4 text-xl bg-[var(--neutral-light-color)] shadow-2xs focus:outline-0 focus:ring-2 focus:ring-[var(--accent-color)] cursor-text"
           placeholder="Введите название поля"
         />
       </div>
@@ -22,17 +22,12 @@ function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius, area
           <p className="text-lg font-semibold text-green-800">
             Площадь: {area}
           </p>
-          {perimeter && (
-            <p className="text-lg font-semibold text-green-800 mt-2">
-              Периметр: {perimeter}
-            </p>
-          )}
         </div>
       )}
 
       {fieldType === 'point' && (
         <div>
-          <label className="block text-2xl font-semibold mb-2" htmlFor="radius">
+          <label className="block text-2xl font-semibold mb-2 text-[var(--neutral-dark-color)]" htmlFor="radius">
             Радиус (метры)
           </label>
           <input
@@ -40,7 +35,7 @@ function FieldForm({ fieldType, fieldName, setFieldName, radius, setRadius, area
             type="number"
             value={radius}
             onChange={(e) => setRadius(parseInt(e.target.value) || 100)}
-            className="w-full border rounded-xl px-6 py-4 text-xl focus:outline-none focus:ring-2 focus:ring-[#009e4f]"
+            className="w-full border rounded-4xl px-6 py-4 text-xl bg-[var(--neutral-color)] shadow-2xs focus:outline-0 focus:ring-2 focus:ring-[var(--accent-color)] cursor-text"
             placeholder="Введите радиус"
             min="1"
           />
