@@ -11,17 +11,23 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
   const [geometry, setGeometry] = useState(null);
   const [area, setArea] = useState(null);
 
-  const handleGeometryChange = (newGeometry) => {
+  const handleGeometryChange = (newGeometry, newRadius = null) => {
     setGeometry(newGeometry);
     
-    if (fieldType === 'polygon' && newGeometry.getType() === 'Polygon') {
+    if (newRadius !== null) {
+      setRadius(Math.round(newRadius));
+    }
+    
+    if (fieldType === 'polygon' && newGeometry && newGeometry.getType() === 'Polygon') {
       const areaValue = getArea(newGeometry);
       const areaHectares = (areaValue / 10000).toFixed(2);
       setArea(`${areaHectares} га`);
-    } else if (fieldType === 'point' && newGeometry.getType() === 'Circle') {
+    } else if (fieldType === 'point' && newGeometry && newGeometry.getType() === 'Circle') {
       const areaValue = Math.PI * newGeometry.getRadius() * newGeometry.getRadius();
       const areaHectares = (areaValue / 10000).toFixed(2);
       setArea(`${areaHectares} га`);
+    } else if (!newGeometry) {
+      setArea(null);
     }
   };
 
