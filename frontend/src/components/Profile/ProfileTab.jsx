@@ -17,7 +17,7 @@ function ProfileTab({ user }) {
           Редактировать профиль
         </button>
         <button
-          className="bg-[var(--neutral-light-color)] hover:bg-[var(--neutral-color)] border-2 border-[var(--accent-color)]
+          className="bg-white hover:bg-[var(--neutral-light-color)] border-2 border-[var(--accent-color)]
           transition-[background-color] duration-100 cursor-pointer rounded-full text-3xl px-5 py-4 text-[var(--accent-color)]">
           Сменить пароль
         </button>

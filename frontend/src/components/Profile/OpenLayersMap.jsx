@@ -21,6 +21,7 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
   const vectorSource = useRef(new VectorSource());
   const [area, setArea] = useState(null);
   const [hasGeometry, setHasGeometry] = useState(false);
+  const [isMapInitialized, setIsMapInitialized] = useState(false);
   const isUpdatingFromMap = useRef(false);
 
   const getStyle = (feature) => {
@@ -82,11 +83,14 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
       onGeometryChange(null);
     }
     
-    // Восстанавливаем возможность рисования
-    if (mapInstance.current && drawInteraction.current) {
-      mapInstance.current.removeInteraction(drawInteraction.current);
+    // Восстанавливаем возможность рисования только если карта существует
+    if (mapInstance.current) {
+      if (drawInteraction.current) {
+        mapInstance.current.removeInteraction(drawInteraction.current);
+        drawInteraction.current = null;
+      }
+      setupDrawInteraction();
     }
-    setupDrawInteraction();
   };
 
   const updateMeasurements = (feature, isFromMapInteraction = false) => {
@@ -130,6 +134,10 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
       drawInteraction.current = null;
     }
 
+    // Убедимся, что элемент карты существует
+    const mapElement = mapInstance.current.getTargetElement();
+    if (!mapElement) return;
+
     if (fieldType === 'polygon') {
       drawInteraction.current = new Draw({
         source: vectorSource.current,
@@ -156,10 +164,13 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
           mapInstance.current.removeInteraction(drawInteraction.current);
           drawInteraction.current = null;
         }
+
+        // Удаляем обработчик нажатия клавиш
+        mapElement.removeEventListener('keydown', handleKeyPress);
       });
 
       // Добавляем обработчик нажатия клавиш
-      mapInstance.current.getTargetElement().addEventListener('keydown', handleKeyPress);
+      mapElement.addEventListener('keydown', handleKeyPress);
       
       mapInstance.current.addInteraction(drawInteraction.current);
     } else if (fieldType === 'point') {
@@ -259,22 +270,30 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
     modifyInteraction.current = modify;
 
     mapInstance.current = map;
+    setIsMapInitialized(true);
 
     return () => {
       if (mapInstance.current) {
         // Удаляем обработчик клавиш
-        mapInstance.current.getTargetElement().removeEventListener('keydown', handleKeyPress);
+        const mapElement = mapInstance.current.getTargetElement();
+        if (mapElement) {
+          mapElement.removeEventListener('keydown', handleKeyPress);
+        }
         mapInstance.current.setTarget(null);
+        mapInstance.current = null;
       }
+      setIsMapInitialized(false);
     };
   }, []);
 
   useEffect(() => {
-    setupDrawInteraction();
-  }, [fieldType, hasGeometry]);
+    if (isMapInitialized) {
+      setupDrawInteraction();
+    }
+  }, [fieldType, hasGeometry, isMapInitialized]);
 
   useEffect(() => {
-    if (fieldType === 'point' && radius && hasGeometry) {
+    if (fieldType === 'point' && radius && hasGeometry && isMapInitialized) {
       const features = vectorSource.current.getFeatures();
       const circleFeature = features.find(feature => 
         feature.getGeometry().getType() === 'Circle'
@@ -286,7 +305,7 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
         updateMeasurements(circleFeature, false);
       }
     }
-  }, [radius, fieldType, hasGeometry]);
+  }, [radius, fieldType, hasGeometry, isMapInitialized]);
 
   return (
     <div className="w-full h-full rounded-xl overflow-hidden relative" style={{ minHeight: '400px' }}>

@@ -73,7 +73,11 @@ async function getUserProfile(token) {
 }
 
 async function saveField(token, fieldName, areaOfInterest) {
-    return fetch(`${API_BASE}/fields/save?token=${encodeURIComponent(token)}&field_name=${encodeURIComponent(fieldName)}&area_of_interest=${encodeURIComponent(areaOfInterest)}`, {
+    const areaOfInterestStr = typeof areaOfInterest === 'string' 
+        ? areaOfInterest 
+        : JSON.stringify(areaOfInterest);
+        
+    return fetch(`${API_BASE}/fields/save?token=${encodeURIComponent(token)}&field_name=${encodeURIComponent(fieldName)}&area_of_interest=${encodeURIComponent(areaOfInterestStr)}`, {
         method: 'POST'
     });
 }

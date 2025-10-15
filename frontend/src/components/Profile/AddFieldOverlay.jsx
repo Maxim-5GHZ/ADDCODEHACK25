@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getArea } from 'ol/sphere';
+import { transform } from 'ol/proj';
 import FieldTypeSelector from './FieldTypeSelector';
 import FieldForm from './FieldForm';
 import OpenLayersMap from './OpenLayersMap';
@@ -31,7 +32,7 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!fieldName.trim()) {
@@ -54,13 +55,46 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
       }
     }
 
-    onSubmit({
-      type: fieldType,
-      name: fieldName,
-      radius: fieldType === 'point' ? radius : undefined,
-      geometry: geometry,
-      area: area
-    });
+    // Преобразуем геометрию в формат для сервера
+    let areaOfInterest;
+    
+    try {
+      if (fieldType === 'polygon') {
+        const coordinates = geometry.getCoordinates()[0];
+        // Преобразуем координаты из EPSG:3857 в EPSG:4326 (широта/долгота)
+        const transformedCoordinates = coordinates.map(coord => 
+          transform(coord, 'EPSG:3857', 'EPSG:4326')
+        );
+        
+        areaOfInterest = {
+          type: 'polygon',
+          coordinates: transformedCoordinates
+        };
+      } else if (fieldType === 'point') {
+        const center = geometry.getCenter();
+        // Преобразуем центр из EPSG:3857 в EPSG:4326
+        const transformedCenter = transform(center, 'EPSG:3857', 'EPSG:4326');
+        
+        areaOfInterest = {
+          type: 'point_radius',
+          lon: transformedCenter[0],
+          lat: transformedCenter[1],
+          radius_km: radius / 1000 // Конвертируем метры в километры
+        };
+      }
+
+      onSubmit({
+        type: fieldType,
+        name: fieldName,
+        radius: fieldType === 'point' ? radius : undefined,
+        geometry: geometry,
+        area: area,
+        areaOfInterest: areaOfInterest
+      });
+    } catch (error) {
+      console.error('Ошибка при преобразовании координат:', error);
+      alert('Ошибка при обработке координат');
+    }
   };
 
   const handleOverlayClick = (e) => {
