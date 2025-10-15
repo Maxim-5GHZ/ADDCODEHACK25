@@ -1,3 +1,5 @@
+--- START OF FILE index.html ---
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -439,6 +441,16 @@
             <button class="modal-close-button">&times;</button>
             <h2 id="modal-title">Результаты анализа</h2>
             <div class="modal-body">
+                <!-- <<< --- НАЧАЛО НОВЫХ ЭЛЕМЕНТОВ --- >>> -->
+                <div class="card">
+                    <h4>Анализ и рекомендации от AI</h4>
+                    <button id="get-ai-recommendation-btn">Получить AI-рекомендации</button>
+                    <div id="ai-recommendation-content" style="margin-top: 1rem; white-space: pre-wrap;">
+                        <!-- Сюда будет загружен ответ от GigaChat -->
+                    </div>
+                </div>
+                <!-- <<< --- КОНЕЦ НОВЫХ ЭЛЕМЕНТОВ --- >>> -->
+
                 <div class="card">
                     <h4>Динамика среднего NDVI (за 2 года)</h4>
                     <canvas id="historical-ndvi-chart"></canvas>
@@ -471,6 +483,7 @@
                 currentGeometry: null,
                 historicalChart: null,
                 zoningCharts: {},
+                currentAnalysisId: null, // <<< --- НОВОЕ СВОЙСТВО
             };
 
             // -------------------
@@ -500,6 +513,10 @@
                 modalTitle: document.getElementById('modal-title'),
                 imageResultsContainer: document.getElementById('image-results-container'),
                 historicalNdviChartCanvas: document.getElementById('historical-ndvi-chart'),
+                // <<< --- НАЧАЛО НОВЫХ DOM-ЭЛЕМЕНТОВ --- >>>
+                getAiRecommendationBtn: document.getElementById('get-ai-recommendation-btn'),
+                aiRecommendationContent: document.getElementById('ai-recommendation-content'),
+                // <<< --- КОНЕЦ НОВЫХ DOM-ЭЛЕМЕНТОВ --- >>>
             };
 
             // -------------------
@@ -696,8 +713,16 @@
             }
 
             function renderAnalysisResults(data) {
+                // <<< --- ИЗМЕНЕНИЕ: СОХРАНЯЕМ ID ТЕКУЩЕГО АНАЛИЗА --- >>>
+                state.currentAnalysisId = data.analysis_id;
+
                 dom.modalTitle.textContent = `Результаты анализа от ${new Date(data.timestamp * 1000).toLocaleString()}`;
                 dom.imageResultsContainer.innerHTML = '';
+
+                // <<< --- ИЗМЕНЕНИЕ: ОЧИЩАЕМ СТАРЫЕ РЕКОМЕНДАЦИИ --- >>>
+                dom.aiRecommendationContent.innerHTML = '';
+                dom.getAiRecommendationBtn.disabled = false;
+                dom.getAiRecommendationBtn.textContent = 'Получить AI-рекомендации';
 
                 if(data.results_per_image && data.results_per_image.length > 0) {
                     data.results_per_image.forEach((result, index) => {
@@ -720,6 +745,10 @@
                                     <img src="data:image/jpeg;base64,${result.images.savi}" alt="SAVI Image">
                                 </div>
                                  <div class="image-container">
+                                    <p><strong>EVI</strong></p>
+                                    <img src="data:image/jpeg;base64,${result.images.evi}" alt="EVI Image">
+                                </div>
+                                 <div class="image-container">
                                     <p><strong>VARI</strong></p>
                                     <img src="data:image/jpeg;base64,${result.images.vari}" alt="VARI Image">
                                 </div>
@@ -730,6 +759,7 @@
                                         <tr><th>Индекс</th><th>Мин.</th><th>Макс.</th><th>Сред.</th></tr>
                                         <tr><td>NDVI</td><td>${result.statistics.ndvi.min.toFixed(3)}</td><td>${result.statistics.ndvi.max.toFixed(3)}</td><td>${result.statistics.ndvi.mean.toFixed(3)}</td></tr>
                                         <tr><td>SAVI</td><td>${result.statistics.savi.min.toFixed(3)}</td><td>${result.statistics.savi.max.toFixed(3)}</td><td>${result.statistics.savi.mean.toFixed(3)}</td></tr>
+                                        <tr><td>EVI</td><td>${result.statistics.evi.min.toFixed(3)}</td><td>${result.statistics.evi.max.toFixed(3)}</td><td>${result.statistics.evi.mean.toFixed(3)}</td></tr>
                                         <tr><td>VARI</td><td>${result.statistics.vari.min.toFixed(3)}</td><td>${result.statistics.vari.max.toFixed(3)}</td><td>${result.statistics.vari.mean.toFixed(3)}</td></tr>
                                     </table>
                                 </div>
@@ -989,6 +1019,37 @@
                     console.error('Failed to delete analysis');
                 }
             }
+
+            // <<< --- НАЧАЛО НОВОГО ОБРАБОТЧИКА --- >>>
+            dom.getAiRecommendationBtn.addEventListener('click', async () => {
+                if (!state.currentAnalysisId) {
+                    showToast('Не выбран анализ для получения рекомендаций.', 'error');
+                    return;
+                }
+                
+                const btn = dom.getAiRecommendationBtn;
+                const contentDiv = dom.aiRecommendationContent;
+                
+                btn.disabled = true;
+                btn.textContent = 'Идет генерация...';
+                contentDiv.innerHTML = '<i>Пожалуйста, подождите, нейросеть анализирует данные...</i>';
+
+                try {
+                    const response = await apiRequest(`/analysis/${state.currentAnalysisId}/recommendations?token=${state.token}`);
+                    if(response.status === 'success') {
+                        // Используем pre-wrap в CSS, чтобы сохранить форматирование (переносы строк, списки)
+                        contentDiv.textContent = response.recommendation;
+                    } else {
+                        throw new Error(response.detail || 'Не удалось получить рекомендации');
+                    }
+                } catch (error) {
+                    contentDiv.innerHTML = `<span style="color: var(--error-color);">Ошибка: ${error.message}</span>`;
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Получить AI-рекомендации';
+                }
+            });
+            // <<< --- КОНЕЦ НОВОГО ОБРАБОТЧИКА --- >>>
 
             // Модальное окно
             dom.modalCloseButton.addEventListener('click', () => {

@@ -1,5 +1,7 @@
 # --- START OF FILE controller_func.py ---
 
+# --- START OF FILE controller_func.py ---
+
 import random
 import logging
 from fastapi.responses import FileResponse
@@ -9,6 +11,7 @@ import os
 import json
 from ImageProvider import ImageProvider
 import ee # Добавлен импорт
+from gigachat_service import GigaChatService # <<< --- НОВЫЙ ИМПОРТ
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +20,7 @@ class controller_func():
     def __init__(self, db_manager):
         self.db = db_manager
         self.analysis_manager = AnalysisManager(db_manager)
-    # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+        self.ai_service = GigaChatService() # <<< --- ИНИЦИАЛИЗАЦИЯ AI СЕРВИСА
 
     def _get_user_data_object(self, token: str) -> dict:
         """Вспомогательная функция для получения и парсинга данных пользователя."""
@@ -642,6 +645,52 @@ class controller_func():
             logger.error(f"Ошибка при удалении анализа: {e}")
             return {"status": "error", "detail": str(e)}
 
+    # <<< --- НАЧАЛО ИЗМЕНЕНИЙ В МЕТОДЕ --- >>>
+    async def get_ai_recommendations(self, token: str, analysis_id: str):
+        """Получает AI-рекомендации для конкретного анализа."""
+        logger.info(f"Запрос AI-рекомендаций для анализа {analysis_id}")
+        try:
+            if not self.db.if_token_exist(token):
+                return {"status": "error", "detail": "Невалидный токен"}
+
+            analysis_result = self.analysis_manager.get_analysis_by_id(token, analysis_id)
+            if analysis_result.get('status') != 'success':
+                return analysis_result
+
+            analysis_data = analysis_result['data']
+            
+            # Вычисляем средние значения для ВСЕХ индексов за весь период
+            average_indices = {}
+            results_per_image = analysis_data.get('results_per_image', [])
+            image_count = len(results_per_image)
+
+            if image_count > 0:
+                # Список индексов, для которых нужно посчитать среднее
+                indices_to_process = ['ndvi', 'savi', 'evi', 'vari']
+                
+                for index_name in indices_to_process:
+                    # Собираем все средние значения для текущего индекса по всем снимкам
+                    all_means = [
+                        r['statistics'][index_name]['mean'] 
+                        for r in results_per_image 
+                        if index_name in r.get('statistics', {})
+                    ]
+                    # Считаем среднее арифметическое и сохраняем, если есть данные
+                    if all_means:
+                        average_indices[index_name] = sum(all_means) / len(all_means)
+            
+            if not average_indices:
+                return {"status": "error", "detail": "В данных анализа отсутствуют статистики для расчета средних значений индексов."}
+
+            # Получаем рекомендации от GigaChat на основе словаря со всеми индексами
+            recommendation = await self.ai_service.get_recommendations(average_indices)
+            
+            return {"status": "success", "recommendation": recommendation, "average_indices": average_indices}
+
+        except Exception as e:
+            logger.error(f"Ошибка при получении AI-рекомендаций: {e}")
+            return {"status": "error", "detail": f"Внутренняя ошибка сервера: {e}"}
+    # <<< --- КОНЕЦ ИЗМЕНЕНИЙ В МЕТОДЕ --- >>>
 
     # --- НОВЫЕ МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ПОЛЯМИ ---
     async def save_user_field(self, token: str, field_name: str, area_of_interest: str):
