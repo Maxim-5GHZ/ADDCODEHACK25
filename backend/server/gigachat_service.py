@@ -8,7 +8,7 @@ from gigachat.models import Chat, Messages, MessagesRole
 logger = logging.getLogger(__name__)
 
 class GigaChatService:
-    def __init__(self, config_path="config.json"):
+    def __init__(self, config_path="hack25addcode-3171f61bba2c.json"):
         self.api_key = self._load_api_key(config_path)
         if not self.api_key:
             logger.error("Ключ API GigaChat не найден в config.json. Рекомендации AI не будут работать.")
@@ -34,6 +34,10 @@ class GigaChatService:
         """
         Получает агрономические рекомендации от GigaChat на основе средних значений нескольких вегетационных индексов.
         """
+        token_use = input("Вы хотите использовать токены?(y/n):")
+        if token_use in ["n", "N"]:
+            print("Продолжаю без токенов")
+            return None
         if not self.giga:
             return "Сервис AI-рекомендаций недоступен из-за отсутствия API ключа."
 
