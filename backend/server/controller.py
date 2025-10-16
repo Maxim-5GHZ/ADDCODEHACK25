@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 
 
 class controller():
-    def __init__(self, port, use_https=True):
+    def __init__(self, port, use_https=True,token_use=True):
         logger.info("Инициализация контроллера...")
         self.use_https = use_https
+        self.token_use = token_use
         self.ssl_keyfile = None
         self.ssl_certfile = None
 
@@ -241,7 +242,7 @@ class controller():
         # <<< --- НАЧАЛО НОВОГО МАРШРУТА --- >>>
         @self.app.get("/analysis/{analysis_id}/recommendations")
         async def get_ai_recommendations(analysis_id: str, token: str = Query(...)):
-            return await self.func.get_ai_recommendations(token, analysis_id)
+            return await self.func.get_ai_recommendations(token, analysis_id,if_use_token=self.token_use)
         # <<< --- КОНЕЦ НОВОГО МАРШРУТА --- >>>
         
         # --- НОВЫЙ МАРШРУТ ---
