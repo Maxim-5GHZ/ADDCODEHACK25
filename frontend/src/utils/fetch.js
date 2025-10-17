@@ -1,4 +1,4 @@
-const API_BASE = '/api';
+const API_BASE = '/api/api';
 
 async function healthCheck() {
     return fetch(`${API_BASE}/health`);

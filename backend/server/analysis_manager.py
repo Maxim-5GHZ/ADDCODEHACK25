@@ -116,6 +116,7 @@ class AnalysisManager:
             logger.error(f"Ошибка конвертации массива в base64: {e}")
             return ""
 
+    # <<< --- НОВЫЙ МЕТОД ДЛЯ RGB --- >>>
     def _rgb_array_to_base64(self, rgb_array: np.ndarray) -> str:
         """Конвертирует цветной RGB numpy array в base64 строку."""
         try:
@@ -163,6 +164,7 @@ class AnalysisManager:
             logger.error(f"Ошибка при раскрашивании NDVI: {e}")
             return ""
 
+    # <<< --- ИЗМЕНЕННЫЙ МЕТОД --- >>>
     def _create_problem_zones_image(self, rgb_image: np.ndarray, ndvi_map: np.ndarray, threshold: float = 0.2) -> str:
         """
         Подсвечивает проблемные зоны (NDVI < threshold) красным цветом
@@ -236,8 +238,7 @@ class AnalysisManager:
             area_of_interest = None
             if polygon_coords:
                 area_info = {'type': 'polygon', 'coordinates': polygon_coords}
-                # <<< --- ИСПРАВЛЕНИЕ: Оборачиваем координаты в дополнительный список для правильного формата GEE --- >>>
-                area_of_interest = ee.Geometry.Polygon([polygon_coords])
+                area_of_interest = ee.Geometry.Polygon(polygon_coords)
                 logger.info(f"Запуск анализа коллекции для полигона...")
             elif lon is not None and lat is not None:
                 area_info = {'type': 'point_radius', 'lon': lon, 'lat': lat, 'radius_km': radius_km}
@@ -276,6 +277,7 @@ class AnalysisManager:
                     'date': image_data['date'],
                     'cloud_coverage': image_data['cloud_percentage'],
                     'images': {
+                        # <<< --- ИЗМЕНЕНИЕ: Используем правильную функцию для RGB --- >>>
                         'rgb': self._rgb_array_to_base64(image_data['rgb_image']),
                         'ndvi': self._array_to_base64(indices['ndvi']['map']),
                         'savi': self._array_to_base64(indices['savi']['map']),
