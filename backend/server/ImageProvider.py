@@ -188,7 +188,7 @@ class ImageProvider:
         provider.cloud_percentage = cloud_percentage
         
         # Получаем визуальное изображение
-        rgb_vis_params = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 3000, 'dimensions': 512}
+        rgb_vis_params = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 30000, 'dimensions': 5120}
         provider.rgb_image = cls._url_to_numpy(cleanest_image.getThumbURL(rgb_vis_params))
 
         # Получаем научные данные
