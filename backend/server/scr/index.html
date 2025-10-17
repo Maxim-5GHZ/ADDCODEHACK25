@@ -1,5 +1,3 @@
---- START OF FILE index.html ---
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -440,29 +438,32 @@
         <div class="modal-content">
             <button class="modal-close-button">&times;</button>
             <h2 id="modal-title">Результаты анализа</h2>
+            <!-- <<< --- НАЧАЛО ИЗМЕНЕНИЙ --- >>> -->
             <div class="modal-body">
                 <div class="card">
                     <h4>Анализ и рекомендации от AI</h4>
-                    <!-- <<< --- ИЗМЕНЕНИЕ: Кнопка удалена, остался только контейнер для контента --- >>> -->
                     <div id="ai-recommendation-content" style="white-space: pre-wrap;">
                         <!-- Сюда будет загружен ответ от GigaChat -->
                     </div>
                 </div>
-                
+
+                <!-- ИСПРАВЛЕНИЕ 1: Добавлен canvas для исторического графика, которого не хватало -->
+                <div class="card">
+                    <h4>Историческая динамика NDVI (за все время)</h4>
+                    <canvas id="historical-ndvi-chart"></canvas>
+                </div>
+
                 <div class="card">
                     <h4>Динамика вегетационных индексов (за выбранный период)</h4>
                     <canvas id="indices-dynamics-chart"></canvas>
                 </div>
 
-                <div class="card">
-                    <h4>Динамика среднего NDVI (за 2 года)</h4>
-                    <canvas id="historical-ndvi-chart"></canvas>
-                </div>
-
+                <!-- ИСПРАВЛЕНИЕ 2: Добавлен контейнер, в который JS будет вставлять карточки с изображениями и статистикой -->
                 <div id="image-results-container">
-                    <!-- Сюда будут вставляться результаты для каждого снимка -->
+                    <!-- Сюда JS динамически добавит результаты по каждому снимку -->
                 </div>
             </div>
+            <!-- <<< --- КОНЕЦ ИЗМЕНЕНИЙ --- >>> -->
         </div>
     </div>
 
@@ -518,7 +519,6 @@
                 imageResultsContainer: document.getElementById('image-results-container'),
                 historicalNdviChartCanvas: document.getElementById('historical-ndvi-chart'),
                 indicesDynamicsChartCanvas: document.getElementById('indices-dynamics-chart'),
-                // <<< --- ИЗМЕНЕНИЕ: Ссылка на кнопку удалена, ссылка на контент осталась --- >>>
                 aiRecommendationContent: document.getElementById('ai-recommendation-content'),
             };
 
@@ -715,15 +715,11 @@
                 }
             }
 
-            // <<< --- НАЧАЛО НОВОЙ ФУНКЦИИ ДЛЯ АВТОМАТИЧЕСКОЙ ЗАГРУЗКИ AI-РЕКОМЕНДАЦИЙ --- >>>
             async function fetchAndRenderAIRecommendation(analysisId) {
                 const contentDiv = dom.aiRecommendationContent;
                 contentDiv.innerHTML = '<i>Пожалуйста, подождите, нейросеть анализирует данные...</i>';
                 
-                // Используем try-catch, чтобы не показывать глобальный loader при ошибке, 
-                // а вывести ее в модальном окне
                 try {
-                    // Создаем новый запрос без глобального loader'а
                     const url = `${API_BASE_URL}/analysis/${analysisId}/recommendations?token=${state.token}`;
                     const response = await fetch(url);
                     const data = await response.json();
@@ -741,7 +737,6 @@
                     contentDiv.innerHTML = `<span style="color: var(--error-color);">Ошибка при получении AI-рекомендаций: ${error.message}</span>`;
                 }
             }
-            // <<< --- КОНЕЦ НОВОЙ ФУНКЦИИ --- >>>
 
 
             function renderAnalysisResults(data) {
@@ -750,7 +745,6 @@
                 dom.modalTitle.textContent = `Результаты анализа от ${new Date(data.timestamp * 1000).toLocaleString()}`;
                 dom.imageResultsContainer.innerHTML = '';
 
-                // <<< --- ИЗМЕНЕНИЕ: Автоматически запускаем получение AI-рекомендаций --- >>>
                 fetchAndRenderAIRecommendation(data.analysis_id);
 
                 if(data.results_per_image && data.results_per_image.length > 0) {
@@ -1118,8 +1112,6 @@
                     console.error('Failed to delete analysis');
                 }
             }
-            
-            // <<< --- ИЗМЕНЕНИЕ: Обработчик клика по старой кнопке AI удален, т.к. кнопки больше нет --- >>>
 
             // Модальное окно
             dom.modalCloseButton.addEventListener('click', () => {
@@ -1152,4 +1144,3 @@
     </script>
 </body>
 </html>
---- END OF FILE index.html ---
