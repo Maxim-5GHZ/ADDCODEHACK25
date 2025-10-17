@@ -123,9 +123,12 @@ function Login() {
                                 shadow-2xs w-3/4"/>
                             )}
                         </div>
+                        {/* Кнопка для смены пароля (на сервере нет эндпоинта, поэтому кнопка убрана) */}
+                        {/* 
                         <p className="text-end self-end">
                             Забыли пароль? <span className="text-[var(--accent-dark-color)] cursor-pointer">Восстановить пароль</span>
                         </p>
+                        */ }
                     </form>
                 </div>
             </div> 
