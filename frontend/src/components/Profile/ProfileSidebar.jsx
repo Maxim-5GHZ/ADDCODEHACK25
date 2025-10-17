@@ -4,6 +4,7 @@ function ProfileSidebar({ user, activeTab, setActiveTab }) {
   const tabs = [
     { id: "profile", label: "Профиль" },
     { id: "fields", label: "Список полей" },
+    { id: "analyses", label: "Анализы" },
   ];
 
   return (

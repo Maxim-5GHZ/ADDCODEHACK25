@@ -1,24 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import AddFieldOverlay from './AddFieldOverlay';
-import { getFieldsList, saveField, deleteField } from '../../utils/fetch';
+import { getFieldsList, saveField, deleteField, performAnalysis } from '../../utils/fetch';
 import { getCookie } from '../../utils/cookies';
-import FieldDetailsOverlay from './FieldDetailsOverlay';
+import AddFieldOverlay from './AddFieldOverlay';
 
-function FieldsTab() {
+function FieldsTab({ setActiveTab }) {
   const [showAddFieldOverlay, setShowAddFieldOverlay] = useState(false);
-  const [showFieldDetailsOverlay, setShowFieldDetailsOverlay] = useState(false);
-  const [selectedField, setSelectedField] = useState(null);
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [analyzingField, setAnalyzingField] = useState(null);
+  const [showAnalysisComplete, setShowAnalysisComplete] = useState(false);
+  const [lastAnalysisId, setLastAnalysisId] = useState(null);
 
-  const handleShowDetails = (field) => {
-      setSelectedField(field);
-      setShowFieldDetailsOverlay(true);
-    };
+  console.log('FieldsTab: Рендер компонента');
 
   // Загрузка списка полей с сервера
   const loadFields = async () => {
+    console.log('FieldsTab: Начало загрузки полей');
     try {
       const token = getCookie('token');
       const response = await getFieldsList(token);
@@ -27,14 +25,17 @@ function FieldsTab() {
         const data = await response.json();
         if (data.status === 'success') {
           setFields(data.fields || []);
+          console.log('FieldsTab: Поля успешно загружены', { count: data.fields?.length });
         } else {
           setError('Ошибка при загрузке полей');
+          console.error('FieldsTab: Ошибка в статусе ответа полей', data);
         }
       } else {
         setError('Ошибка соединения с сервером');
+        console.error('FieldsTab: Ошибка HTTP при загрузке полей', response.status);
       }
     } catch (error) {
-      console.error('Ошибка при загрузке полей:', error);
+      console.error('FieldsTab: Исключение при загрузке полей:', error);
       setError('Ошибка при загрузке полей');
     } finally {
       setLoading(false);
@@ -46,6 +47,7 @@ function FieldsTab() {
   }, []);
 
   const handleAddFieldSubmit = async (fieldData) => {
+    console.log('FieldsTab: Сохранение нового поля', { fieldName: fieldData.name, type: fieldData.type });
     try {
       const token = getCookie('token');
       
@@ -78,6 +80,7 @@ function FieldsTab() {
           // Обновляем список полей
           await loadFields();
           setShowAddFieldOverlay(false);
+          console.log('FieldsTab: Поле успешно сохранено');
         } else {
           alert(`Ошибка при сохранении поля: ${result.detail}`);
         }
@@ -92,6 +95,7 @@ function FieldsTab() {
 
   const handleDeleteField = async (fieldId) => {
     if (window.confirm('Вы уверены, что хотите удалить это поле?')) {
+      console.log('FieldsTab: Удаление поля', { fieldId });
       try {
         const token = getCookie('token');
         const response = await deleteField(fieldId, token);
@@ -101,6 +105,7 @@ function FieldsTab() {
           if (result.status === 'success') {
             // Обновляем список полей после удаления
             await loadFields();
+            console.log('FieldsTab: Поле успешно удалено');
           } else {
             alert(`Ошибка при удалении поля: ${result.detail}`);
           }
@@ -112,6 +117,75 @@ function FieldsTab() {
         alert('Ошибка при удалении поля');
       }
     }
+  };
+
+  const handleAnalyzeField = async (field) => {
+    console.log('FieldsTab: Запуск анализа поля', { fieldId: field.id, fieldName: field.name });
+    
+    try {
+      setAnalyzingField(field.id);
+      const token = getCookie('token');
+      
+      // Получаем даты (сегодня и 30 дней назад)
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      console.log('FieldsTab: Параметры анализа', { startDate, endDate, fieldType: field.area_of_interest.type });
+      
+      let response;
+      
+      if (field.area_of_interest.type === 'point_radius') {
+        console.log('FieldsTab: Анализ по точке с радиусом', field.area_of_interest);
+        response = await performAnalysis(
+          token, 
+          startDate, 
+          endDate, 
+          {
+            lon: field.area_of_interest.lon,
+            lat: field.area_of_interest.lat,
+            radius_km: field.area_of_interest.radius_km
+          }
+        );
+      } else if (field.area_of_interest.type === 'polygon') {
+        console.log('FieldsTab: Анализ по полигону', { coordinatesCount: field.area_of_interest.coordinates?.length });
+        response = await performAnalysis(
+          token,
+          startDate,
+          endDate,
+          {
+            polygonCoords: field.area_of_interest.coordinates
+          }
+        );
+      }
+      
+      console.log('FieldsTab: Ответ от сервера на анализ', { status: response?.status });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('FieldsTab: Результат анализа', { status: result.status, analysisId: result.analysis_id });
+        
+        if (result.status === 'success') {
+          setLastAnalysisId(result.analysis_id);
+          setShowAnalysisComplete(true);
+          console.log('FieldsTab: Анализ успешно завершен', { analysisId: result.analysis_id });
+        } else {
+          alert(`Ошибка при выполнении анализа: ${result.detail}`);
+        }
+      } else {
+        alert('Ошибка соединения с сервером при выполнении анализа');
+      }
+    } catch (error) {
+      console.error('FieldsTab: Исключение при выполнении анализа:', error);
+      alert('Ошибка при выполнении анализа');
+    } finally {
+      setAnalyzingField(null);
+    }
+  };
+
+  const handleGoToAnalyses = () => {
+    console.log('FieldsTab: Переход к анализам');
+    setShowAnalysisComplete(false);
+    setActiveTab('analyses');
   };
 
   if (loading) {
@@ -147,23 +221,25 @@ function FieldsTab() {
           {fields.map(field => (
             <li key={field.id} className="bg-[#f6f6f6] rounded-xl px-6 py-4 flex justify-between items-center">
               <div>
-                <span className="text-xl font-medium text-gray-900">{field.name}</span>
+                <span className="text-2xl font-medium text-gray-900">{field.name}</span>
                 {field.area_of_interest && (
-                  <div className="text-sm text-gray-600 mt-1">
+                  <div className="text-xl text-gray-600 mt-1">
                     {field.area_of_interest.type === 'polygon' ? 'Полигон' : 'Окружность'}
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-4">
                 <button 
-                  onClick={() => handleShowDetails(field)}
-                  className="text-[var(--accent-color)] font-bold hover:underline text-lg cursor-pointer"
+                  onClick={() => handleAnalyzeField(field)}
+                  disabled={analyzingField === field.id}
+                  className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] disabled:bg-gray-400
+                  transition-[background-color] duration-100 cursor-pointer rounded-full text-2xl px-5 py-3 text-white"
                 >
-                  Подробнее
+                  {analyzingField === field.id ? 'Анализ...' : 'Анализировать'}
                 </button>
                 <button 
                   onClick={() => handleDeleteField(field.id)}
-                  className="text-red-500 font-bold hover:underline text-lg ml-4 cursor-pointer"
+                  className="text-red-500 font-bold hover:underline text-2xl cursor-pointer"
                 >
                   Удалить
                 </button>
@@ -182,16 +258,39 @@ function FieldsTab() {
         </div>
       </div>
 
+      {/* Модальное окно завершения анализа */}
+      {showAnalysisComplete && (
+        <div className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+            <h3 className="text-3xl font-bold mb-4 text-[var(--neutral-dark-color)]">
+              Анализ завершен!
+            </h3>
+            <p className="text-2xl text-gray-700 mb-6">
+              Анализ поля успешно выполнен. Вы можете просмотреть результаты во вкладке "Анализы".
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowAnalysisComplete(false)}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-full py-3 text-2xl font-semibold text-gray-700 cursor-pointer"
+              >
+                Остаться
+              </button>
+              <button
+                onClick={handleGoToAnalyses}
+                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-full py-3 text-2xl font-semibold text-white cursor-pointer"
+              >
+                Перейти к анализам
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Оверлей добавления поля - ВОЗВРАЩАЕМ! */}
       <AddFieldOverlay
         isVisible={showAddFieldOverlay}
         onClose={() => setShowAddFieldOverlay(false)}
         onSubmit={handleAddFieldSubmit}
-      />
-
-      <FieldDetailsOverlay
-        isVisible={showFieldDetailsOverlay}
-        onClose={() => setShowFieldDetailsOverlay(false)}
-        field={selectedField}
       />
     </>
   );

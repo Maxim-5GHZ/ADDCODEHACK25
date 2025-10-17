@@ -11,6 +11,7 @@ import ProfileSidebar from "../components/Profile/ProfileSidebar";
 import ProfileHeader from "../components/Profile/ProfileHeader";
 import ProfileTab from "../components/Profile/ProfileTab";
 import FieldsTab from "../components/Profile/FieldsTab";
+import AnalysesTab from "../components/Profile/AnalysesTab";
 
 export default function Profile() {
   const [activeTab, setActiveTab] = useState("profile");
@@ -113,7 +114,9 @@ export default function Profile() {
       case "profile":
         return <ProfileTab user={user} />;
       case "fields":
-        return <FieldsTab />;
+        return <FieldsTab setActiveTab={setActiveTab} />;
+      case "analyses": // Добавляем новую вкладку
+        return <AnalysesTab />;
       default:
         return <ProfileTab user={user} />;
     }

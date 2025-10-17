@@ -119,6 +119,10 @@ async function deleteAnalysis(analysisId, token) {
     });
 }
 
+async function getAnalysisRecommendations(analysisId, token) {
+    return fetch(`${API_BASE}/analysis/${encodeURIComponent(analysisId)}/recommendations?token=${encodeURIComponent(token)}`);
+}
+
 // Устаревшие функции пользовательских данных
 async function saveUserData(token, keyArray) {
     return fetch(`${API_BASE}/savedata?token=${encodeURIComponent(token)}&key_array=${encodeURIComponent(JSON.stringify(keyArray))}`, {
@@ -202,6 +206,7 @@ export {
     getAnalysisList,
     getAnalysisById,
     deleteAnalysis,
+    getAnalysisRecommendations,
     saveUserData,
     getUserData,
     updateUserData,
