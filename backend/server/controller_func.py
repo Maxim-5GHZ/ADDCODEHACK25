@@ -758,7 +758,8 @@ class controller_func():
             # Определяем область интереса для GEE
             if polygon_coords:
                 parsed_polygon = json.loads(polygon_coords)
-                area_of_interest = ee.Geometry.Polygon(parsed_polygon)
+                # <<< --- ИСПРАВЛЕНИЕ: Оборачиваем координаты в дополнительный список для правильного формата GEE --- >>>
+                area_of_interest = ee.Geometry.Polygon([parsed_polygon])
             elif lon is not None and lat is not None:
                 point = ee.Geometry.Point([lon, lat])
                 area_of_interest = point.buffer(radius_km * 1000).bounds()
