@@ -10,8 +10,6 @@ function ProfileTab({ user }) {
         <div className="text-2xl font-semibold text-[var(--neutral-dark-color)]">{user.email}</div>
       </div>
 
-      {/* Кнопки для редактирования профиля и смены пароля (на сервере нет эндпоинта, поэтому кнопки убраны) */}
-      {/* 
       <div className="flex gap-6">
         <button
           className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
@@ -24,7 +22,6 @@ function ProfileTab({ user }) {
           Сменить пароль
         </button>
       </div>
-      */}
     </>
   );
 }
