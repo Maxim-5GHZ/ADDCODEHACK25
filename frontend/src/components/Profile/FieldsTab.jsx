@@ -11,8 +11,22 @@ function FieldsTab({ setActiveTab }) {
   const [analyzingField, setAnalyzingField] = useState(null);
   const [showAnalysisComplete, setShowAnalysisComplete] = useState(false);
   const [lastAnalysisId, setLastAnalysisId] = useState(null);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [selectedField, setSelectedField] = useState(null);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   console.log('FieldsTab: Рендер компонента');
+
+  // Устанавливаем даты по умолчанию при загрузке
+  useEffect(() => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    
+    setEndDate(today.toISOString().split('T')[0]);
+    setStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
+  }, []);
 
   // Загрузка списка полей с сервера
   const loadFields = async () => {
@@ -119,41 +133,69 @@ function FieldsTab({ setActiveTab }) {
     }
   };
 
-  const handleAnalyzeField = async (field) => {
-    console.log('FieldsTab: Запуск анализа поля', { fieldId: field.id, fieldName: field.name });
+  const handleAnalyzeClick = (field) => {
+    console.log('FieldsTab: Открытие модального окна выбора дат для поля', { fieldId: field.id, fieldName: field.name });
+    setSelectedField(field);
+    setShowDateModal(true);
+  };
+
+  const handleDateModalClose = () => {
+    console.log('FieldsTab: Закрытие модального окна выбора дат');
+    setShowDateModal(false);
+    setSelectedField(null);
+  };
+
+  const handleAnalyzeField = async () => {
+    if (!selectedField) {
+      console.error('FieldsTab: Нет выбранного поля для анализа');
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      alert('Пожалуйста, выберите начальную и конечную даты');
+      return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      alert('Начальная дата не может быть позже конечной даты');
+      return;
+    }
+
+    console.log('FieldsTab: Запуск анализа поля', { 
+      fieldId: selectedField.id, 
+      fieldName: selectedField.name,
+      startDate,
+      endDate
+    });
     
     try {
-      setAnalyzingField(field.id);
+      setAnalyzingField(selectedField.id);
       const token = getCookie('token');
       
-      // Получаем даты (сегодня и 30 дней назад)
-      const endDate = new Date().toISOString().split('T')[0];
-      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-      
-      console.log('FieldsTab: Параметры анализа', { startDate, endDate, fieldType: field.area_of_interest.type });
+      console.log('FieldsTab: Параметры анализа', { startDate, endDate, fieldType: selectedField.area_of_interest.type });
       
       let response;
       
-      if (field.area_of_interest.type === 'point_radius') {
-        console.log('FieldsTab: Анализ по точке с радиусом', field.area_of_interest);
+      if (selectedField.area_of_interest.type === 'point_radius') {
+        console.log('FieldsTab: Анализ по точке с радиусом', selectedField.area_of_interest);
         response = await performAnalysis(
           token, 
           startDate, 
           endDate, 
           {
-            lon: field.area_of_interest.lon,
-            lat: field.area_of_interest.lat,
-            radius_km: field.area_of_interest.radius_km
+            lon: selectedField.area_of_interest.lon,
+            lat: selectedField.area_of_interest.lat,
+            radius_km: selectedField.area_of_interest.radius_km
           }
         );
-      } else if (field.area_of_interest.type === 'polygon') {
-        console.log('FieldsTab: Анализ по полигону', { coordinatesCount: field.area_of_interest.coordinates?.length });
+      } else if (selectedField.area_of_interest.type === 'polygon') {
+        console.log('FieldsTab: Анализ по полигону', { coordinatesCount: selectedField.area_of_interest.coordinates?.length });
         response = await performAnalysis(
           token,
           startDate,
           endDate,
           {
-            polygonCoords: field.area_of_interest.coordinates
+            polygonCoords: selectedField.area_of_interest.coordinates
           }
         );
       }
@@ -167,6 +209,7 @@ function FieldsTab({ setActiveTab }) {
         if (result.status === 'success') {
           setLastAnalysisId(result.analysis_id);
           setShowAnalysisComplete(true);
+          setShowDateModal(false);
           console.log('FieldsTab: Анализ успешно завершен', { analysisId: result.analysis_id });
         } else {
           alert(`Ошибка при выполнении анализа: ${result.detail}`);
@@ -179,6 +222,7 @@ function FieldsTab({ setActiveTab }) {
       alert('Ошибка при выполнении анализа');
     } finally {
       setAnalyzingField(null);
+      setSelectedField(null);
     }
   };
 
@@ -230,10 +274,9 @@ function FieldsTab({ setActiveTab }) {
               </div>
               <div className="flex gap-4">
                 <button 
-                  onClick={() => handleAnalyzeField(field)}
+                  onClick={() => handleAnalyzeClick(field)}
                   disabled={analyzingField === field.id}
-                  className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] disabled:bg-gray-400
-                  transition-[background-color] duration-100 cursor-pointer rounded-full text-2xl px-5 py-3 text-white"
+                  className="text-[var(--accent-color)] font-bold hover:underline text-2xl cursor-pointer disabled:text-gray-400 disabled:no-underline"
                 >
                   {analyzingField === field.id ? 'Анализ...' : 'Анализировать'}
                 </button>
@@ -257,6 +300,62 @@ function FieldsTab({ setActiveTab }) {
           </button>
         </div>
       </div>
+
+      {/* Модальное окно выбора дат */}
+      {showDateModal && (
+        <div className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+            <h3 className="text-3xl font-bold mb-4 text-[var(--neutral-dark-color)]">
+              Выберите период анализа
+            </h3>
+            <p className="text-xl text-gray-600 mb-2">для поля "{selectedField?.name}"</p>
+            
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xl font-semibold mb-2 text-[var(--neutral-dark-color)]" htmlFor="startDate">
+                  Начальная дата
+                </label>
+                <input
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full rounded-2xl px-4 py-3 text-xl bg-[var(--neutral-light-color)] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] cursor-text"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xl font-semibold mb-2 text-[var(--neutral-dark-color)]" htmlFor="endDate">
+                  Конечная дата
+                </label>
+                <input
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full rounded-2xl px-4 py-3 text-xl bg-[var(--neutral-light-color)] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] cursor-text"
+                />
+              </div>
+            </div>
+            
+            <div className="flex gap-4">
+              <button
+                onClick={handleDateModalClose}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-full py-3 text-2xl font-semibold text-gray-700 cursor-pointer"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={handleAnalyzeField}
+                disabled={analyzingField === selectedField?.id}
+                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] disabled:bg-gray-400 transition-colors rounded-full py-3 text-2xl font-semibold text-white cursor-pointer"
+              >
+                {analyzingField === selectedField?.id ? 'Анализ...' : 'Запустить анализ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Модальное окно завершения анализа */}
       {showAnalysisComplete && (
@@ -286,7 +385,7 @@ function FieldsTab({ setActiveTab }) {
         </div>
       )}
 
-      {/* Оверлей добавления поля - ВОЗВРАЩАЕМ! */}
+      {/* Оверлей добавления поля */}
       <AddFieldOverlay
         isVisible={showAddFieldOverlay}
         onClose={() => setShowAddFieldOverlay(false)}
