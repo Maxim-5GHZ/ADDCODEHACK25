@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+// AddFieldOverlay.jsx
+import React, { useState, useRef } from 'react';
 import { getArea } from 'ol/sphere';
 import { transform } from 'ol/proj';
 import FieldTypeSelector from './FieldTypeSelector';
@@ -11,6 +12,7 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
   const [radius, setRadius] = useState(100);
   const [geometry, setGeometry] = useState(null);
   const [area, setArea] = useState(null);
+  const mapRef = useRef(null);
 
   const handleGeometryChange = (newGeometry, newRadius = null) => {
     setGeometry(newGeometry);
@@ -30,6 +32,19 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
     } else if (!newGeometry) {
       setArea(null);
     }
+  };
+
+  const handleFieldTypeChange = (newFieldType) => {
+    setFieldType(newFieldType);
+    setGeometry(null);
+    setArea(null);
+    
+    // Восстанавливаем фокус на карте после смены типа поля
+    setTimeout(() => {
+      if (mapRef.current && mapRef.current.restoreMapInteractions) {
+        mapRef.current.restoreMapInteractions();
+      }
+    }, 100);
   };
 
   const handleSubmit = async (e) => {
@@ -121,6 +136,7 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
       <div className="bg-white rounded-3xl w-[80vw] h-[80vh] flex flex-col lg:flex-row overflow-hidden">
         <div className="flex-1 p-6 min-h-[300px] lg:min-h-auto">
           <OpenLayersMap 
+            ref={mapRef}
             fieldType={fieldType}
             onGeometryChange={handleGeometryChange}
             radius={radius}
@@ -143,7 +159,8 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
             <FieldTypeSelector 
               fieldType={fieldType} 
-              setFieldType={setFieldType} 
+              setFieldType={handleFieldTypeChange}
+              onFieldTypeChange={handleFieldTypeChange}
             />
             
             <FieldForm
