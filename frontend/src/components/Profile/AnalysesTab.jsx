@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getCookie } from '../../utils/cookies';
 import { getAnalysisList, getAnalysisById, getAnalysisRecommendations } from '../../utils/fetch';
+import MapOverlay from './MapOverlay';
 
 function AnalysesTab() {
   const [analysesList, setAnalysesList] = useState([]);
@@ -215,8 +216,28 @@ function AnalysesTab() {
   );
 }
 
-// Компонент для отображения деталей анализа
 function AnalysisDetails({ analysis, recommendations }) {
+  const [selectedMapType, setSelectedMapType] = useState('ndvi_overlay_image');
+  const [selectedImageData, setSelectedImageData] = useState(null);
+  const [selectedImageBounds, setSelectedImageBounds] = useState(null);
+
+  // Определяем доступные типы карт на основе данных
+  const availableMapTypes = [];
+  if (analysis.results_per_image && analysis.results_per_image.length > 0) {
+    const firstResult = analysis.results_per_image[0];
+    if (firstResult.ndvi_overlay_image) availableMapTypes.push('ndvi_overlay_image');
+    if (firstResult.problem_zones_image) availableMapTypes.push('problem_zones_image');
+  }
+
+  // Обновляем выбранные данные карты при изменении типа или анализа
+  useEffect(() => {
+    if (analysis.results_per_image && analysis.results_per_image.length > 0) {
+      const firstResult = analysis.results_per_image[0];
+      setSelectedImageData(firstResult[selectedMapType]);
+      setSelectedImageBounds(firstResult.bounds);
+    }
+  }, [analysis, selectedMapType]);
+
   return (
     <div className="space-y-6">
       {/* Основная информация */}
@@ -262,6 +283,55 @@ function AnalysisDetails({ analysis, recommendations }) {
         </div>
       )}
 
+      {/* Карта с результатами анализа */}
+      {availableMapTypes.length > 0 && selectedImageData && (
+        <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-semibold text-2xl text-[var(--neutral-dark-color)]">Визуализация анализа</h4>
+            <div className="flex space-x-2">
+              {availableMapTypes.includes('ndvi_overlay_image') && (
+                <button
+                  onClick={() => setSelectedMapType('ndvi_overlay_image')}
+                  className={`px-4 py-2 rounded-full text-lg font-medium transition-colors ${
+                    selectedMapType === 'ndvi_overlay_image'
+                      ? 'bg-[var(--accent-color)] text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer'
+                  }`}
+                >
+                  NDVI карта
+                </button>
+              )}
+              {availableMapTypes.includes('problem_zones_image') && (
+                <button
+                  onClick={() => setSelectedMapType('problem_zones_image')}
+                  className={`px-4 py-2 rounded-full text-lg font-medium transition-colors ${
+                    selectedMapType === 'problem_zones_image'
+                      ? 'bg-[var(--accent-color)] text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 cursor-pointer'
+                  }`}
+                >
+                  Проблемные зоны
+                </button>
+              )}
+            </div>
+          </div>
+          
+          <div className="h-[500px] rounded-lg overflow-hidden border border-gray-300">
+            <MapOverlay
+              imageData={selectedImageData}
+              bounds={selectedImageBounds}
+              imageType={selectedMapType}
+            />
+          </div>
+          
+          <div className="mt-3 text-lg text-gray-600">
+            {selectedMapType === 'ndvi_overlay_image' 
+              ? 'Карта NDVI показывает распределение вегетационного индекса по полю'
+              : 'Карта проблемных зон выделяет области с потенциальными проблемами'}
+          </div>
+        </div>
+      )}
+
       {/* Статистика по каждому снимку */}
       {analysis.results_per_image && analysis.results_per_image.map((result, index) => (
         <ImageResults key={index} result={result} index={index} />
@@ -269,6 +339,7 @@ function AnalysisDetails({ analysis, recommendations }) {
     </div>
   );
 }
+
 
 // Компонент для отображения результатов по одному снимку
 function ImageResults({ result, index }) {
