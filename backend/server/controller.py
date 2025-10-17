@@ -1,16 +1,15 @@
 # --- START OF FILE controller.py ---
 
-# --- START OF FILE controller.py ---
-
 import uvicorn
-from dbrequest import DatabaseManager # ИЗМЕНЕНО: импортируем новый класс
+from dbrequest import DatabaseManager
 import subprocess
 import controller_func
 import signal
 import re
 import socket
 import logging
-from fastapi import FastAPI, Query
+# <<< --- ИЗМЕНЕНИЕ: Добавляем импорт APIRouter --- >>>
+from fastapi import FastAPI, Query, APIRouter 
 from fastapi.staticfiles import StaticFiles
 import time
 import os
@@ -50,21 +49,17 @@ class controller():
 
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"], # Можно заменить на адрес вашего фронтенда
+            allow_origins=["*"],
             allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
-        # --- ИЗМЕНЕНО: Создаем один менеджер БД ---
         self.db = DatabaseManager() 
         self.func = controller_func.controller_func(self.db)
-        # --- КОНЕЦ ИЗМЕНЕНИЙ ---
 
-        self.app.mount("/static", StaticFiles(directory="."), name="static")
         logger.info("Контроллер инициализирован")
 
     def _setup_ssl(self):
-        """Проверяет наличие SSL-сертификатов и генерирует их, если они отсутствуют."""
         logger.info("Проверка SSL-сертификатов...")
         if self.ssl_keyfile.exists() and self.ssl_certfile.exists():
             logger.info("Найдены существующие SSL-сертификаты. Используются они.")
@@ -97,7 +92,6 @@ class controller():
             raise
 
     def get_local_ip(self):
-        """Получает локальный IP-адрес компьютера"""
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.settimeout(0.1)
@@ -134,119 +128,107 @@ class controller():
     def _controllers(self):
         logger.info("Регистрация маршрутов...")
 
-        @self.app.get("/scr/{file}")
-        async def get_from_scr(file: str):
-            return await self.func.get_from_scr(file)
+        # <<< --- ИЗМЕНЕНИЕ: Создаем роутер с префиксом /api --- >>>
+        api_router = APIRouter(prefix="/api")
 
-        @self.app.get("/")
-        async def read_root():
-            return await self.func.reed__root()
-
-        @self.app.post("/savedata")
+        # <<< --- ИЗМЕНЕНИЕ: Все декораторы меняем с @self.app на @api_router --- >>>
+        @api_router.post("/savedata")
         async def save_data_by_token(token: str = Query(...), key_array: str = Query(...)):
             return await self.func.save_data_by_token(token, key_array)
 
-        @self.app.get("/givefield")
+        @api_router.get("/givefield")
         async def get_field_by_token(token: str = Query(...)):
             return await self.func.get_field_by_token(token)
 
-        @self.app.get("/log")
+        @api_router.get("/log")
         async def get_log(password: str = Query(...)):
             return await self.func.get_log(password)
 
-        @self.app.get("/favicon.ico")
-        async def ico():
-            return await self.func.ico()
-
-        @self.app.get("/get_token")
+        @api_router.get("/get_token")
         async def get_token(login: str = Query(...), password: str = Query(...)):
             return await self.func.get_token(login, password)
 
-        @self.app.post("/add_user")
+        @api_router.post("/add_user")
         async def add_user(login: str = Query(...), password: str = Query(...), first_name: str = Query(...), last_name: str = Query(...)):
             return await self.func.add_user(login, password, first_name, last_name)
 
-        @self.app.get("/users/all")
+        @api_router.get("/users/all")
         async def get_all_users(password: str = Query(...)):
             return await self.func.get_all_users(password)
             
-        @self.app.get("/users/profile")
+        @api_router.get("/users/profile")
         async def get_user_profile(token: str = Query(...)):
             return await self.func.get_user_profile(token)
 
-        @self.app.get("/health")
+        @api_router.get("/health")
         async def health_check():
             return await self.func.health_check()
 
-        # ... (маршруты для /data/..., /field/... остаются без изменений)
-        @self.app.put("/data/update")
+        @api_router.put("/data/update")
         async def update_user_data(token: str = Query(...), key_array: str = Query(...)):
             return await self.func.update_user_data(token, key_array)
 
-        @self.app.patch("/data/edit")
+        @api_router.patch("/data/edit")
         async def edit_user_data(token: str = Query(...), new_keys: str = Query(None), keys_to_add: str = Query(None), keys_to_remove: str = Query(None)):
             return await self.func.edit_user_data(token, new_keys, keys_to_add, keys_to_remove)
 
-        @self.app.delete("/data/delete")
+        @api_router.delete("/data/delete")
         async def delete_user_data(token: str = Query(...)):
             return await self.func.delete_user_data(token)
 
-        @self.app.get("/data/check")
+        @api_router.get("/data/check")
         async def check_user_data_exists(token: str = Query(...)):
             return await self.func.check_user_data_exists(token)
 
-        @self.app.post("/field/set")
+        @api_router.post("/field/set")
         async def set_field_data(field: str = Query(...), data: str = Query(...), token: str = Query(...)):
             return await self.func.set_field_data(field, data, token)
 
-        @self.app.get("/field/get")
+        @api_router.get("/field/get")
         async def get_field_data(field: str = Query(...), token: str = Query(None)):
             return await self.func.get_field_data(field, token)
 
-        @self.app.delete("/field/delete")
+        @api_router.delete("/field/delete")
         async def delete_field_data(field: str = Query(...), token: str = Query(...)):
             return await self.func.delete_field_data(field, token)
 
-        @self.app.get("/field/check")
+        @api_router.get("/field/check")
         async def check_field_exists(field: str = Query(...), token: str = Query(None)):
             return await self.func.check_field_exists(field, token)
 
-        @self.app.get("/image/rgb")
+        @api_router.get("/image/rgb")
         async def get_rgb_image(lon: float = Query(...), lat: float = Query(...), start_date: str = Query(...), end_date: str = Query(...), token: str = Query(...)):
             return await self.func.get_rgb_image(lon, lat, start_date, end_date, token)
 
-        @self.app.get("/image/red-channel")
+        @api_router.get("/image/red-channel")
         async def get_red_channel_image(lon: float = Query(...), lat: float = Query(...), start_date: str = Query(...), end_date: str = Query(...), token: str = Query(...)):
             return await self.func.get_red_channel_image(lon, lat, start_date, end_date, token)
 
-        @self.app.get("/image/ndvi")
+        @api_router.get("/image/ndvi")
         async def get_ndvi_image(lon: float = Query(...), lat: float = Query(...), start_date: str = Query(...), end_date: str = Query(...), token: str = Query(...)):
             return await self.func.get_ndvi_image(lon, lat, start_date, end_date, token)
         
-        @self.app.post("/analysis/perform")
+        @api_router.post("/analysis/perform")
         async def perform_analysis(token: str = Query(...), start_date: str = Query(...), end_date: str = Query(...), lon: float = Query(None), lat: float = Query(None), radius_km: float = Query(0.5), polygon_coords: str = Query(None)):
             return await self.func.perform_analysis(token, start_date, end_date, lon, lat, radius_km, polygon_coords)
 
-        @self.app.get("/analysis/list")
+        @api_router.get("/analysis/list")
         async def get_analyses_list(token: str = Query(...)):
             return await self.func.get_analyses_list(token)
 
-        @self.app.get("/analysis/{analysis_id}")
+        @api_router.get("/analysis/{analysis_id}")
         async def get_analysis(analysis_id: str, token: str = Query(...)):
             return await self.func.get_analysis(token, analysis_id)
 
-        @self.app.delete("/analysis/{analysis_id}")
+        @api_router.delete("/analysis/{analysis_id}")
         async def delete_analysis(analysis_id: str, token: str = Query(...)):
             return await self.func.delete_analysis(token, analysis_id)
         
-        # <<< --- НАЧАЛО НОВОГО МАРШРУТА --- >>>
-        @self.app.get("/analysis/{analysis_id}/recommendations")
+        @api_router.get("/analysis/{analysis_id}/recommendations")
         async def get_ai_recommendations(analysis_id: str, token: str = Query(...)):
             return await self.func.get_ai_recommendations(token, analysis_id,if_use_token=self.token_use)
-        # <<< --- КОНЕЦ НОВОГО МАРШРУТА --- >>>
         
-        # --- НОВЫЙ МАРШРУТ ---
-        @self.app.get("/analysis/timeseries")
+        @api_router.get("/analysis/timeseries")
         async def get_historical_ndvi(
                 token: str = Query(..., description="Токен пользователя"),
                 lon: float = Query(None, description="Долгота центральной точки"),
@@ -256,18 +238,23 @@ class controller():
         ):
             return await self.func.get_historical_ndvi_data(token, lon, lat, radius_km, polygon_coords)
         
-        # --- НОВЫЕ МАРШРУТЫ ДЛЯ УПРАВЛЕНИЯ ПОЛЯМИ ---
-        @self.app.post("/fields/save")
+        @api_router.post("/fields/save")
         async def save_user_field(token: str = Query(...), field_name: str = Query(...), area_of_interest: str = Query(...)):
             return await self.func.save_user_field(token, field_name, area_of_interest)
 
-        @self.app.get("/fields/list")
+        @api_router.get("/fields/list")
         async def get_user_fields(token: str = Query(...)):
             return await self.func.get_user_fields(token)
 
-        @self.app.delete("/fields/{field_id}")
+        @api_router.delete("/fields/{field_id}")
         async def delete_user_field(field_id: str, token: str = Query(...)):
             return await self.func.delete_user_field(token, field_id)
+
+        # <<< --- ИЗМЕНЕНИЕ: Подключаем роутер к основному приложению --- >>>
+        self.app.include_router(api_router)
+
+        # Монтирование статических файлов остается последним
+        self.app.mount("/", StaticFiles(directory="scr", html=True), name="static")
 
 
     def run(self):

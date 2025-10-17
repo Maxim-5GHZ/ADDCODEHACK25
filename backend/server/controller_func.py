@@ -1,7 +1,5 @@
 # --- START OF FILE controller_func.py ---
 
-# --- START OF FILE controller_func.py ---
-
 import random
 import logging
 from fastapi.responses import FileResponse
@@ -50,23 +48,6 @@ class controller_func():
             logger.error(f"Ошибка при сериализации и сохранении данных для токена {token}: {e}")
             return False
 
-    # ... (все старые методы от reed__root до delete_analysis остаются без изменений)
-    async def reed__root(self):
-        logger.info("Запрос главной страницы")
-        try:
-            return FileResponse("scr/index.html")
-        except Exception as e:
-            logger.error(f"Ошибка при загрузке index.html: {e}")
-            return {"status": "error", "detail": "Файл не найден"}
-
-    async def ico(self):
-        logger.debug("Запрос favicon.ico")
-        try:
-            return FileResponse("scr/favicon.ico")
-        except Exception as e:
-            logger.warning(f"Favicon не найден: {e}")
-            return {"status": "error", "detail": "Favicon не найден"}
-
     async def health_check(self):
         """Проверка здоровья сервера"""
         return {
@@ -74,13 +55,6 @@ class controller_func():
             "message": "Server is running",
             "timestamp": time.time()
         }
-
-    async def get_from_scr(self, file: str):
-        logger.info(f"Запрос {file}")
-        if os.path.exists(f"scr/{file}"):
-            return FileResponse(f"scr/{file}")
-        else:
-            return {"status": "error", "detail": "Файл не найден"}
 
     async def save_data_by_token(self, token: str, key_array: str):
         """

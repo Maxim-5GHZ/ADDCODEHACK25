@@ -8,12 +8,16 @@ import requests
 import ee
 import json
 from typing import List, Dict
-from gee_initializer import GEEInitializer  # Добавляем импорт
+from gee_initializer import GEEInitializer
 
 
 class ImageProvider:
-    # --- НОВОЕ: Добавляем константу для фильтрации облачности ---
-    CLOUD_FILTER_PERCENTAGE = 30
+    CLOUD_FILTER_PERCENTAGE = 0.05
+    # <<< --- НОВОЕ: Константы для визуализации --- >>>
+    VIS_DIMS = 512
+    VIS_PARAMS_RGB = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 3000}
+    # Используем только один канал B8, GEE вернет серое изображение
+    VIS_PARAMS_NIR = {'bands': ['B8'], 'min': 0, 'max': 3000}
 
     def __init__(self, rgb_image_path: str = None, nir_image_path: str = None):
         self.rgb_image, self.red_channel, self.green_channel, self.blue_channel, self.nir_channel = None, None, None, None, None
@@ -49,42 +53,32 @@ class ImageProvider:
             print(f"Error downloading image from URL: {url}. Error: {e}")
         except Exception as e:
             print(f"Error processing image from URL: {url}. Error: {e}")
-        # Возвращаем черный квадрат в случае ошибки, чтобы не ломать приложение
-        return np.zeros((512, 512, 3), dtype=np.uint8)
+        return np.zeros((ImageProvider.VIS_DIMS, ImageProvider.VIS_DIMS, 3), dtype=np.uint8)
 
     @classmethod
     def _ensure_gee_initialized(cls, service_account_key_path: str = "hack25addcode-3171f61bba2c.json"):
-        """Гарантирует, что GEE инициализирован перед использованием"""
         if not GEEInitializer.is_initialized():
             GEEInitializer.initialize_gee(service_account_key_path)
 
-    # --- ИСПРАВЛЕННЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ВСЕЙ КОЛЛЕКЦИИ ---
     @classmethod
     def get_images_from_gee_collection(cls, start_date: str, end_date: str,
                                        area_of_interest: ee.Geometry,
                                        service_account_key_path: str = "hack25addcode-3171f61bba2c.json") -> List[Dict]:
-        """
-        Получает все доступные изображения из коллекции GEE за заданный период.
-        """
-        # Гарантируем инициализацию GEE перед использованием
         cls._ensure_gee_initialized(service_account_key_path)
 
         collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
                       .filterBounds(area_of_interest)
                       .filterDate(start_date, end_date)
-                      # --- ИЗМЕНЕНИЕ: Добавляем фильтр по проценту облачности ---
                       .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cls.CLOUD_FILTER_PERCENTAGE)))
 
         image_count = collection.size().getInfo()
         print(f"Найдено изображений в коллекции (с облачностью < {cls.CLOUD_FILTER_PERCENTAGE}%): {image_count}")
         if image_count == 0:
-            # --- ИЗМЕНЕНИЕ: Улучшаем сообщение об ошибке ---
             raise FileNotFoundError(f"Не найдено снимков за указанный период с облачностью менее {cls.CLOUD_FILTER_PERCENTAGE}%. Попробуйте расширить диапазон дат.")
 
-        # Шаг 1: Получаем только базовые метаданные в одном безопасном запросе.
         def get_metadata(image):
             return ee.Feature(None, {
-                'id': image.get('system:id'),  # ИЗМЕНЕНО: Используем 'system:id' для получения полного пути
+                'id': image.get('system:id'),
                 'date': image.date().format('YYYY-MM-dd'),
                 'cloud_percentage': image.get('CLOUDY_PIXEL_PERCENTAGE')
             })
@@ -93,7 +87,8 @@ class ImageProvider:
         metadata_list = collection.map(get_metadata).getInfo()['features']
 
         processed_images = []
-        # Шаг 2: Итерируем по списку на клиенте и получаем данные для каждого снимка отдельно.
+        stable_bounds = area_of_interest.bounds()
+
         for metadata in metadata_list:
             props = metadata['properties']
             image_id = props['id']
@@ -103,32 +98,34 @@ class ImageProvider:
             print(f"Обработка снимка от {date} (облачность: {cloud_percentage:.2f}%)")
             
             try:
-                # Создаем объект изображения по ID и обрезаем его по нашей области
                 image = ee.Image(image_id)
-                clipped_image = image.clip(area_of_interest)
+                clipped_image = image.clip(stable_bounds)
 
-                # 1. Получаем URL для превью (1-й запрос к GEE для этого снимка)
-                rgb_vis_params = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 3000, 'dimensions': 512}
-                thumb_url = clipped_image.getThumbURL(rgb_vis_params)
-                # Скачиваем изображение по URL
-                rgb_image = cls._url_to_numpy(thumb_url)
+                # <<< --- КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: ЗАМЕНА sampleRectangle НА getThumbURL --- >>>
+                # 1. Получаем RGB изображение для визуализации и каналов R, G, B
+                rgb_params = {**cls.VIS_PARAMS_RGB, 'dimensions': cls.VIS_DIMS}
+                rgb_url = clipped_image.getThumbURL(rgb_params)
+                rgb_image = cls._url_to_numpy(rgb_url)
 
-                # 2. Получаем научные данные (2-й запрос к GEE для этого снимка)
-                pixels = clipped_image.select(['B2', 'B3', 'B4', 'B8']).sampleRectangle(region=area_of_interest, defaultValue=0).getInfo()
-
-                if not pixels['properties'] or not pixels['properties'].get('B4'):
-                    print(f"Предупреждение: Пропуск снимка от {date}, так как научные данные пусты.")
-                    continue
-
-                red_channel = np.array(pixels['properties']['B4'], dtype=np.float32)
-                green_channel = np.array(pixels['properties']['B3'], dtype=np.float32)
-                blue_channel = np.array(pixels['properties']['B2'], dtype=np.float32)
-                nir_channel = np.array(pixels['properties']['B8'], dtype=np.float32)
+                # 2. Получаем NIR канал как отдельное серое изображение
+                nir_params = {**cls.VIS_PARAMS_NIR, 'dimensions': cls.VIS_DIMS}
+                nir_url = clipped_image.getThumbURL(nir_params)
+                nir_image_gray = cls._url_to_numpy(nir_url)
+                
+                # 3. Извлекаем каналы из полученных изображений
+                # GEE масштабирует значения каналов в диапазон 0-255 для getThumbURL.
+                # Для вегетационных индексов, которые являются отношениями (ratio),
+                # это не критично и дает корректный результат.
+                red_channel = rgb_image[:, :, 0].astype(np.float32)
+                green_channel = rgb_image[:, :, 1].astype(np.float32)
+                blue_channel = rgb_image[:, :, 2].astype(np.float32)
+                # Для серого изображения все каналы (R,G,B) одинаковы, берем любой
+                nir_channel = nir_image_gray[:, :, 0].astype(np.float32)
 
                 processed_images.append({
                     'date': date,
                     'cloud_percentage': cloud_percentage,
-                    'rgb_image': rgb_image,
+                    'rgb_image': rgb_image, # Это уже готовый numpy array
                     'red_channel': red_channel,
                     'green_channel': green_channel,
                     'blue_channel': blue_channel,
@@ -142,23 +139,16 @@ class ImageProvider:
             
         return processed_images
 
-    # --- ОПТИМИЗИРОВАННЫЙ МЕТОД ДЛЯ ПОЛУЧЕНИЯ ОДНОГО СНИМКА ---
     @classmethod
     def from_gee(cls, start_date: str, end_date: str,
                  lon: float = None, lat: float = None, radius_km: float = 0.5,
                  polygon_coords: List[List[float]] = None,
                  service_account_key_path: str = "hack25addcode-3171f61bba2c.json"):
-        """
-        Фабричный метод для создания экземпляра класса.
-        ЭФФЕКТИВНО получает ОДИН, самый чистый снимок за период.
-        """
-        # Гарантируем инициализацию GEE перед использованием
         cls._ensure_gee_initialized(service_account_key_path)
 
         if polygon_coords:
             if len(polygon_coords) < 3:
                 raise ValueError("Для полигона необходимо как минимум 3 точки.")
-            # <<< --- ИСПРАВЛЕНИЕ: Оборачиваем координаты в дополнительный список для правильного формата GEE --- >>>
             area_of_interest = ee.Geometry.Polygon([polygon_coords])
         elif lon is not None and lat is not None:
             point = ee.Geometry.Point([lon, lat])
@@ -169,49 +159,42 @@ class ImageProvider:
         collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
                       .filterBounds(area_of_interest)
                       .filterDate(start_date, end_date)
-                      # --- ИЗМЕНЕНИЕ: Добавляем фильтр по проценту облачности ---
                       .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cls.CLOUD_FILTER_PERCENTAGE)))
 
-        # Сортировка и выбор первого элемента ВЫПОЛНЯЮТСЯ НА СЕРВЕРЕ GEE
-        cleanest_image = ee.Image(collection.sort('CLOUDY_PIXEL_PERCENTAGE').first()).clip(area_of_interest)
+        cleanest_image = ee.Image(collection.sort('CLOUDY_PIXEL_PERCENTAGE').first()).clip(area_of_interest.bounds())
         
-        # Проверяем, нашлось ли хоть что-то
         try:
             cloud_percentage = cleanest_image.get('CLOUDY_PIXEL_PERCENTAGE').getInfo()
         except ee.EEException as e:
             if 'dictionary is empty' in str(e).lower():
-                 # --- ИЗМЕНЕНИЕ: Улучшаем сообщение об ошибке ---
                  raise FileNotFoundError(f"Не найдено снимков за указанный период с облачностью менее {cls.CLOUD_FILTER_PERCENTAGE}%. Попробуйте расширить диапазон дат.")
             raise e
 
         print(f"Выбран самый чистый снимок с облачностью: {cloud_percentage:.2f}%")
         
-        # Теперь делаем запросы только для ОДНОГО изображения
         provider = cls()
         provider.cloud_percentage = cloud_percentage
         
-        # Получаем визуальное изображение
-        rgb_vis_params = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 30000, 'dimensions': 5120}
-        provider.rgb_image = cls._url_to_numpy(cleanest_image.getThumbURL(rgb_vis_params))
-
-        # Получаем научные данные
-        pixels = cleanest_image.select(['B2', 'B3', 'B4', 'B8']).sampleRectangle(region=area_of_interest, defaultValue=0).getInfo()
-
-        if not pixels['properties'] or not pixels['properties'].get('B4'):
-            raise ValueError("Научные данные от GEE пришли пустыми для самого чистого снимка.")
-
-        provider.red_channel = np.array(pixels['properties']['B4'], dtype=np.float32)
-        provider.green_channel = np.array(pixels['properties']['B3'], dtype=np.float32)
-        provider.blue_channel = np.array(pixels['properties']['B2'], dtype=np.float32)
-        provider.nir_channel = np.array(pixels['properties']['B8'], dtype=np.float32)
+        # <<< --- ИЗМЕНЕНИЕ: Аналогичная замена для этого метода --- >>>
+        # 1. Получаем RGB
+        rgb_params = {**cls.VIS_PARAMS_RGB, 'dimensions': cls.VIS_DIMS * 10} # *10 для лучшего качества одиночного снимка
+        provider.rgb_image = cls._url_to_numpy(cleanest_image.getThumbURL(rgb_params))
+        
+        # 2. Получаем NIR
+        nir_params = {**cls.VIS_PARAMS_NIR, 'dimensions': cls.VIS_DIMS * 10}
+        nir_image_gray = cls._url_to_numpy(cleanest_image.getThumbURL(nir_params))
+        
+        # 3. Извлекаем каналы
+        provider.red_channel = provider.rgb_image[:, :, 0].astype(np.float32)
+        provider.green_channel = provider.rgb_image[:, :, 1].astype(np.float32)
+        provider.blue_channel = provider.rgb_image[:, :, 2].astype(np.float32)
+        provider.nir_channel = nir_image_gray[:, :, 0].astype(np.float32)
         
         print("Данные для одного снимка успешно загружены.")
         return provider
 
     @classmethod
     def get_historical_ndvi(cls, area_of_interest: ee.Geometry, start_date: str, end_date: str) -> List[Dict]:
-        """Получает историю среднего NDVI для заданной области."""
-        # Гарантируем инициализацию GEE перед использованием
         cls._ensure_gee_initialized()
 
         def calculate_monthly_mean(image_collection):
@@ -229,7 +212,7 @@ class ImageProvider:
                         mean_dict = ndvi.reduceRegion(
                             reducer=ee.Reducer.mean(), 
                             geometry=area_of_interest, 
-                            scale=30, 
+                            scale=30, # reduceRegion работает иначе, здесь scale обязателен и не вызывает ошибок
                             maxPixels=1e9
                         )
                         return ee.Feature(None, {
@@ -245,7 +228,6 @@ class ImageProvider:
             monthly_data = years.map(process_year).flatten()
             return monthly_data.removeAll([None]).getInfo()
 
-        # --- ИЗМЕНЕНИЕ: Добавляем фильтр по облачности и сюда ---
         collection = (ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
                       .filterBounds(area_of_interest)
                       .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', cls.CLOUD_FILTER_PERCENTAGE)))
