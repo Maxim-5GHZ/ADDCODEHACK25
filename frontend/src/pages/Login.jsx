@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom"
 import logoImage from "../assets/logo.svg"
-import { getCookie, setCookie, isValidToken } from "../utils/cookies";
+import { getCookie, setCookie, isValidToken, deleteCookie } from "../utils/cookies";
 import { getToken, validateToken } from "../utils/fetch";
 import { BarLoader } from "react-spinners";
 

@@ -2,10 +2,12 @@ import { useEffect, useState, useRef } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import logoImage from "../assets/logo.svg"
 import { BarLoader } from "react-spinners"
-import { getCookie, setCookie } from "../utils/cookies"
+import { getCookie, setCookie, isValidToken, deleteCookie } from "../utils/cookies"
 import { registerUser, getToken } from "../utils/fetch"
 
 function Registration() {
+    const navigate = useNavigate();
+
     useEffect(() => {
         const checkAuth = async () => {
             const token = getCookie("token");
@@ -25,18 +27,6 @@ function Registration() {
         }
         checkAuth();
     }, [navigate])
-
-    const navigate = useNavigate();
-    useEffect(() => {
-        const checkAuth = () => {
-            const token = getCookie("token");
-            if (token) {
-                navigate("/profile");
-            }
-        }
-
-        checkAuth();
-    }, [])
 
     const [isButtonClicked, setIsButtonClicked] = useState(false);
     const [name, setName] = useState("");
