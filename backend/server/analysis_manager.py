@@ -1,21 +1,31 @@
+# --- START OF FILE analysis_manager.py ---
+
 import json
 import time
 import logging
 from typing import Dict, List, Optional
 from ImageProvider import ImageProvider
 from index_calculator import VegetationIndexCalculator
-from gee_initializer import GEEInitializer  # Добавляем импорт
+from gee_initializer import GEEInitializer
 import numpy as np
 import base64
 from io import BytesIO
 from PIL import Image
 import ee
+import cv2
 
 logger = logging.getLogger(__name__)
 
 class AnalysisManager:
+    """
+    Класс-оркестратор для выполнения анализа спутниковых снимков.
+    Отвечает за получение данных, вычисление индексов, генерацию изображений
+    и сохранение результатов в базу данных.
+    """
     def __init__(self, db_manager):
         self.db = db_manager
+
+    # --- Методы для работы с данными пользователя в БД ---
 
     def _get_user_data_object(self, token: str) -> dict:
         """Вспомогательная функция для получения и парсинга данных пользователя."""
@@ -39,12 +49,14 @@ class AnalysisManager:
         except Exception as e:
             logger.error(f"Ошибка при сериализации и сохранении данных для токена {token}: {e}")
             return False
-            
+
+    # --- Методы для вычислений и обработки ---
+
     def _calculate_zones(self, index_map: np.ndarray, thresholds: Dict[str, List[float]]) -> Dict:
         """Разделяет карту индекса на зоны и вычисляет их процентное соотношение."""
-        total_pixels = index_map.size
+        total_pixels = np.count_nonzero(~np.isnan(index_map))
         if total_pixels == 0:
-            return {}
+            return {'low': 0, 'medium': 0, 'high': 0}
             
         zones = {}
         for zone_name, (lower, upper) in thresholds.items():
@@ -81,35 +93,117 @@ class AnalysisManager:
         
         return indices_data
     
+    # --- Методы для генерации изображений ---
+
     def _array_to_base64(self, array: np.ndarray) -> str:
-        """Конвертирует numpy array в base64 строку"""
+        """Конвертирует numpy array (карту индекса) в серую base64 строку для отчета."""
         try:
-            if array.dtype != np.uint8:
-                array_min = np.nanmin(array)
-                array_max = np.nanmax(array)
-                if array_max > array_min:
-                    normalized = (255 * (array - array_min) / (array_max - array_min)).astype(np.uint8)
-                else:
-                    normalized = np.zeros_like(array, dtype=np.uint8)
+            array_min = np.nanmin(array)
+            array_max = np.nanmax(array)
+            if array_max > array_min:
+                normalized = (255 * (array - array_min) / (array_max - array_min))
             else:
-                normalized = array
+                normalized = np.zeros_like(array)
+
+            normalized[np.isnan(normalized)] = 0
+            normalized = normalized.astype(np.uint8)
                 
-            if len(array.shape) == 2:
-                image = Image.fromarray(normalized, mode='L').convert('RGB')
-            else:
-                image = Image.fromarray(normalized)
-                
+            image = Image.fromarray(normalized, mode='L').convert('RGB')
             buffered = BytesIO()
             image.save(buffered, format="JPEG")
             return base64.b64encode(buffered.getvalue()).decode()
         except Exception as e:
             logger.error(f"Ошибка конвертации массива в base64: {e}")
             return ""
-    
+
+    # <<< --- НОВЫЙ МЕТОД ДЛЯ RGB --- >>>
+    def _rgb_array_to_base64(self, rgb_array: np.ndarray) -> str:
+        """Конвертирует цветной RGB numpy array в base64 строку."""
+        try:
+            image = Image.fromarray(rgb_array.astype(np.uint8), mode='RGB')
+            buffered = BytesIO()
+            image.save(buffered, format="JPEG")
+            return base64.b64encode(buffered.getvalue()).decode()
+        except Exception as e:
+            logger.error(f"Ошибка конвертации RGB массива в base64: {e}")
+            return ""
+
+    def _colorize_ndvi(self, ndvi_map: np.ndarray) -> str:
+        """
+        Принимает карту NDVI (значения от -1 до 1) и возвращает
+        цветное PNG изображение в формате base64 с альфа-каналом для оверлея.
+        """
+        try:
+            ndvi_map_clipped = np.clip(ndvi_map, 0, 1)
+            normalized = (ndvi_map_clipped * 255).astype(np.uint8)
+            mask_nan = np.isnan(ndvi_map)
+
+            # Создаем кастомную цветовую карту Red -> Yellow -> Green
+            lut = np.zeros((256, 1, 3), dtype=np.uint8)
+            for i in range(256):
+                if i < 128:
+                    lut[i, 0, 0] = 0 # Blue
+                    lut[i, 0, 1] = i * 2 # Green
+                    lut[i, 0, 2] = 255 # Red
+                else:
+                    lut[i, 0, 0] = 0 # Blue
+                    lut[i, 0, 1] = 255 # Green
+                    lut[i, 0, 2] = 255 - (i - 128) * 2 # Red
+            
+            colored_bgr = cv2.LUT(cv2.cvtColor(normalized, cv2.COLOR_GRAY2BGR), lut)
+            bgra = cv2.cvtColor(colored_bgr, cv2.COLOR_BGR2BGRA)
+
+            # Устанавливаем прозрачность для NaN значений
+            bgra[:, :, 3] = 255
+            bgra[mask_nan, 3] = 0
+
+            _, buffer = cv2.imencode('.png', bgra)
+            return base64.b64encode(buffer).decode('utf-8')
+
+        except Exception as e:
+            logger.error(f"Ошибка при раскрашивании NDVI: {e}")
+            return ""
+
+    # <<< --- ИЗМЕНЕННЫЙ МЕТОД --- >>>
+    def _create_problem_zones_image(self, rgb_image: np.ndarray, ndvi_map: np.ndarray, threshold: float = 0.2) -> str:
+        """
+        Подсвечивает проблемные зоны (NDVI < threshold) красным цветом
+        на сером фоне оригинального снимка для отчета.
+        """
+        try:
+            # Получаем целевые размеры из RGB-изображения
+            h, w = rgb_image.shape[:2]
+
+            # Изменяем размер карты NDVI, чтобы он соответствовал RGB-изображению
+            # Используем INTER_NEAREST, чтобы избежать создания новых значений NDVI при интерполяции
+            resized_ndvi_map = cv2.resize(ndvi_map, (w, h), interpolation=cv2.INTER_NEAREST)
+
+            problem_mask = (resized_ndvi_map < threshold) & (~np.isnan(resized_ndvi_map))
+            bgr_image = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2BGR)
+            gray_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2GRAY)
+            gray_bgr = cv2.cvtColor(gray_image, cv2.COLOR_GRAY2BGR)
+
+            red_layer = np.zeros_like(gray_bgr)
+            red_layer[:, :] = [0, 0, 255] # BGR -> Red
+
+            output_image = gray_bgr.copy()
+            if np.any(problem_mask):
+                # Накладываем красный цвет с 40% прозрачностью
+                blended = cv2.addWeighted(gray_bgr[problem_mask], 0.6, red_layer[problem_mask], 0.4, 0)
+                output_image[problem_mask] = blended
+
+            _, buffer = cv2.imencode('.jpg', output_image)
+            return base64.b64encode(buffer).decode('utf-8')
+
+        except Exception as e:
+            logger.error(f"Ошибка при создании карты проблемных зон: {e}")
+            return ""
+
+
+    # --- Методы для работы с полными данными анализа ---
+
     def _save_analysis_data(self, token: str, analysis_id: str, analysis_data: Dict) -> bool:
-        """
-        Сохраняет ПОЛНЫЕ данные анализа (включая изображения) в базу данных.
-        """
+        """Сохраняет ПОЛНЫЕ данные анализа (включая изображения) в базу данных."""
         try:
             analysis_data_serialized = json.dumps(analysis_data, default=str)
             return self.db.save_analysis_data(token, analysis_id, analysis_data_serialized)
@@ -127,15 +221,17 @@ class AnalysisManager:
             logger.error(f"Ошибка загрузки анализа: {e}")
             return None
     
+    # --- Основной публичный метод ---
+
     def perform_complete_analysis(self, token: str, start_date: str, end_date: str, 
                                 lon: Optional[float] = None, lat: Optional[float] = None, 
                                 radius_km: float = 0.5, 
                                 polygon_coords: Optional[List[List[float]]] = None) -> Dict:
         """
-        Выполняет анализ ВСЕХ снимков за период и сохраняет агрегированный результат.
+        Выполняет полный цикл анализа: получает снимки, рассчитывает индексы,
+        генерирует все необходимые изображения и сохраняет результат.
         """
         try:
-            # Гарантируем инициализацию GEE перед использованием
             GEEInitializer.initialize_gee()
             
             area_info = {}
@@ -147,12 +243,14 @@ class AnalysisManager:
             elif lon is not None and lat is not None:
                 area_info = {'type': 'point_radius', 'lon': lon, 'lat': lat, 'radius_km': radius_km}
                 point = ee.Geometry.Point([lon, lat])
-                area_of_interest = point.buffer(radius_km * 1000).bounds()
+                area_of_interest = point.buffer(radius_km * 1000)
                 logger.info(f"Запуск анализа коллекции для: {lon}, {lat} с радиусом {radius_km} км")
             else:
                 raise ValueError("Не указана область для анализа (ни точка с радиусом, ни полигон).")
 
-            # Шаг 1: Получаем все данные по всем снимкам
+            bounds_coords_list = area_of_interest.bounds().coordinates().get(0).getInfo()
+            bounds_for_leaflet = [[bounds_coords_list[0][1], bounds_coords_list[0][0]], [bounds_coords_list[2][1], bounds_coords_list[2][0]]]
+
             image_data_list = ImageProvider.get_images_from_gee_collection(
                 start_date=start_date, end_date=end_date,
                 area_of_interest=area_of_interest
@@ -160,28 +258,35 @@ class AnalysisManager:
             
             all_results = []
             
-            # Шаг 2: Обрабатываем каждый снимок
             for image_data in image_data_list:
                 calculator = VegetationIndexCalculator(
-                    rgb_image=image_data['rgb_image'],
-                    red_channel=image_data['red_channel'],
-                    green_channel=image_data['green_channel'],
-                    blue_channel=image_data['blue_channel'],
+                    rgb_image=image_data['rgb_image'], red_channel=image_data['red_channel'],
+                    green_channel=image_data['green_channel'], blue_channel=image_data['blue_channel'],
                     nir_channel=image_data['nir_channel']
                 )
                 
                 indices = self._calculate_all_indices(calculator)
                 
+                colored_ndvi_base64 = self._colorize_ndvi(indices['ndvi']['map'])
+                problem_zones_base64 = self._create_problem_zones_image(
+                    rgb_image=image_data['rgb_image'],
+                    ndvi_map=indices['ndvi']['map']
+                )
+                
                 single_image_result = {
                     'date': image_data['date'],
                     'cloud_coverage': image_data['cloud_percentage'],
                     'images': {
-                        'rgb': self._array_to_base64(image_data['rgb_image']),
+                        # <<< --- ИЗМЕНЕНИЕ: Используем правильную функцию для RGB --- >>>
+                        'rgb': self._rgb_array_to_base64(image_data['rgb_image']),
                         'ndvi': self._array_to_base64(indices['ndvi']['map']),
                         'savi': self._array_to_base64(indices['savi']['map']),
                         'vari': self._array_to_base64(indices['vari']['map']),
                         'evi': self._array_to_base64(indices['evi']['map'])
                     },
+                    'ndvi_overlay_image': colored_ndvi_base64,
+                    'problem_zones_image': problem_zones_base64,
+                    'bounds': bounds_for_leaflet,
                     'statistics': {
                         'ndvi': indices['ndvi']['stats'],
                         'savi': indices['savi']['stats'],
@@ -194,11 +299,8 @@ class AnalysisManager:
                 }
                 all_results.append(single_image_result)
 
-            # Шаг 3: Собираем финальный ответ
             analysis_id = str(int(time.time()))
-            
             all_results.sort(key=lambda x: x['date'])
-            
             analysis_data_response = {
                 'analysis_id': analysis_id,
                 'timestamp': time.time(),
@@ -206,13 +308,9 @@ class AnalysisManager:
                 'date_range': {'start': start_date, 'end': end_date},
                 'image_count': len(all_results),
                 'results_per_image': all_results,
-                'metadata': {
-                    'resolution': '10m',
-                    'source': 'Sentinel-2'
-                }
+                'metadata': { 'resolution': '10m', 'source': 'Sentinel-2' }
             }
             
-            # Шаг 4: Сохраняем результат
             if self._save_analysis_data(token, analysis_id, analysis_data_response):
                 self._update_user_analyses_list(token, analysis_id, analysis_data_response)
                 logger.info(f"Анализ коллекции {analysis_id} успешно сохранен")
@@ -225,13 +323,11 @@ class AnalysisManager:
             return {'status': 'error', 'detail': str(e)}
     
     def _update_user_analyses_list(self, token: str, analysis_id: str, analysis_data: Dict):
-        """Обновляет список анализов пользователя"""
+        """Обновляет список анализов пользователя с краткой сводкой."""
         try:
             user_data_obj = self._get_user_data_object(token)
             
-            avg_ndvi = 0
-            avg_vari = 0
-            avg_evi = 0
+            avg_ndvi, avg_vari, avg_evi = 0, 0, 0
             if analysis_data.get('image_count', 0) > 0:
                 ndvis = [r['statistics']['ndvi']['mean'] for r in analysis_data['results_per_image']]
                 varis = [r['statistics']['vari']['mean'] for r in analysis_data['results_per_image']]
@@ -261,8 +357,10 @@ class AnalysisManager:
         except Exception as e:
             logger.error(f"Ошибка обновления списка анализов: {e}")
     
+    # --- CRUD-методы для управления анализами ---
+
     def get_analysis_by_id(self, token: str, analysis_id: str) -> Dict:
-        """Получает конкретный анализ по ID"""
+        """Получает конкретный анализ по ID."""
         try:
             analysis_data = self._load_analysis_data(token, analysis_id)
             if analysis_data:
@@ -274,7 +372,7 @@ class AnalysisManager:
             return {'status': 'error', 'detail': str(e)}
     
     def delete_analysis(self, token: str, analysis_id: str) -> Dict:
-        """Удаляет анализ"""
+        """Удаляет анализ из основной БД и из списка пользователя."""
         try:
             self.db.delete_analysis_data(token, analysis_id)
             
