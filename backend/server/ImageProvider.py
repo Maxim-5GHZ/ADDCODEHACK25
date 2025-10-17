@@ -147,11 +147,7 @@ class ImageProvider:
         if polygon_coords:
             if len(polygon_coords) < 3:
                 raise ValueError("Для полигона необходимо как минимум 3 точки.")
-<<<<<<< HEAD
             area_of_interest = ee.Geometry.Polygon([polygon_coords])
-=======
-            area_of_interest = ee.Geometry.Polygon(polygon_coords)
->>>>>>> parent of 7e7c5d1 (Add files via upload)
         elif lon is not None and lat is not None:
             point = ee.Geometry.Point([lon, lat])
             area_of_interest = point.buffer(radius_km * 1000).bounds()
