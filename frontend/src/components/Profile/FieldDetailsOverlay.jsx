@@ -1,0 +1,417 @@
+import React, { useState, useEffect } from 'react';
+import { getCookie } from '../../utils/cookies';
+import { performAnalysis, getAnalysisList, getAnalysisById } from '../../utils/fetch';
+
+function FieldDetailsOverlay({ isVisible, onClose, field }) {
+  const [currentAnalysis, setCurrentAnalysis] = useState(null);
+  const [analysesList, setAnalysesList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedAnalysisId, setSelectedAnalysisId] = useState(null);
+
+  // Загрузка списка анализов при открытии
+  useEffect(() => {
+    if (isVisible) {
+      loadAnalysesList();
+    }
+  }, [isVisible]);
+
+  const loadAnalysesList = async () => {
+    try {
+      const token = getCookie('token');
+      const response = await getAnalysisList(token);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'success') {
+          setAnalysesList(data.analyses || []);
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при загрузке списка анализов:', error);
+    }
+  };
+
+  const loadAnalysisById = async (analysisId) => {
+    try {
+      setLoading(true);
+      const token = getCookie('token');
+      const response = await getAnalysisById(analysisId, token);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'success') {
+          setCurrentAnalysis(data.data);
+          setSelectedAnalysisId(analysisId);
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при загрузке анализа:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRunAnalysis = async () => {
+    try {
+      setLoading(true);
+      const token = getCookie('token');
+      
+      // Получаем даты (сегодня и 30 дней назад)
+      const endDate = new Date().toISOString().split('T')[0];
+      const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      let response;
+      
+      if (field.area_of_interest.type === 'point_radius') {
+        response = await performAnalysis(
+          token, 
+          startDate, 
+          endDate, 
+          {
+            lon: field.area_of_interest.lon,
+            lat: field.area_of_interest.lat,
+            radius_km: field.area_of_interest.radius_km
+          }
+        );
+      } else if (field.area_of_interest.type === 'polygon') {
+        response = await performAnalysis(
+          token,
+          startDate,
+          endDate,
+          {
+            polygonCoords: field.area_of_interest.coordinates
+          }
+        );
+      }
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.status === 'success') {
+          setCurrentAnalysis(result.data);
+          setSelectedAnalysisId(result.analysis_id);
+          // Обновляем список анализов
+          await loadAnalysesList();
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при выполнении анализа:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOverlayClick = (e) => {
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
+  const handleClose = () => {
+    setCurrentAnalysis(null);
+    setSelectedAnalysisId(null);
+    onClose();
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4"
+      onClick={handleOverlayClick}
+    >
+      <div className="bg-white rounded-3xl w-[90vw] h-[90vh] flex flex-col lg:flex-row overflow-hidden">
+        {/* Левая секция - результаты анализа */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl lg:text-3xl font-bold text-[var(--neutral-dark-color)]">
+              {field.name} - Результаты анализа
+            </h2>
+            <button
+              onClick={handleClose}
+              className="text-3xl text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+            >
+              ×
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-2xl">Загрузка...</div>
+            </div>
+          ) : currentAnalysis ? (
+            <AnalysisResults analysis={currentAnalysis} />
+          ) : (
+            <div className="flex items-center justify-center h-64 text-2xl text-gray-500">
+              Выберите анализ из списка или запустите новый
+            </div>
+          )}
+        </div>
+        
+        {/* Правая секция - кнопка анализа и список анализов */}
+        <div className="w-full lg:w-1/3 p-6 lg:p-8 border-l border-gray-200 flex flex-col">
+          <div className="mb-6">
+            <button
+              onClick={handleRunAnalysis}
+              disabled={loading}
+              className="w-full bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] disabled:bg-gray-400 transition-colors rounded-full py-4 text-xl font-semibold text-white cursor-pointer shadow-2xs"
+            >
+              {loading ? 'Анализ выполняется...' : 'Анализировать'}
+            </button>
+            <p className="text-sm text-gray-500 mt-2 text-center">
+              Анализ за последние 30 дней
+            </p>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            <h3 className="text-xl font-semibold mb-4 text-[var(--neutral-dark-color)]">
+              История анализов
+            </h3>
+            {analysesList.length === 0 ? (
+              <div className="text-gray-500 text-center py-4">
+                Нет выполненных анализов
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {analysesList.map(analysis => (
+                  <AnalysisListItem
+                    key={analysis.analysis_id}
+                    analysis={analysis}
+                    isSelected={selectedAnalysisId === analysis.analysis_id}
+                    onSelect={() => loadAnalysisById(analysis.analysis_id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Компонент для отображения элемента списка анализов
+function AnalysisListItem({ analysis, isSelected, onSelect }) {
+  const formatDate = (timestamp) => {
+    return new Date(timestamp * 1000).toLocaleDateString('ru-RU');
+  };
+
+  const getAreaType = (areaOfInterest) => {
+    return areaOfInterest.type === 'point_radius' ? 'Точка' : 'Полигон';
+  };
+
+  return (
+    <div
+      className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
+        isSelected 
+          ? 'border-[var(--accent-color)] bg-blue-50' 
+          : 'border-gray-200 hover:border-gray-300'
+      }`}
+      onClick={onSelect}
+    >
+      <div className="flex justify-between items-start mb-2">
+        <span className="font-semibold text-lg">
+          {formatDate(analysis.timestamp)}
+        </span>
+        <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+          {getAreaType(analysis.area_of_interest)}
+        </span>
+      </div>
+      <div className="text-sm text-gray-600">
+        <div>Снимков: {analysis.image_count}</div>
+        {analysis.statistics_summary && (
+          <div className="mt-1">
+            NDVI: {analysis.statistics_summary.ndvi_mean?.toFixed(3) || 'N/A'}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Компонент для отображения результатов анализа
+function AnalysisResults({ analysis }) {
+  return (
+    <div className="space-y-6">
+      {/* Основная информация */}
+      <AnalysisHeader analysis={analysis} />
+      
+      {/* Статистика по каждому снимку */}
+      {analysis.results_per_image && analysis.results_per_image.map((result, index) => (
+        <ImageResults key={index} result={result} index={index} />
+      ))}
+    </div>
+  );
+}
+
+// Компонент заголовка анализа
+function AnalysisHeader({ analysis }) {
+  const formatDateRange = (dateRange) => {
+    return `${dateRange.start} - ${dateRange.end}`;
+  };
+
+  return (
+    <div className="bg-gray-50 p-4 rounded-xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h4 className="font-semibold text-lg mb-2">Информация об анализе</h4>
+          <div className="space-y-1 text-sm">
+            <div>ID: {analysis.analysis_id}</div>
+            <div>Период: {formatDateRange(analysis.date_range)}</div>
+            <div>Снимков: {analysis.image_count}</div>
+          </div>
+        </div>
+        <div>
+          <h4 className="font-semibold text-lg mb-2">Метаданные</h4>
+          <div className="space-y-1 text-sm">
+            <div>Источник: {analysis.metadata?.source || 'N/A'}</div>
+            <div>Разрешение: {analysis.metadata?.resolution || 'N/A'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Компонент для отображения результатов по одному снимку
+function ImageResults({ result, index }) {
+  const [selectedTab, setSelectedTab] = useState('images');
+
+  return (
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
+      <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
+        <h4 className="font-semibold text-lg">Снимок от {result.date}</h4>
+        <p className="text-sm text-gray-600">
+          Облачность: {result.cloud_coverage}%
+        </p>
+      </div>
+
+      <div className="border-b border-gray-200">
+        <div className="flex">
+          <button
+            className={`px-4 py-2 font-medium ${
+              selectedTab === 'images' 
+                ? 'text-[var(--accent-color)] border-b-2 border-[var(--accent-color)]' 
+                : 'text-gray-500'
+            }`}
+            onClick={() => setSelectedTab('images')}
+          >
+            Изображения
+          </button>
+          <button
+            className={`px-4 py-2 font-medium ${
+              selectedTab === 'statistics' 
+                ? 'text-[var(--accent-color)] border-b-2 border-[var(--accent-color)]' 
+                : 'text-gray-500'
+            }`}
+            onClick={() => setSelectedTab('statistics')}
+          >
+            Статистика
+          </button>
+          <button
+            className={`px-4 py-2 font-medium ${
+              selectedTab === 'zoning' 
+                ? 'text-[var(--accent-color)] border-b-2 border-[var(--accent-color)]' 
+                : 'text-gray-500'
+            }`}
+            onClick={() => setSelectedTab('zoning')}
+          >
+            Зонирование
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4">
+        {selectedTab === 'images' && <AnalysisImages images={result.images} />}
+        {selectedTab === 'statistics' && <AnalysisStatistics statistics={result.statistics} />}
+        {selectedTab === 'zoning' && <AnalysisZoning zoning={result.zoning} />}
+      </div>
+    </div>
+  );
+}
+
+// Компонент для отображения изображений
+function AnalysisImages({ images }) {
+  if (!images) return <div>Нет изображений</div>;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {Object.entries(images).map(([type, base64Data]) => (
+        <div key={type} className="text-center">
+          <div className="font-medium mb-2 capitalize">{type}</div>
+          <img 
+            src={`data:image/png;base64,${base64Data}`} 
+            alt={type}
+            className="w-full h-48 object-cover rounded-lg border border-gray-200"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Компонент для отображения статистики
+function AnalysisStatistics({ statistics }) {
+  if (!statistics) return <div>Нет статистики</div>;
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full bg-white">
+        <thead>
+          <tr className="bg-gray-50">
+            <th className="px-4 py-2 text-left">Индекс</th>
+            <th className="px-4 py-2 text-left">Мин.</th>
+            <th className="px-4 py-2 text-left">Макс.</th>
+            <th className="px-4 py-2 text-left">Среднее</th>
+            <th className="px-4 py-2 text-left">Ст. откл.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {Object.entries(statistics).map(([index, data]) => (
+            <tr key={index} className="border-b border-gray-200">
+              <td className="px-4 py-2 font-medium capitalize">{index}</td>
+              <td className="px-4 py-2">{data.min?.toFixed(4)}</td>
+              <td className="px-4 py-2">{data.max?.toFixed(4)}</td>
+              <td className="px-4 py-2">{data.mean?.toFixed(4)}</td>
+              <td className="px-4 py-2">{data.std?.toFixed(4)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Компонент для отображения зонирования
+function AnalysisZoning({ zoning }) {
+  if (!zoning) return <div>Нет данных зонирования</div>;
+
+  return (
+    <div className="space-y-4">
+      {Object.entries(zoning).map(([index, zones]) => (
+        <div key={index} className="border border-gray-200 rounded-lg p-4">
+          <h5 className="font-semibold mb-3 capitalize">{index} Зонирование</h5>
+          <div className="space-y-2">
+            {Object.entries(zones).map(([zone, percentage]) => (
+              <div key={zone} className="flex items-center justify-between">
+                <span className="capitalize">{zone} зона</span>
+                <div className="flex items-center space-x-2">
+                  <div className="w-32 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-[var(--accent-color)] h-2 rounded-full" 
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                  <span className="text-sm font-medium w-12">
+                    {percentage}%
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default FieldDetailsOverlay;

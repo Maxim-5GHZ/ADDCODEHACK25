@@ -2,12 +2,20 @@ import React, { useState, useEffect } from 'react';
 import AddFieldOverlay from './AddFieldOverlay';
 import { getFieldsList, saveField, deleteField } from '../../utils/fetch';
 import { getCookie } from '../../utils/cookies';
+import FieldDetailsOverlay from './FieldDetailsOverlay';
 
 function FieldsTab() {
   const [showAddFieldOverlay, setShowAddFieldOverlay] = useState(false);
+  const [showFieldDetailsOverlay, setShowFieldDetailsOverlay] = useState(false);
+  const [selectedField, setSelectedField] = useState(null);
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const handleShowDetails = (field) => {
+      setSelectedField(field);
+      setShowFieldDetailsOverlay(true);
+    };
 
   // Загрузка списка полей с сервера
   const loadFields = async () => {
@@ -147,12 +155,15 @@ function FieldsTab() {
                 )}
               </div>
               <div className="flex gap-2">
-                <button className="text-[#009e4f] font-bold hover:underline text-lg">
+                <button 
+                  onClick={() => handleShowDetails(field)}
+                  className="text-[var(--accent-color)] font-bold hover:underline text-lg cursor-pointer"
+                >
                   Подробнее
                 </button>
                 <button 
                   onClick={() => handleDeleteField(field.id)}
-                  className="text-red-500 font-bold hover:underline text-lg ml-4"
+                  className="text-red-500 font-bold hover:underline text-lg ml-4 cursor-pointer"
                 >
                   Удалить
                 </button>
@@ -175,6 +186,12 @@ function FieldsTab() {
         isVisible={showAddFieldOverlay}
         onClose={() => setShowAddFieldOverlay(false)}
         onSubmit={handleAddFieldSubmit}
+      />
+
+      <FieldDetailsOverlay
+        isVisible={showFieldDetailsOverlay}
+        onClose={() => setShowFieldDetailsOverlay(false)}
+        field={selectedField}
       />
     </>
   );
