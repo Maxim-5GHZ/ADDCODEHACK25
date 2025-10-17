@@ -438,8 +438,13 @@
         <div class="modal-content">
             <button class="modal-close-button">&times;</button>
             <h2 id="modal-title">Результаты анализа</h2>
-            <!-- <<< --- НАЧАЛО ИЗМЕНЕНИЙ --- >>> -->
             <div class="modal-body">
+                <!-- <<< --- НОВЫЙ БЛОК ДЛЯ КАРТЫ В ОТЧЕТЕ --- >>> -->
+                <div class="card">
+                    <h4>Карта здоровья поля (NDVI Overlay)</h4>
+                    <div id="report-map" style="height: 400px; border-radius: 8px;"></div>
+                </div>
+
                 <div class="card">
                     <h4>Анализ и рекомендации от AI</h4>
                     <div id="ai-recommendation-content" style="white-space: pre-wrap;">
@@ -447,7 +452,6 @@
                     </div>
                 </div>
 
-                <!-- ИСПРАВЛЕНИЕ 1: Добавлен canvas для исторического графика, которого не хватало -->
                 <div class="card">
                     <h4>Историческая динамика NDVI (за все время)</h4>
                     <canvas id="historical-ndvi-chart"></canvas>
@@ -458,12 +462,10 @@
                     <canvas id="indices-dynamics-chart"></canvas>
                 </div>
 
-                <!-- ИСПРАВЛЕНИЕ 2: Добавлен контейнер, в который JS будет вставлять карточки с изображениями и статистикой -->
                 <div id="image-results-container">
                     <!-- Сюда JS динамически добавит результаты по каждому снимку -->
                 </div>
             </div>
-            <!-- <<< --- КОНЕЦ ИЗМЕНЕНИЙ --- >>> -->
         </div>
     </div>
 
@@ -489,6 +491,7 @@
                 dynamicsChart: null,
                 zoningCharts: {},
                 currentAnalysisId: null,
+                reportMap: null, // <<< --- Карта для модального окна
             };
 
             // -------------------
@@ -609,7 +612,6 @@
                         state.currentGeometry = { type: 'point', lat, lon: lng, radius_km: 0.5 }; // default radius
                     } else if (event.layerType === 'polygon' || event.layerType === 'rectangle') {
                         const geoJSON = layer.toGeoJSON();
-                        // GEE requires [lon, lat] format
                         const coordinates = geoJSON.geometry.coordinates[0].map(p => [p[0], p[1]]); 
                         state.currentGeometry = { type: 'polygon', polygon_coords: JSON.stringify(coordinates) };
                     }
@@ -669,7 +671,6 @@
                             dom.savedFieldsList.appendChild(item);
                         });
                         
-                        // Делегирование событий
                         dom.savedFieldsList.querySelectorAll('.use-btn').forEach(btn => btn.addEventListener('click', () => useSavedField(response.fields, btn.dataset.fieldId)));
                         dom.savedFieldsList.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', () => deleteSavedField(btn.dataset.fieldId)));
 
@@ -744,10 +745,17 @@
 
                 dom.modalTitle.textContent = `Результаты анализа от ${new Date(data.timestamp * 1000).toLocaleString()}`;
                 dom.imageResultsContainer.innerHTML = '';
+                
+                // Очищаем предыдущую карту отчета, если она была
+                if (state.reportMap) {
+                    state.reportMap.remove();
+                    state.reportMap = null;
+                }
 
                 fetchAndRenderAIRecommendation(data.analysis_id);
 
                 if(data.results_per_image && data.results_per_image.length > 0) {
+                    
                     data.results_per_image.forEach((result, index) => {
                         const resultCard = document.createElement('div');
                         resultCard.className = 'image-result-card';
@@ -793,7 +801,6 @@
                         `;
                         dom.imageResultsContainer.appendChild(resultCard);
 
-                        // Отрисовка диаграммы зонирования
                         const ctx = document.getElementById(chartId).getContext('2d');
                         if (state.zoningCharts[chartId]) {
                             state.zoningCharts[chartId].destroy();
@@ -816,7 +823,26 @@
                 
                 renderIndicesDynamicsChart(data.results_per_image);
                 fetchAndRenderHistoricalNdvi(data.area_of_interest);
+                
+                // <<< --- Инициализируем карту ПОСЛЕ отрисовки остального контента --- >>>
+                const firstResult = data.results_per_image?.[0];
+                if (firstResult?.ndvi_overlay_image && firstResult?.bounds) {
+                    state.reportMap = L.map('report-map');
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.reportMap);
+
+                    const imageUrl = `data:image/png;base64,${firstResult.ndvi_overlay_image}`;
+                    const imageBounds = firstResult.bounds;
+                    
+                    L.imageOverlay(imageUrl, imageBounds, { opacity: 0.7, interactive: true }).addTo(state.reportMap);
+                    state.reportMap.fitBounds(imageBounds);
+                }
+
                 dom.resultsModal.classList.remove('hidden');
+
+                // <<< --- Исправляем размер карты после того, как модальное окно стало видимым --- >>>
+                if (state.reportMap) {
+                    setTimeout(() => state.reportMap.invalidateSize(), 10);
+                }
             }
 
             function renderIndicesDynamicsChart(results) {
@@ -1012,7 +1038,7 @@
                     if (response.status === 'success') {
                         showToast('Анализ успешно выполнен!');
                         renderAnalysisResults(response.data);
-                        fetchAndRenderAnalysisHistory(); // Обновляем историю
+                        fetchAndRenderAnalysisHistory();
                     }
                 } catch (error) {
                     console.error('Analysis failed');
@@ -1033,7 +1059,6 @@
                 
                 const area_of_interest = state.currentGeometry.type === 'point' 
                     ? { type: 'point', lat: state.currentGeometry.lat, lon: state.currentGeometry.lon }
-                    // GEE полигон уже в [lon, lat], так что просто передаем его
                     : { type: 'polygon', coordinates: JSON.parse(state.currentGeometry.polygon_coords) };
 
                 try {
@@ -1056,7 +1081,7 @@
             function useSavedField(fields, fieldId) {
                 const field = fields.find(f => f.id === fieldId);
                 if (!field) return;
-
+                
                 state.drawnItems.clearLayers();
                 const aoi = field.area_of_interest;
 
@@ -1066,7 +1091,6 @@
                     state.map.setView([aoi.lat, aoi.lon], 13);
                     state.currentGeometry = { type: 'point', lat: aoi.lat, lon: aoi.lon, radius_km: 0.5 };
                 } else if (aoi.type === 'polygon') {
-                    // Конвертируем [lon, lat] обратно в [lat, lon] для Leaflet
                     const latLngs = aoi.coordinates.map(p => [p[1], p[0]]);
                     const polygon = L.polygon(latLngs);
                     state.drawnItems.addLayer(polygon);
@@ -1090,10 +1114,8 @@
             // История анализов
             async function viewAnalysisDetails(analysisId) {
                 try {
-                    // Просто запрашиваем ПОЛНЫЕ данные по ID
                     const response = await apiRequest(`/analysis/${analysisId}?token=${state.token}`);
                     if (response.status === 'success') {
-                        // И сразу же отрисовываем их, без повторного анализа
                         renderAnalysisResults(response.data);
                     }
                 } catch (error) {
@@ -1113,9 +1135,23 @@
                 }
             }
 
-            // Модальное окно
-            dom.modalCloseButton.addEventListener('click', () => {
+            // <<< --- НОВАЯ УЛУЧШЕННАЯ ЛОГИКА ЗАКРЫТИЯ МОДАЛЬНОГО ОКНА --- >>>
+            function closeModal() {
                 dom.resultsModal.classList.add('hidden');
+                // Уничтожаем карту в отчете, чтобы освободить ресурсы
+                if (state.reportMap) {
+                    state.reportMap.remove();
+                    state.reportMap = null;
+                }
+            }
+
+            dom.modalCloseButton.addEventListener('click', closeModal);
+
+            dom.resultsModal.addEventListener('click', (e) => {
+                // Закрываем, только если клик был по самому оверлею (фону)
+                if (e.target === dom.resultsModal) {
+                    closeModal();
+                }
             });
 
             // -------------------
