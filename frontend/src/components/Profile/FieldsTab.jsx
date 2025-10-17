@@ -304,7 +304,7 @@ function FieldsTab({ setActiveTab }) {
       {/* Модальное окно выбора дат */}
       {showDateModal && (
         <div className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full">
+          <div className="bg-white rounded-3xl p-8 w-[30vw]">
             <h3 className="text-3xl font-bold mb-4 text-[var(--neutral-dark-color)]">
               Выберите период анализа
             </h3>
