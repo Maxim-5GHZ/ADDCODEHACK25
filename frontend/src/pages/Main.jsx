@@ -4,14 +4,14 @@ import Header from "../components/Header";
 import { Card, HorizontalCard } from "../components/Card";
 import { getCookie } from "../utils/cookies"
 import logoSVG from "../assets/logo.svg"
-import card1Image from "../assets/card1_image.jpg";
-import card2Image from "../assets/card2_image.jpg";
-import card3Image from "../assets/card3_image.jpg";
-import card4Image from "../assets/card4_image.jpg";
-import carousel1Image from "../assets/carousel_image1.jpg"
-import carousel2Image from "../assets/carousel_image2.jpg"
-import carousel3Image from "../assets/carousel_image3.jpg"
-import carousel4Image from "../assets/carousel_image4.jpg"
+import card1Image from "../assets/card1_image.webp";
+import card2Image from "../assets/card2_image.webp";
+import card3Image from "../assets/card3_image.webp";
+import card4Image from "../assets/card4_image.webp";
+import carousel1Image from "../assets/carousel_image1.webp"
+import carousel2Image from "../assets/carousel_image2.webp"
+import carousel3Image from "../assets/carousel_image3.webp"
+import carousel4Image from "../assets/carousel_image4.webp"
 
 function Hero() {
     const [isInAccount, setIsInAccount] = useState(false);
