@@ -109,7 +109,7 @@ function AboutUs() {
                     <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-center lg:col-span-2 animate-fade-in-up">
                         О НАС
                     </h2>
-                    <p className="text-lg sm:text-xl md:text-2xl lg:text-4xl text-start lg:col-span-2 tracking-wider text-center lg:text-start animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'both'}}>
+                    <p className="text-lg sm:text-xl md:text-2xl lg:text-4xl lg:col-span-2 tracking-wider text-center lg:text-start animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'both'}}>
                         <strong>Мы создаём будущее сельского хозяйства,</strong> где технологии работают на результат
                         каждого фермера. Наша задача — дать вам не просто данные, а ясное понимание состояния ваших полей
                         и конкретные рекомендации для принятия решений. Всё, что для этого нужно, — всего несколько кликов.<br /><br />
