@@ -9,7 +9,7 @@ function Card({ title, description, image }) {
                     <p className='text-lg md:text-2xl lg:text-3xl text-[var(--neutral-secondary-color)] m-6 md:m-12 tracking-wider'>
                         {description}
                     </p>
-                    <div className="flex-grow">
+                    <div className="flex-grow overflow-hidden">
                         <img loading="lazy" src={image} alt={title} className="w-full h-48 md:h-full object-cover rounded-b-[4rem] md:rounded-b-[8rem]"/>
                     </div>
                 </div>

@@ -15,40 +15,54 @@ import carousel4Image from "../assets/carousel_image4.webp"
 
 function Hero() {
     const [isInAccount, setIsInAccount] = useState(false);
+    const [scrollY, setScrollY] = useState(0);
 
     useEffect(() => {
         const checkAuth = () => {
             const token = getCookie("token");
-
             if (token) {
                 setIsInAccount(true);
-            }
-            else {
+            } else {
                 setIsInAccount(false);
             }
         }
 
+        const handleScroll = () => {
+            setScrollY(window.scrollY);
+        };
+
         checkAuth();
+        window.addEventListener('scroll', handleScroll);
+        
+        return () => window.removeEventListener('scroll', handleScroll);
     }, [])
     
+    const parallaxStyle = {
+        transform: `translateY(${scrollY * 0.5}px)`
+    };
+    
     return (
-        <div id="main" className="bg-[url(assets/hero_image.jpg)] bg-cover h-screen md:h-240 bg-center relative">
-            <div className="bg-[var(--hero-shadow)] h-full w-full pt-32 md:pt-48 px-4 sm:px-8 md:px-48 flex flex-col">
-                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-[var(--neutral-color)] tracking-tight text-center md:text-start">
+        <div id="main" className="bg-[url(assets/hero_image.jpg)] bg-cover h-screen md:h-240 bg-center relative overflow-hidden">
+            <div 
+                className="parallax absolute inset-0 bg-cover bg-center"
+                style={parallaxStyle}
+            ></div>
+            <div className="bg-[var(--hero-shadow)] h-full w-full pt-32 md:pt-48 px-4 sm:px-8 md:px-48 flex flex-col relative z-10">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-[var(--neutral-color)] tracking-tight text-center md:text-start animate-fade-in-up">
                     Аналитика поля одним кликом
                 </h1>
-                <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-[var(--neutral-color)] mt-4 md:mt-8 tracking-wider text-center md:text-start">
+                <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-[var(--neutral-color)] mt-4 md:mt-8 tracking-wider text-center md:text-start animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'both'}}>
                     Просто укажите свой участок на карте — и наш искусственный<br className="hidden md:block" />
                     интеллект на основе спутниковых снимков мгновенно проведёт<br className="hidden md:block" />
                     диагностику. Получите готовый отчёт о состоянии почвы,<br className="hidden md:block" />
                     растительности и потенциальных рисках для вашего урожая.
                 </p>
 
-                <div className="flex-grow flex items-end justify-center pb-16 md:pb-48">
+                <div className="flex-grow flex items-end justify-center pb-16 md:pb-48 animate-fade-in-up" style={{animationDelay: '0.4s', animationFillMode: 'both'}}>
                     <Link
                         to={isInAccount ? "/profile" : "/registration"}
                         className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
-                        transition-[background-color] duration-100 cursor-pointer rounded-full text-xl sm:text-2xl md:text-3xl lg:text-5xl px-6 py-4 md:px-8 md:py-6 text-[var(--neutral-color)] shadow-2xl text-center"
+                        transition-all duration-300 cursor-pointer rounded-full text-xl sm:text-2xl md:text-3xl lg:text-5xl px-6 py-4 md:px-8 md:py-6 text-[var(--neutral-color)] shadow-2xl text-center"
                     >
                         Анализировать поле
                     </Link>
@@ -64,12 +78,38 @@ function AboutUs() {
     const card3Description = "Мощные алгоритмы искусственного интеллекта сканируют каждый пиксель изображения, выявляя проблемы и аномалии: стресс растительности, недостаток влаги, очаги болезней.";
     const card4Description = "Вы получаете структурированный отчёт с визуализацией проблемных зон и конкретными советами: где полить, чем обработать и на что обратить внимание.";
 
+    const [isVisible, setIsVisible] = useState(false);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsVisible(true);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        const section = document.getElementById('about-us');
+        if (section) {
+            observer.observe(section);
+        }
+
+        return () => {
+            if (section) {
+                observer.unobserve(section);
+            }
+        };
+    }, []);
+
     return (
-        <div id="about-us" className="bg-[var(--neutral-color)] w-full">
+        <div id="about-us" className={`bg-[var(--neutral-color)] w-full section-fade-in ${isVisible ? 'section-visible' : ''}`}>
             <div className="container mx-auto px-4 sm:px-8 lg:px-16 pt-16 pb-32">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-y-16 lg:gap-x-32">
-                    <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-center lg:col-span-2">О НАС</h2>
-                    <p className="text-lg sm:text-xl md:text-2xl lg:text-4xl text-start lg:col-span-2 tracking-wider text-center lg:text-start">
+                    <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-center lg:col-span-2 animate-fade-in-up">
+                        О НАС
+                    </h2>
+                    <p className="text-lg sm:text-xl md:text-2xl lg:text-4xl text-start lg:col-span-2 tracking-wider text-center lg:text-start animate-fade-in-up" style={{animationDelay: '0.2s', animationFillMode: 'both'}}>
                         <strong>Мы создаём будущее сельского хозяйства,</strong> где технологии работают на результат
                         каждого фермера. Наша задача — дать вам не просто данные, а ясное понимание состояния ваших полей
                         и конкретные рекомендации для принятия решений. Всё, что для этого нужно, — всего несколько кликов.<br /><br />
@@ -77,34 +117,42 @@ function AboutUs() {
                     </p>
 
                     <div className="lg:row-start-3">
-                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-16">
+                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-16 animate-fade-in-left">
                             ШАГ 1 →
                         </h2>
-                        <div className="flex justify-center">
-                            <Card title="Получение снимков" description={card2Description} image={card2Image} />
+                        <div className="flex justify-center animate-fade-in-up" style={{animationDelay: '0.3s', animationFillMode: 'both'}}>
+                            <div>
+                                <Card title="Получение снимков" description={card2Description} image={card2Image} />
+                            </div>
                         </div>
                     </div>
                     <div className="lg:row-start-3">
-                        <div className="flex justify-center">
-                            <Card title="Выбор участка" description={card1Description} image={card1Image} />
+                        <div className="flex justify-center animate-fade-in-up" style={{animationDelay: '0.5s', animationFillMode: 'both'}}>
+                            <div>
+                                <Card title="Выбор участка" description={card1Description} image={card1Image} />
+                            </div>
                         </div>
-                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-32">
+                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-32 animate-fade-in-right">
                             ← ШАГ 2
                         </h2>
                     </div>
                     <div className="lg:row-start-4">
-                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-16">
+                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-16 animate-fade-in-left">
                             ШАГ 3 →
                         </h2>
-                        <div className="flex justify-center">
-                            <Card title="Подготовка отчета" description={card4Description} image={card4Image} />
+                        <div className="flex justify-center animate-fade-in-up" style={{animationDelay: '0.7s', animationFillMode: 'both'}}>
+                            <div>
+                                <Card title="Подготовка отчета" description={card4Description} image={card4Image} />
+                            </div>
                         </div>
                     </div>
                     <div className="lg:row-start-4">
-                        <div className="flex justify-center">
-                            <Card title="Анализ снимков" description={card3Description} image={card3Image} />
+                        <div className="flex justify-center animate-fade-in-up" style={{animationDelay: '0.9s', animationFillMode: 'both'}}>
+                            <div>
+                                <Card title="Анализ снимков" description={card3Description} image={card3Image} />
+                            </div>
                         </div>
-                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-32">
+                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-32 animate-fade-in-right">
                             ← ШАГ 4
                         </h2>
                     </div>
@@ -180,19 +228,19 @@ function Advantages() {
     return (
         <div className="bg-[var(--neutral-secondary-color)] overflow-hidden">
             <div id="advantages" className="bg-[var(--neutral-secondary-color)] pt-16">
-                <h3 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl text-[var(--neutral-dark-color)] font-bold text-center px-4">
+                <h3 className="text-8xl text-[var(--neutral-dark-color)] font-bold text-center">
                     ПРЕИМУЩЕСТВА
                 </h3>
             </div>
             
-            <div className="relative bg-[var(--neutral-secondary-color)] py-8 md:py-20 overflow-hidden">
+            <div className="relative bg-[var(--neutral-secondary-color)] py-20 overflow-hidden">
                 <div 
                     ref={carouselRef}
-                    className="flex space-x-8 md:space-x-32 transition-transform duration-0"
+                    className="flex space-x-32 transition-transform duration-0"
                     style={{ willChange: 'transform' }}
                 >
                     {duplicatedCards.map((card, index) => (
-                        <div key={index} className="flex-shrink-0 w-4/5 md:w-auto">
+                        <div key={index} className="flex-shrink-0">
                             <HorizontalCard 
                                 title={card.title} 
                                 description={card.description} 
@@ -202,15 +250,15 @@ function Advantages() {
                     ))}
                 </div>
                 
-                <div className="absolute left-0 top-0 bottom-0 w-8 md:w-32 bg-gradient-to-r from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
-                <div className="absolute right-0 top-0 bottom-0 w-8 md:w-32 bg-gradient-to-l from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
+                <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
             </div>
 
-            <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] pt-8 md:pt-16 pb-16 md:pb-32">
+            <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] pt-16 pb-32">
                 <Link
                     to={isInAccount ? "/profile" : "/registration"}
                     className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
-                    transition-[background-color] duration-100 cursor-pointer rounded-full text-xl sm:text-2xl md:text-3xl lg:text-5xl px-6 py-4 md:px-8 md:py-6 text-[var(--neutral-color)] shadow-2xl text-center"
+                    transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl"
                 >
                     Анализировать поле
                 </Link>
@@ -235,22 +283,22 @@ export function Footer({ showNavigation=true, logoutFunction=() => {} }) {
                     </div>
                     {showNavigation ? (
                         <nav className="flex flex-col md:flex-row gap-4 md:gap-6 items-center">
-                            <a href="#main" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <a href="#main" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-colors">
                                 Главная
                             </a>
-                            <a href="#about-us" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <a href="#about-us" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-colors">
                                 О нас
                             </a>
-                            <a href="#advantages" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <a href="#advantages" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-colors">
                                 Преимущества
                             </a>
                         </nav>
                     ) : (
                         <nav className="flex flex-col md:flex-row gap-4 md:gap-6 items-center">
-                            <Link to="/" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <Link to="/" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-colors">
                                     Главная
                             </Link>
-                            <button onClick={() => logoutFunction()} className="cursor-pointer text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <button onClick={() => logoutFunction()} className="cursor-pointer text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-colors">
                                     Выйти
                             </button>
                         </nav>
