@@ -93,11 +93,11 @@ export default function Profile() {
 
   if (error && !user) {
     return (
-      <div className="flex flex-col min-h-screen justify-center items-center">
-        <div className="text-red-500 text-xl mb-4">{error}</div>
+      <div className="flex flex-col min-h-screen justify-center items-center p-4">
+        <div className="text-red-500 text-lg md:text-xl mb-4 text-center">{error}</div>
         <button 
           onClick={() => navigate('/login')}
-          className="bg-[var(--accent-color)] text-white px-4 py-2 rounded"
+          className="bg-[var(--accent-color)] text-white px-4 py-2 rounded text-base md:text-lg"
         >
           Вернуться к входу
         </button>
@@ -115,7 +115,7 @@ export default function Profile() {
         return <ProfileTab user={user} />;
       case "fields":
         return <FieldsTab setActiveTab={setActiveTab} />;
-      case "analyses": // Добавляем новую вкладку
+      case "analyses":
         return <AnalysesTab />;
       default:
         return <ProfileTab user={user} />;
@@ -125,16 +125,16 @@ export default function Profile() {
   return (
     <div className="flex flex-col min-h-screen">
       <BackButton />
-      <div className="flex-1 flex justify-center bg-[var(--neutral-light-color)] py-24">
-        <div className="pt-24 pb-12 w-[80vw] bg-white rounded-[4vw]">
-          <div className="flex w-full space-x-16 px-8 h-full">
+      <div className="flex-1 flex justify-center bg-[var(--neutral-light-color)] py-4 md:py-8 lg:py-24">
+        <div className="pt-16 md:pt-20 lg:pt-24 pb-8 md:pb-12 w-[95vw] md:w-[90vw] lg:w-[80vw] bg-white rounded-2xl md:rounded-3xl lg:rounded-[4vw]">
+          <div className="flex flex-col lg:flex-row w-full lg:space-x-8 xl:space-x-16 space-y-6 lg:space-y-0 px-4 md:px-6 lg:px-8 h-full">
             <ProfileSidebar 
               user={user} 
               activeTab={activeTab} 
               setActiveTab={setActiveTab} 
             />
 
-            <main className="flex-1 rounded-2xl p-12 mt-2">
+            <main className="flex-1 rounded-xl md:rounded-2xl p-4 md:p-6 lg:p-8 xl:p-12 mt-0 lg:mt-2">
               <ProfileHeader activeTab={activeTab} />
               {renderActiveTab()}
             </main>

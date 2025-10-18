@@ -35,6 +35,7 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
   const popupRef = useRef(null);
   const popupContentRef = useRef(null);
   const isUpdatingFromMap = useRef(false);
+  const [showMobileControls, setShowMobileControls] = useState(false);
 
   // Определяем источники тайлов
   const tileSources = {
@@ -448,7 +449,7 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
   }, [radius, fieldType, hasGeometry, isMapInitialized]);
 
   return (
-    <div className="w-full h-full rounded-xl overflow-hidden relative" style={{ minHeight: '400px' }}>
+    <div className="w-full h-full rounded-xl overflow-hidden relative" style={{ minHeight: '300px' }}>
       <div 
         ref={mapRef} 
         className="w-full h-full cursor-pointer"
@@ -461,10 +462,22 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
         <div ref={popupContentRef}></div>
       </div>
       
+      {/* Кнопка мобильного меню */}
+      <button
+        onClick={() => setShowMobileControls(!showMobileControls)}
+        className="md:hidden absolute top-2 right-2 bg-white bg-opacity-90 p-2 rounded-lg shadow-md z-10"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 12h18M3 6h18M3 18h18"/>
+        </svg>
+      </button>
+      
       {/* Информационная панель */}
       {area && (
-        <div className="absolute top-4 left-4 bg-white bg-opacity-90 p-3 rounded-lg shadow-md">
-          <div className="text-sm text-gray-700">
+        <div className={`absolute top-2 md:top-4 left-2 md:left-4 bg-white bg-opacity-90 p-2 md:p-3 rounded-lg shadow-md transition-all duration-300 ${
+          showMobileControls ? 'translate-x-0' : 'md:translate-x-0 -translate-x-full'
+        }`}>
+          <div className="text-xs md:text-sm text-gray-700">
             <div className="font-medium">Площадь: <span className="text-green-600">{area}</span></div>
             {perimeter && (
               <div className="font-medium">Периметр: <span className="text-green-600">{perimeter}</span></div>
@@ -474,22 +487,30 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
       )}
       
       {/* Панель выбора типа карты */}
-      <div className="absolute top-4 right-4 bg-white bg-opacity-90 p-2 rounded-lg shadow-md flex space-x-2">
+      <div className={`absolute top-12 md:top-4 right-2 md:right-4 bg-white bg-opacity-90 p-2 rounded-lg shadow-md flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2 transition-all duration-300 ${
+        showMobileControls ? 'translate-x-0' : 'md:translate-x-0 translate-x-full'
+      }`}>
         <button
           onClick={() => switchTileSource('osm')}
-          className={`px-3 py-1 rounded text-md ${tileSource === 'osm' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-200 text-gray-700 cursor-pointer'}`}
+          className={`px-2 md:px-3 py-1 rounded text-xs md:text-md ${
+            tileSource === 'osm' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-200 text-gray-700 cursor-pointer'
+          }`}
         >
           Карта
         </button>
         <button
           onClick={() => switchTileSource('satellite')}
-          className={`px-3 py-1 rounded text-md ${tileSource === 'satellite' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-200 text-gray-700 cursor-pointer'}`}
+          className={`px-2 md:px-3 py-1 rounded text-xs md:text-md ${
+            tileSource === 'satellite' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-200 text-gray-700 cursor-pointer'
+          }`}
         >
           Спутник
         </button>
         <button
           onClick={() => switchTileSource('terrain')}
-          className={`px-3 py-1 rounded text-md ${tileSource === 'terrain' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-200 text-gray-700 cursor-pointer'}`}
+          className={`px-2 md:px-3 py-1 rounded text-xs md:text-md ${
+            tileSource === 'terrain' ? 'bg-[var(--accent-color)] text-white' : 'bg-gray-200 text-gray-700 cursor-pointer'
+          }`}
         >
           Рельеф
         </button>
@@ -498,10 +519,21 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
       {hasGeometry && (
         <button
           onClick={clearSelection}
-          className="absolute bottom-4 left-4 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] text-white px-6 py-3 rounded-full text-xl shadow-2xs cursor-pointer transition-colors"
+          className={`absolute bottom-2 md:bottom-4 left-2 md:left-4 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] text-white px-3 md:px-6 py-2 md:py-3 rounded-full text-sm md:text-xl shadow-2xs cursor-pointer transition-all duration-300 ${
+            showMobileControls ? 'translate-x-0' : 'md:translate-x-0 -translate-x-full'
+          }`}
         >
           Очистить выделение
         </button>
+      )}
+
+      {/* Инструкция для мобильных */}
+      {!hasGeometry && (
+        <div className="md:hidden absolute bottom-2 left-2 right-2 bg-yellow-50 bg-opacity-90 p-2 rounded-lg text-xs text-gray-700 text-center">
+          {fieldType === 'polygon' 
+            ? 'Коснитесь карты для добавления вершин полигона' 
+            : 'Коснитесь карты для выбора центра точки'}
+        </div>
       )}
 
       {/* CSS для позиционирования и стилизации элементов */}
@@ -514,6 +546,7 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
           background: rgba(255,255,255,0.8);
           padding: 2px 8px;
           border-radius: 4px;
+          font-size: 12px;
         }
         .ol-scale-line-inner {
           border: 2px solid #333;
@@ -532,8 +565,27 @@ function OpenLayersMap({ fieldType, onGeometryChange, radius }) {
           background: rgba(255,255,255,0.8);
           padding: 4px 12px;
           border-radius: 4px;
-          font-size: 14px;
+          font-size: 12px;
           color: #333;
+          max-width: 200px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        
+        /* Адаптивные стили для мобильных */
+        @media (max-width: 768px) {
+          .ol-scale-line-bottom-center {
+            bottom: 4px;
+            font-size: 10px;
+            padding: 1px 6px;
+          }
+          .custom-mouse-position-top {
+            top: 4px;
+            font-size: 10px;
+            padding: 2px 8px;
+            max-width: 150px;
+          }
         }
       `}</style>
     </div>

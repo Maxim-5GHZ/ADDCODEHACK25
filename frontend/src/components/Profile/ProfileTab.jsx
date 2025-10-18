@@ -3,11 +3,11 @@ import React from 'react';
 function ProfileTab({ user }) {
   return (
     <>
-      <div className="grid grid-cols-2 gap-y-8 gap-x-16 mb-14">
-        <div className="text-2xl text-gray-500">Имя</div>
-        <div className="text-2xl font-semibold text-[var(--neutral-dark-color)]">{user.name}</div>
-        <div className="text-2xl text-gray-500">Email</div>
-        <div className="text-2xl font-semibold text-[var(--neutral-dark-color)]">{user.email}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8 md:gap-y-6 lg:gap-y-8 lg:gap-x-16 mb-8 md:mb-10 lg:mb-14">
+        <div className="text-lg md:text-xl lg:text-2xl text-gray-500">Имя</div>
+        <div className="text-lg md:text-xl lg:text-2xl font-semibold text-[var(--neutral-dark-color)] break-words">{user.name}</div>
+        <div className="text-lg md:text-xl lg:text-2xl text-gray-500">Email</div>
+        <div className="text-lg md:text-xl lg:text-2xl font-semibold text-[var(--neutral-dark-color)] break-words">{user.email}</div>
       </div>
 
       {/* Кнопки для редактирования профиля и смены пароля (на сервере нет эндпоинта, поэтому кнопки убраны) */}

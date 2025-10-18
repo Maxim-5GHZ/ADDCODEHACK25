@@ -237,7 +237,7 @@ function FieldsTab({ setActiveTab }) {
   if (loading) {
     return (
       <div className="container">
-        <div className="text-3xl font-semibold mb-4">Загрузка полей...</div>
+        <div className="text-xl md:text-2xl lg:text-3xl font-semibold mb-4">Загрузка полей...</div>
       </div>
     );
   }
@@ -245,11 +245,11 @@ function FieldsTab({ setActiveTab }) {
   if (error) {
     return (
       <div className="container">
-        <div className="text-3xl font-semibold mb-4 text-red-500">{error}</div>
+        <div className="text-xl md:text-2xl lg:text-3xl font-semibold mb-4 text-red-500">{error}</div>
         <button 
           onClick={loadFields}
-          className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] mt-6
-          transition-[background-color] duration-100 cursor-pointer rounded-full text-3xl px-5 py-4 text-[var(--neutral-color)]"
+          className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] mt-4 md:mt-6
+          transition-[background-color] duration-100 cursor-pointer rounded-full text-lg md:text-xl lg:text-2xl xl:text-3xl px-4 md:px-5 py-3 md:py-4 text-white"
         >
           Попробовать снова
         </button>
@@ -260,31 +260,31 @@ function FieldsTab({ setActiveTab }) {
   return (
     <>
       <div className="container">
-        <div className="text-3xl font-semibold mb-4">
+        <div className="text-xl md:text-2xl lg:text-3xl font-semibold mb-4">
           {fields.length === 0 ? "У вас ещё нет полей" : "Ваши поля:"}
         </div>
-        <ul className="space-y-4 max-h-[40vh] overflow-y-auto">
+        <ul className="space-y-3 md:space-y-4 max-h-[40vh] overflow-y-auto">
           {fields.map(field => (
-            <li key={field.id} className="bg-[#f6f6f6] rounded-xl px-6 py-4 flex justify-between items-center">
-              <div>
-                <span className="text-2xl font-medium text-gray-900">{field.name}</span>
+            <li key={field.id} className="bg-[#f6f6f6] rounded-lg md:rounded-xl px-4 md:px-6 py-3 md:py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center">
+              <div className="mb-2 sm:mb-0">
+                <span className="text-lg md:text-xl lg:text-2xl font-medium text-gray-900 break-words">{field.name}</span>
                 {field.area_of_interest && (
-                  <div className="text-xl text-gray-600 mt-1">
+                  <div className="text-base md:text-lg lg:text-xl text-gray-600 mt-1">
                     {field.area_of_interest.type === 'polygon' ? 'Полигон' : 'Окружность'}
                   </div>
                 )}
               </div>
-              <div className="flex gap-4">
+              <div className="flex gap-3 md:gap-4 self-stretch sm:self-auto">
                 <button 
                   onClick={() => handleAnalyzeClick(field)}
                   disabled={analyzingField === field.id}
-                  className="text-[var(--accent-color)] font-bold hover:underline text-2xl cursor-pointer disabled:text-gray-400 disabled:no-underline"
+                  className="text-[var(--accent-color)] font-bold hover:underline text-base md:text-lg lg:text-xl cursor-pointer disabled:text-gray-400 disabled:no-underline flex-1 sm:flex-none text-center px-2 py-1"
                 >
                   {analyzingField === field.id ? 'Анализ...' : 'Анализировать'}
                 </button>
                 <button 
                   onClick={() => handleDeleteField(field.id)}
-                  className="text-red-500 font-bold hover:underline text-2xl cursor-pointer"
+                  className="text-red-500 font-bold hover:underline text-base md:text-lg lg:text-xl cursor-pointer flex-1 sm:flex-none text-center px-2 py-1"
                 >
                   Удалить
                 </button>
@@ -295,8 +295,8 @@ function FieldsTab({ setActiveTab }) {
         <div>
           <button 
             onClick={() => setShowAddFieldOverlay(true)}
-            className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] mt-6
-            transition-[background-color] duration-100 cursor-pointer rounded-full text-3xl px-5 py-4 text-[var(--neutral-color)]"
+            className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] mt-4 md:mt-6
+            transition-[background-color] duration-100 cursor-pointer rounded-full text-lg md:text-xl lg:text-2xl xl:text-3xl px-4 md:px-5 py-3 md:py-4 text-white w-full sm:w-auto"
           >
             Добавить поле
           </button>
@@ -306,15 +306,15 @@ function FieldsTab({ setActiveTab }) {
       {/* Модальное окно выбора дат */}
       {showDateModal && (
         <div className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 w-[30vw]">
-            <h3 className="text-3xl font-bold mb-4 text-[var(--neutral-dark-color)]">
+          <div className="bg-white rounded-2xl md:rounded-3xl p-6 md:p-8 w-full max-w-md md:max-w-lg">
+            <h3 className="text-xl md:text-2xl lg:text-3xl font-bold mb-4 text-[var(--neutral-dark-color)]">
               Выберите период анализа
             </h3>
-            <p className="text-xl text-gray-600 mb-2">для поля "{selectedField?.name}"</p>
+            <p className="text-lg md:text-xl text-gray-600 mb-2">для поля "{selectedField?.name}"</p>
             
             <div className="space-y-4 mb-6">
               <div>
-                <label className="block text-xl font-semibold mb-2 text-[var(--neutral-dark-color)]" htmlFor="startDate">
+                <label className="block text-lg md:text-xl font-semibold mb-2 text-[var(--neutral-dark-color)]" htmlFor="startDate">
                   Начальная дата
                 </label>
                 <input
@@ -322,12 +322,12 @@ function FieldsTab({ setActiveTab }) {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full rounded-2xl px-4 py-3 text-xl bg-[var(--neutral-light-color)] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] cursor-text"
+                  className="w-full rounded-xl md:rounded-2xl px-3 md:px-4 py-2 md:py-3 text-lg md:text-xl bg-[var(--neutral-light-color)] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] cursor-text"
                 />
               </div>
               
               <div>
-                <label className="block text-xl font-semibold mb-2 text-[var(--neutral-dark-color)]" htmlFor="endDate">
+                <label className="block text-lg md:text-xl font-semibold mb-2 text-[var(--neutral-dark-color)]" htmlFor="endDate">
                   Конечная дата
                 </label>
                 <input
@@ -335,22 +335,22 @@ function FieldsTab({ setActiveTab }) {
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full rounded-2xl px-4 py-3 text-xl bg-[var(--neutral-light-color)] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] cursor-text"
+                  className="w-full rounded-xl md:rounded-2xl px-3 md:px-4 py-2 md:py-3 text-lg md:text-xl bg-[var(--neutral-light-color)] border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)] cursor-text"
                 />
               </div>
             </div>
             
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
               <button
                 onClick={handleDateModalClose}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-full py-3 text-2xl font-semibold text-gray-700 cursor-pointer"
+                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-full py-2 md:py-3 text-lg md:text-xl lg:text-2xl font-semibold text-gray-700 cursor-pointer"
               >
                 Отмена
               </button>
               <button
                 onClick={handleAnalyzeField}
                 disabled={analyzingField === selectedField?.id}
-                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] disabled:bg-gray-400 transition-colors rounded-full py-3 text-2xl font-semibold text-white cursor-pointer"
+                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] disabled:bg-gray-400 transition-colors rounded-full py-2 md:py-3 text-lg md:text-xl lg:text-2xl font-semibold text-white cursor-pointer"
               >
                 {analyzingField === selectedField?.id ? 'Анализ...' : 'Запустить анализ'}
               </button>
@@ -362,23 +362,23 @@ function FieldsTab({ setActiveTab }) {
       {/* Модальное окно завершения анализа */}
       {showAnalysisComplete && (
         <div className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full">
-            <h3 className="text-3xl font-bold mb-4 text-[var(--neutral-dark-color)]">
+          <div className="bg-white rounded-2xl md:rounded-3xl p-6 md:p-8 max-w-md w-full">
+            <h3 className="text-xl md:text-2xl lg:text-3xl font-bold mb-4 text-[var(--neutral-dark-color)]">
               Анализ завершен!
             </h3>
-            <p className="text-2xl text-gray-700 mb-6">
+            <p className="text-lg md:text-xl lg:text-2xl text-gray-700 mb-6">
               Анализ поля успешно выполнен. Вы можете просмотреть результаты во вкладке "Анализы".
             </p>
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4">
               <button
                 onClick={() => setShowAnalysisComplete(false)}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-full py-3 text-2xl font-semibold text-gray-700 cursor-pointer"
+                className="flex-1 bg-gray-200 hover:bg-gray-300 transition-colors rounded-full py-2 md:py-3 text-lg md:text-xl lg:text-2xl font-semibold text-gray-700 cursor-pointer"
               >
                 Остаться
               </button>
               <button
                 onClick={handleGoToAnalyses}
-                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-full py-3 text-2xl font-semibold text-white cursor-pointer"
+                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-full py-2 md:py-3 text-lg md:text-xl lg:text-2xl font-semibold text-white cursor-pointer"
               >
                 Перейти к анализам
               </button>

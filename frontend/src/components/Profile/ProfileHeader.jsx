@@ -11,8 +11,8 @@ function ProfileHeader({ activeTab }) {
   };
 
   return (
-    <div className="flex justify-between items-center mb-10">
-      <h1 className="text-5xl font-bold text-[var(--neutral-dark-color)] tracking-tight">
+    <div className="flex justify-between items-center mb-6 md:mb-8 lg:mb-10">
+      <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold text-[var(--neutral-dark-color)] tracking-tight">
         {getTitle()}
       </h1>
     </div>

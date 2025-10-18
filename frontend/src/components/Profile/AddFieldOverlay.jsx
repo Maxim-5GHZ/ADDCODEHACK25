@@ -1,4 +1,3 @@
-// AddFieldOverlay.jsx
 import React, { useState, useRef } from 'react';
 import { getArea } from 'ol/sphere';
 import { transform } from 'ol/proj';
@@ -130,11 +129,11 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
 
   return (
     <div 
-      className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-50 p-2 md:p-4"
       onClick={handleOverlayClick}
     >
-      <div className="bg-white rounded-3xl w-[80vw] h-[80vh] flex flex-col lg:flex-row overflow-hidden">
-        <div className="flex-1 p-6 min-h-[300px] lg:min-h-auto">
+      <div className="bg-white rounded-2xl md:rounded-3xl w-full h-full md:w-[90vw] md:h-[90vh] lg:w-[80vw] lg:h-[80vh] flex flex-col overflow-hidden">
+        <div className="flex-1 p-2 md:p-4 lg:p-6 min-h-[40vh]">
           <OpenLayersMap 
             ref={mapRef}
             fieldType={fieldType}
@@ -143,14 +142,14 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
           />
         </div>
         
-        <div className="w-full lg:w-1/3 p-6 lg:p-8 flex flex-col">
-          <div className="flex justify-between items-center mb-6 lg:mb-8">
-            <h2 className="text-2xl lg:text-3xl font-bold text-[var(--neutral-dark-color)]">
+        <div className="w-full p-4 md:p-6 lg:p-8 flex flex-col border-t border-gray-200">
+          <div className="flex justify-between items-center mb-4 md:mb-6 lg:mb-8">
+            <h2 className="text-xl md:text-2xl lg:text-3xl font-bold text-[var(--neutral-dark-color)]">
               Добавить поле
             </h2>
             <button
               onClick={handleClose}
-              className="text-3xl text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+              className="text-2xl md:text-3xl text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
             >
               ×
             </button>
@@ -172,17 +171,17 @@ function AddFieldOverlay({ isVisible, onClose, onSubmit }) {
               area={area}
             />
             
-            <div className="mt-auto pt-6 lg:pt-8 flex gap-4">
+            <div className="mt-auto pt-4 md:pt-6 lg:pt-8 flex flex-col sm:flex-row gap-3 md:gap-4">
               <button
                 type="button"
                 onClick={handleClose}
-                className="flex-1 bg-[var(--neutral-color)] hover:bg-gray-200 transition-colors rounded-full py-4 text-xl font-semibold text-gray-700 cursor-pointer shadow-2xs"
+                className="flex-1 bg-[var(--neutral-color)] hover:bg-gray-200 transition-colors rounded-full py-3 md:py-4 text-lg md:text-xl font-semibold text-gray-700 cursor-pointer shadow-2xs"
               >
                 Отмена
               </button>
               <button
                 type="submit"
-                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-full py-4 text-xl font-semibold text-white cursor-pointer shadow-2xs"
+                className="flex-1 bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)] transition-colors rounded-full py-3 md:py-4 text-lg md:text-xl font-semibold text-white cursor-pointer shadow-2xs"
               >
                 Сохранить поле
               </button>
