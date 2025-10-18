@@ -32,23 +32,23 @@ function Hero() {
     }, [])
     
     return (
-        <div id="main" className="bg-[url(assets/hero_image.jpg)] bg-cover h-240 bg-center relative">
-            <div className="bg-[var(--hero-shadow)] h-full w-full pt-48 px-48 flex flex-col">
-                <h1 className="text-8xl font-bold text-[var(--neutral-color)] tracking-tight">
+        <div id="main" className="bg-[url(assets/hero_image.jpg)] bg-cover h-screen md:h-240 bg-center relative">
+            <div className="bg-[var(--hero-shadow)] h-full w-full pt-32 md:pt-48 px-4 sm:px-8 md:px-48 flex flex-col">
+                <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-[var(--neutral-color)] tracking-tight text-center md:text-start">
                     Аналитика поля одним кликом
                 </h1>
-                <p className="text-3xl text-[var(--neutral-color)] mt-8 tracking-wider">
-                    Просто укажите свой участок на карте — и наш искусственный<br />
-                    интеллект на основе спутниковых снимков мгновенно проведёт<br />
-                    диагностику. Получите готовый отчёт о состоянии почвы,<br />
+                <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-[var(--neutral-color)] mt-4 md:mt-8 tracking-wider text-center md:text-start">
+                    Просто укажите свой участок на карте — и наш искусственный<br className="hidden md:block" />
+                    интеллект на основе спутниковых снимков мгновенно проведёт<br className="hidden md:block" />
+                    диагностику. Получите готовый отчёт о состоянии почвы,<br className="hidden md:block" />
                     растительности и потенциальных рисках для вашего урожая.
                 </p>
 
-                <div className="flex-grow flex items-end justify-center pb-48">
+                <div className="flex-grow flex items-end justify-center pb-16 md:pb-48">
                     <Link
                         to={isInAccount ? "/profile" : "/registration"}
                         className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
-                        transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl"
+                        transition-[background-color] duration-100 cursor-pointer rounded-full text-xl sm:text-2xl md:text-3xl lg:text-5xl px-6 py-4 md:px-8 md:py-6 text-[var(--neutral-color)] shadow-2xl text-center"
                     >
                         Анализировать поле
                     </Link>
@@ -66,45 +66,45 @@ function AboutUs() {
 
     return (
         <div id="about-us" className="bg-[var(--neutral-color)] w-full">
-            <div className="lg:container mx-auto lg:w-[max(3/4vw, 1000px)] pt-16 pb-32">
-                <div className="grid grid-cols-2 grid-rows-auto gap-y-16 gap-x-32">
-                    <h2 className="text-8xl font-bold text-center col-span-2 self-center">О НАС</h2>
-                    <p className="text-4xl text-start col-span-2 tracking-wider">
+            <div className="container mx-auto px-4 sm:px-8 lg:px-16 pt-16 pb-32">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-y-16 lg:gap-x-32">
+                    <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl font-bold text-center lg:col-span-2">О НАС</h2>
+                    <p className="text-lg sm:text-xl md:text-2xl lg:text-4xl text-start lg:col-span-2 tracking-wider text-center lg:text-start">
                         <strong>Мы создаём будущее сельского хозяйства,</strong> где технологии работают на результат
                         каждого фермера. Наша задача — дать вам не просто данные, а ясное понимание состояния ваших полей
                         и конкретные рекомендации для принятия решений. Всё, что для этого нужно, — всего несколько кликов.<br /><br />
                         <strong>Весь процесс от выбора поля до готового отчёта — прост и прозрачен</strong>
                     </p>
 
-                    <div className="row-start-3 col-start-1">
-                        <h2 className="text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-16">
+                    <div className="lg:row-start-3">
+                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-16">
                             ШАГ 1 →
                         </h2>
                         <div className="flex justify-center">
                             <Card title="Получение снимков" description={card2Description} image={card2Image} />
                         </div>
                     </div>
-                    <div className="row-start-3 col-start-2">
+                    <div className="lg:row-start-3">
                         <div className="flex justify-center">
                             <Card title="Выбор участка" description={card1Description} image={card1Image} />
                         </div>
-                        <h2 className="text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-32">
+                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-32">
                             ← ШАГ 2
                         </h2>
                     </div>
-                    <div className="row-start-4 col-start-1">
-                        <h2 className="text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-16">
+                    <div className="lg:row-start-4">
+                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-16">
                             ШАГ 3 →
                         </h2>
                         <div className="flex justify-center">
                             <Card title="Подготовка отчета" description={card4Description} image={card4Image} />
                         </div>
                     </div>
-                    <div className="row-start-4 col-start-2">
+                    <div className="lg:row-start-4">
                         <div className="flex justify-center">
                             <Card title="Анализ снимков" description={card3Description} image={card3Image} />
                         </div>
-                        <h2 className="text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-32 mt-32">
+                        <h2 className="text-4xl sm:text-5xl md:text-6xl lg:text-9xl text-center text-[var(--neutral-dark-secondary-color)] mb-8 lg:mb-32 mt-8 lg:mt-32">
                             ← ШАГ 4
                         </h2>
                     </div>
@@ -180,19 +180,19 @@ function Advantages() {
     return (
         <div className="bg-[var(--neutral-secondary-color)] overflow-hidden">
             <div id="advantages" className="bg-[var(--neutral-secondary-color)] pt-16">
-                <h3 className="text-8xl text-[var(--neutral-dark-color)] font-bold text-center">
+                <h3 className="text-4xl sm:text-5xl md:text-6xl lg:text-8xl text-[var(--neutral-dark-color)] font-bold text-center px-4">
                     ПРЕИМУЩЕСТВА
                 </h3>
             </div>
             
-            <div className="relative bg-[var(--neutral-secondary-color)] py-20 overflow-hidden">
+            <div className="relative bg-[var(--neutral-secondary-color)] py-8 md:py-20 overflow-hidden">
                 <div 
                     ref={carouselRef}
-                    className="flex space-x-32 transition-transform duration-0"
+                    className="flex space-x-8 md:space-x-32 transition-transform duration-0"
                     style={{ willChange: 'transform' }}
                 >
                     {duplicatedCards.map((card, index) => (
-                        <div key={index} className="flex-shrink-0">
+                        <div key={index} className="flex-shrink-0 w-4/5 md:w-auto">
                             <HorizontalCard 
                                 title={card.title} 
                                 description={card.description} 
@@ -202,15 +202,15 @@ function Advantages() {
                     ))}
                 </div>
                 
-                <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
-                <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
+                <div className="absolute left-0 top-0 bottom-0 w-8 md:w-32 bg-gradient-to-r from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
+                <div className="absolute right-0 top-0 bottom-0 w-8 md:w-32 bg-gradient-to-l from-[var(--neutral-secondary-color)] to-transparent z-10"></div>
             </div>
 
-            <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] pt-16 pb-32">
+            <div className="flex flex-col justify-center items-center bg-[var(--neutral-secondary-color)] pt-8 md:pt-16 pb-16 md:pb-32">
                 <Link
                     to={isInAccount ? "/profile" : "/registration"}
                     className="bg-[var(--accent-color)] hover:bg-[var(--accent-light-color)]
-                    transition-[background-color] duration-100 cursor-pointer rounded-full text-5xl px-8 py-6 text-[var(--neutral-color)] shadow-2xl"
+                    transition-[background-color] duration-100 cursor-pointer rounded-full text-xl sm:text-2xl md:text-3xl lg:text-5xl px-6 py-4 md:px-8 md:py-6 text-[var(--neutral-color)] shadow-2xl text-center"
                 >
                     Анализировать поле
                 </Link>
@@ -222,41 +222,41 @@ function Advantages() {
 
 export function Footer({ showNavigation=true, logoutFunction=() => {} }) {
     return (
-        <footer className="bg-[var(--neutral-dark-color)] pt-16 pb-8">
-            <div className="max-w-7xl mx-auto px-8">
+        <footer className="bg-[var(--neutral-dark-color)] pt-8 md:pt-16 pb-8">
+            <div className="max-w-7xl mx-auto px-4 sm:px-8">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-8 pb-8 border-b border-[var(--neutral-color)]">
-                    <div className="flex flex-col items-start">
+                    <div className="flex flex-col items-center md:items-start text-center md:text-start">
                         <div className="flex items-center gap-4 mb-4">
-                            <img src={logoSVG} alt="FieldScan" className="h-16 w-16" />
-                            <span className="text-4xl font-bold text-[var(--accent-color)] tracking-tight">FieldScan</span>
+                            <img src={logoSVG} alt="FieldScan" className="h-12 w-12 md:h-16 md:w-16" />
+                            <span className="text-2xl md:text-4xl font-bold text-[var(--accent-color)] tracking-tight">FieldScan</span>
                         </div>
-                        <span className="text-xl text-gray-500 font-medium mb-2">2025 © Все права защищены</span>
-                        <span className="text-lg text-gray-400">Создано для будущего агроаналитики</span>
+                        <span className="text-sm md:text-xl text-gray-500 font-medium mb-2">2025 © Все права защищены</span>
+                        <span className="text-xs md:text-lg text-gray-400">Создано для будущего агроаналитики</span>
                     </div>
                     {showNavigation ? (
-                        <nav className="flex flex-col md:flex-row gap-6 items-center">
-                            <a href="#main" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                        <nav className="flex flex-col md:flex-row gap-4 md:gap-6 items-center">
+                            <a href="#main" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
                                 Главная
                             </a>
-                            <a href="#about-us" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <a href="#about-us" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
                                 О нас
                             </a>
-                            <a href="#advantages" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <a href="#advantages" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
                                 Преимущества
                             </a>
                         </nav>
                     ) : (
-                        <nav className="flex flex-col md:flex-row gap-6 items-center">
-                            <Link to="/" className="text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                        <nav className="flex flex-col md:flex-row gap-4 md:gap-6 items-center">
+                            <Link to="/" className="text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
                                     Главная
                             </Link>
-                            <button onClick={() => logoutFunction()} className="cursor-pointer text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
+                            <button onClick={() => logoutFunction()} className="cursor-pointer text-lg md:text-2xl text-[var(--accent-color)] hover:text-[var(--accent-light-color)] transition-[color]">
                                     Выйти
                             </button>
                         </nav>
                     )}
                 </div>
-                <div className="text-center text-gray-400 text-lg pt-6">
+                <div className="text-center text-gray-400 text-sm md:text-lg pt-6">
                     FieldScan — ваш помощник в цифровом сельском хозяйстве
                 </div>
             </div>

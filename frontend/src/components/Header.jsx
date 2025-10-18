@@ -42,42 +42,41 @@ function Header({ isTransparent }) {
     }, []);
 
     return (
-    <header id='header' className={`shadow-md fixed w-dvw h-1/14 z-20 ${isTransparent ? "bg-[var(--header-blur)] backdrop-blur-xs" : "bg-[var(--neutral-color)]" }`}>
-        <div className="px-32 h-full">
+    <header id='header' className={`shadow-md fixed w-dvw h-16 md:h-1/14 z-20 ${isTransparent ? "bg-[var(--header-blur)] backdrop-blur-xs" : "bg-[var(--neutral-color)]" }`}>
+        <div className="px-4 sm:px-8 md:px-32 h-full">
             <div className="flex items-center justify-between h-full">
                 <div className="flex flex-row flex-shrink-0 h-full items-center">
                     <Link to="/" className="flex items-center h-full">
-                        <img src={logoSVG} className="max-h-full" />
+                        <img src={logoSVG} className="max-h-12 md:max-h-full" />
                     </Link>
-                    <Link to="/" className={`text-4xl poppins-medium mt-2
+                    <Link to="/" className={`text-xl md:text-2xl lg:text-4xl poppins-medium mt-1 md:mt-2
                         ${isTransparent ? "text-[var(--neutral-color)]" : "text-[var(--neutral-dark-color)]"}`}>
                             FieldScan
                     </Link>
                 </div>
 
-                <nav className="hidden md:flex gap-x-16 text-center">
-                    <a href="#main" className={`${navButtonsStyle} text-3xl transition-colors duration-100`}>
+                <nav className="hidden md:flex gap-x-8 lg:gap-x-16 text-center">
+                    <a href="#main" className={`${navButtonsStyle} text-lg lg:text-2xl xl:text-3xl transition-colors duration-100`}>
                         Главная
                     </a>
-                    <a href="#about-us" className={`${navButtonsStyle} text-3xl transition-colors duration-100"`}>
+                    <a href="#about-us" className={`${navButtonsStyle} text-lg lg:text-2xl xl:text-3xl transition-colors duration-100"`}>
                         О нас
                     </a>
-                    <a href="#advantages" className={`${navButtonsStyle} text-3xl transition-colors duration-100"`}>
+                    <a href="#advantages" className={`${navButtonsStyle} text-lg lg:text-2xl xl:text-3xl transition-colors duration-100"`}>
                         Преимущества
                     </a>
                 </nav>
 
-                <div className="flex items-center gap-x-16">
+                <div className="flex items-center gap-x-4 md:gap-x-8 lg:gap-x-16">
                     {user ? (
                         <>
-                            <Link to="/profile" className={`group ${navButtonsStyle} text-3xl transition-colors duration-100`}>
+                            <Link to="/profile" className={`group ${navButtonsStyle} text-lg lg:text-2xl xl:text-3xl transition-colors duration-100`}>
                                 <div className="flex flex-row items-center">
-                                    <p>
+                                    <p className="hidden sm:block">
                                         {user.first_name} {user.last_name}
                                     </p>
-                                    <div className="w-20 h-20 bg-transparent flex items-center justify-center">
-                                        {/* SVG аватар */}
-                                        <svg width="30" height="30" fill="none" strokeWidth="2" viewBox="0 0 24 24"
+                                    <div className="w-12 h-12 md:w-20 md:h-20 bg-transparent flex items-center justify-center">
+                                        <svg width="24" height="24" md:width="30" md:height="30" fill="none" strokeWidth="2" viewBox="0 0 24 24"
                                         className={`${svgStyle} transition-colors duration-100`}>
                                             <circle cx="12" cy="8" r="4"/>
                                             <path d="M4 20c0-4 8-4 8-4s8 0 8 4"/>
@@ -89,11 +88,11 @@ function Header({ isTransparent }) {
                         
                     ) : (
                         <>
-                            <Link to="/login" className={`${navButtonsStyle} text-3xl transition-colors duration-100"`}>
+                            <Link to="/login" className={`${navButtonsStyle} text-lg lg:text-2xl xl:text-3xl transition-colors duration-100"`}>
                                 Войти
                             </Link>
-                            <Link to="/registration" className={`${navButtonsStyle} text-3xl transition-colors duration-100"`}>
-                                Зарегистрироваться
+                            <Link to="/registration" className={`${navButtonsStyle} text-lg lg:text-2xl xl:text-3xl transition-colors duration-100"`}>
+                                Регистрация
                             </Link>
                         </>
                     )}
