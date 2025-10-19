@@ -98,8 +98,8 @@ async function performAnalysis(token, startDate, endDate, options) {
     
     if (options.lon && options.lat && options.radius_km) {
         url += `&lon=${encodeURIComponent(options.lon)}&lat=${encodeURIComponent(options.lat)}&radius_km=${encodeURIComponent(options.radius_km)}`;
-    } else if (options.polygonCoords) {
-        url += `&polygon_coords=${encodeURIComponent(JSON.stringify(options.polygonCoords))}`;
+    } else if (options.polygon_coords) { 
+        url += `&polygon_coords=${encodeURIComponent(JSON.stringify(options.polygon_coords))}`;
     }
     
     return fetch(url, { method: 'POST' });

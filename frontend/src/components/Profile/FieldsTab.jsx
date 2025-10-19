@@ -177,8 +177,6 @@ function FieldsTab({ setActiveTab }) {
       let response;
       
       if (selectedField.area_of_interest.type === 'point_radius') {
-        console.log('FieldsTab: Анализ по точке с радиусом', selectedField.area_of_interest);
-        console.log(`Start_date: ${startDate}, End_date ${endDate}`);
         response = await performAnalysis(
           token, 
           startDate, 
@@ -190,14 +188,12 @@ function FieldsTab({ setActiveTab }) {
           }
         );
       } else if (selectedField.area_of_interest.type === 'polygon') {
-        console.log('FieldsTab: Анализ по полигону', { coordinatesCount: selectedField.area_of_interest.coordinates?.length });
-        console.log(`Start_date: ${startDate}, End_date ${endDate}`);
         response = await performAnalysis(
           token,
           startDate,
           endDate,
           {
-            polygonCoords: selectedField.area_of_interest.coordinates
+            polygon_coords: selectedField.area_of_interest.coordinates
           }
         );
       }
